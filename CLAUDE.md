@@ -121,6 +121,36 @@ check `docs/GODOT_4.7_RULES.md`. If it is not there, fetch
 `deg2rad`/`rad2deg` · `SCREEN_TEXTURE` in shaders · the `.shader` extension ·
 `Tween` as a node · `ResourceSaver.save(path, res)` (args swapped in 4.x)
 
+### A local name reused in one function can HANG the parser, with no output
+
+**Symptom: `--gate` prints nothing at all — not even `[gate] compiling N
+scripts...` — and never exits.** Not an error, not a crash. Silence.
+
+It happened twice in one session, both times within a minute of an edit:
+
+- `tools/substancetest.gd::_fingerprint()` already declared `var prev` for its
+  turn measurement; a second `var prev` was added lower down in the same
+  function.
+- `tools/selftest.gd::_the_files()` declared `var f` and `var text` in one loop
+  and then again in the next loop in the same function.
+
+Both were fixed by renaming (`last_pos`, `f2`/`text2`) and both were confirmed by
+bisection: the same edit with a different local name compiles in 25 s, and with
+the reused name never finishes. Reproduced twice for `prev`, and `previous`,
+`prevd`, `d`, `step` and `delta_v` all pass in the identical position.
+
+**A minimal two-`var prev` file does NOT hang** — with or without `await` it
+gives the clean `Parse Error: There is already a variable named "prev" declared
+in this scope.` So the root cause is not established and this is not a claim
+about Godot in general. What is established is the rule and the diagnosis:
+
+> **Never reuse a local name inside one function scope in this project.** If the
+> gate goes silent, the last edit is the suspect — bisect it, and look for a
+> name you have already used higher up in the same function.
+
+`git` is the tool for that, which is why the safety net matters: `git stash push
+<file>` and re-run the gate isolates it in one step.
+
 ### The single most common way this codebase breaks
 
 ```gdscript

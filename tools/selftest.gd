@@ -67,6 +67,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_ambience(main)
 	_the_rig_schedule(main)
 	_the_files()
+	_the_dose_window(main)
 	_the_assets()
 	_the_time_scale()
 
@@ -384,6 +385,76 @@ static func _walk_files(dir_path: String, scripts: Array[String], resources: Arr
 				resources.append(full)
 		fname = d.get_next()
 	d.list_dir_end()
+
+
+# ──────────────────────────────────────────── the dose window
+
+## THE ONLY TIMING SKILL GATE IN THE GAME, AND IT WAS NEVER MEASURED.
+##
+## `docs/DESIGN_MISSIONS.md` calls the sweet spot "the only real skill gate in
+## the game; every substance runs through it", and `goose_controller.gd` agrees
+## in `_tick_eat()`: *"Skill expression is STOPPING, not holding."*
+##
+## The skill is therefore a stopwatch problem. `_eat_charge` rises at
+## `delta / charge_time`, so the band `[sweet_min, sweet_max]` is open for
+##
+##     (sweet_max - sweet_min) * charge_time   SECONDS
+##
+## and THAT is the number a player's thumb has to hit. Nothing in this project
+## had ever computed it. It is a property of two fields in sixteen separate
+## `.tres` files, which is exactly the shape of thing that drifts — and exactly
+## the shape of thing the clock lie was, three times.
+##
+## Measured across the shelf on 2026-08-18: **0.252 s (percs) to 0.700 s
+## (grass)**, a spread of 2.78x. Nothing is broken. The bounds below exist so it
+## stays that way.
+##
+## AN EMERGENT DESIGN PROPERTY WORTH KNOWING ABOUT: sorted by window, the order
+## is percs, math, nitrous, darts at the tight end and grass, fly agaric, catnip
+## at the wide end. **The substances that punish you hardest are the hardest to
+## dose correctly.** Nobody wrote that down; it fell out of sixteen independent
+## choices, it is good, and it is now defended by the fact that this file will
+## complain if a new substance breaks the pattern's floor or ceiling.
+const DOSE_WINDOW_MIN := 0.15
+const DOSE_WINDOW_MAX := 0.85
+
+
+static func _the_dose_window(main: Node) -> void:
+	var subs := main.get_node_or_null("/root/Subs")
+	if subs == null:
+		_ok(false, "no Subs autoload — the dose windows cannot be checked")
+		return
+	var library: Dictionary = subs.library
+	_ok(library.size() > 0, "the substance library is empty")
+
+	for id in library:
+		var res: Substance = library[id]
+		if res == null:
+			continue
+		var ct: float = res.charge_time
+		var lo: float = res.sweet_min
+		var hi: float = res.sweet_max
+
+		_ok(ct > 0.05,
+			"%s has a charge_time of %.2f s. _tick_eat() divides by it (clamped at 0.05), so anything at or below that makes the dose instant and deletes the skill gate." % [id, ct])
+		_ok(lo < hi,
+			"%s has sweet_min %.2f >= sweet_max %.2f, so its sweet spot is empty and every dose is either BARELY ANYTHING or an OVERDOSE." % [id, lo, hi])
+		_ok(lo > 0.0 and hi <= 1.0,
+			"%s's sweet band [%.2f, %.2f] is outside the 0..1 the charge can reach; _eat_charge is clamped to 1.0." % [id, lo, hi])
+
+		# The band's width IN SECONDS, which is what the thumb has to hit.
+		var window: float = (hi - lo) * ct
+		_ok(window >= DOSE_WINDOW_MIN,
+			("%s's sweet spot is open for %.3f s (%.0f frames at 60 Hz). Under %.2f s this stops "
+			+ "being a skill and becomes a coin flip, and DESIGN_MISSIONS calls this the only real "
+			+ "skill gate in the game.") % [id, window, window * 60.0, DOSE_WINDOW_MIN])
+		_ok(window <= DOSE_WINDOW_MAX,
+			("%s's sweet spot is open for %.3f s. Over %.2f s there is no timing test left — you "
+			+ "cannot miss it, and every dose scores SWEET SPOT.") % [id, window, DOSE_WINDOW_MAX])
+
+		# And the whole band has to be reachable before the charge saturates.
+		_ok(hi * ct <= ct + 0.001,
+			"%s's band closes at %.2f s but a full charge takes %.2f s" % [id, hi * ct, ct])
 
 
 # ─────────────────────────────────────────────────────────────── the titles

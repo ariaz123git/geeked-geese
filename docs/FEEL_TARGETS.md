@@ -356,7 +356,47 @@ changes all seven flights.
 
 ---
 
-## 7. What will never be in this file
+## 7. The dose window — the only timing skill gate, finally measured
+
+`docs/DESIGN_MISSIONS.md` calls the sweet spot *"the only real skill gate in the
+game; every substance runs through it"*, and `_tick_eat()` agrees: **"Skill
+expression is STOPPING, not holding."**
+
+So the skill is a stopwatch problem. `_eat_charge` rises at `delta /
+charge_time`, which makes the band open for
+`(sweet_max − sweet_min) × charge_time` **seconds** — and that is the number a
+thumb has to hit. **Nothing in this project had ever computed it.** It is a
+property of two fields across sixteen separate `.tres` files, which is precisely
+the shape of thing that drifts.
+
+| | window | at 60 Hz |
+|---|---|---|
+| `percs` — narrowest | **0.252 s** | 15 frames |
+| `math` | 0.256 s | 15 frames |
+| `nitrous` | 0.280 s | 17 frames |
+| … | | |
+| `fly_agaric` | 0.480 s | 29 frames |
+| `grass` — widest | **0.700 s** | 42 frames |
+
+**Nothing is broken.** The spread is 2.78×, and the tightest window is 15 frames
+— demanding but far from a coin flip. `selftest.gd::_the_dose_window()` now
+holds every substance to `[0.15, 0.85]` s so it stays that way, and checks that
+each band is non-empty, inside 0..1, and reachable before the charge saturates.
+
+### The part worth knowing
+
+Sorted by window, the order is **percs, math, nitrous, darts** at the tight end
+and **grass, fly agaric, catnip** at the wide end. *The substances that punish
+you hardest are the hardest to dose correctly.*
+
+Nobody wrote that down. It fell out of sixteen independent choices about
+`charge_time` and a sweet band, it is good design, and until now it was
+invisible — you could only see it by computing a number nobody had computed.
+That is the argument for this whole file in one paragraph.
+
+---
+
+## 8. What will never be in this file
 
 Whether the goose is funny. Whether the honk lands. Whether the strip mall is a
 good first zone. Whether the ending earns itself. Whether any of it is *fun*.

@@ -300,9 +300,9 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 			+ "The macropsia pulse is not reaching _tick_size().") % [id, float(r.scale_amp), fp.size])
 
 	if want_idle:
-		_ok(fp.idle > 0.25,
-			("%s declares cannot_idle but the bird moved %.2f m in 0.4 s of NO input. Letting go "
-			+ "is supposed to not stop you.") % [id, fp.idle])
+		_ok(fp.idle > 0.80,
+			("%s declares cannot_idle but the bird travelled only %.2f m of PATH in 1.2 s of NO "
+			+ "input. Letting go is supposed to not stop you.") % [id, fp.idle])
 
 	if want_cats:
 		await _the_cats(tree, subs, res)
@@ -488,13 +488,40 @@ static func _fingerprint(tree: SceneTree, goose: CharacterBody3D, subs: Node) ->
 		cam.set("_manual_t", 0.0)
 
 	# --- let go: does it stop? ---
+	# SAMPLED ACROSS A FULL PERIOD OF THE DRIVER, AND AS PATH, NOT DISPLACEMENT.
+	#
+	# `cannot_idle` replaces a released stick with
+	#     Vector2(sin(ticks * 0.004), cos(ticks * 0.0052)) * 0.55
+	# whose two terms have DIFFERENT periods -- 1.57 s and 1.21 s -- so the
+	# vector does not pulse along one axis, it ROTATES. Two consequences, and
+	# this measurement got both wrong in turn:
+	#
+	#   1. Over the 0.33 s originally sampled, that vector can sit near one of
+	#      its own zero crossings and the bird genuinely barely moves.
+	#      Double-Double measured 0.17 m and failed the build on a working
+	#      mechanic. 72 ticks is 1.2 s, a full period of the faster term.
+	#   2. Because the direction rotates, the bird comes back on itself and
+	#      END-MINUS-START CANCELS most of the motion: 0.33 m of displacement
+	#      over 1.2 s of never once standing still. Summing the per-frame steps
+	#      asks the question the mechanic actually poses -- did letting go of
+	#      the stick stop you.
+	#
+	# Both are the same error the drift channel made, in two more costumes.
+	#
+	# `last_pos` is NOT called `prev`, and that is not a style choice: this
+	# function already declares a `prev` for the turn measurement, and a second
+	# one does not error, it HANGS THE PARSER. See CLAUDE.md.
 	goose.velocity = Vector3.ZERO
-	var p1 := goose.global_position
-	for _i in 20:
+	var last_pos := goose.global_position
+	var travelled := 0.0
+	for _i in 72:
 		await tree.physics_frame
-	var idled := goose.global_position - p1
-	idled.y = 0.0
-	out.idle = idled.length()
+		var here := goose.global_position
+		var hop := here - last_pos
+		hop.y = 0.0
+		travelled += hop.length()
+		last_pos = here
+	out.idle = travelled
 
 	# --- one flap, from level flight, with the power factor it actually used ---
 	goose.global_position += Vector3.UP * 70.0
