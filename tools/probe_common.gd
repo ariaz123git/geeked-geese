@@ -47,6 +47,13 @@ extends RefCounted
 ## about 5 m, and stop-distance coasts a little past that.
 const PAD_RADIUS := 9.0
 
+## Physics frames a probe drop may take to ARRIVE before the spot is written off
+## as unanswerable. The controller's ground gravity is 28 m/s², so a 2 m drop
+## lands in 0.38 s — 23 frames — and 40 leaves room for ground a metre lower
+## than the bird started. It is a ceiling, not a wait: `_drop()` returns the
+## moment it touches down or the moment it touches water.
+const DROP_BUDGET := 40
+
 ## Cached dry pad, found once per run. Shared by every caller in this process.
 static var _dry := Vector3.ZERO
 static var _dry_ok := false
@@ -73,6 +80,55 @@ static func fresh_goose(tree: SceneTree, main: Node) -> CharacterBody3D:
 	return g as CharacterBody3D
 
 
+## Drop the bird at `where` and wait for it to ARRIVE, watching for water the
+## whole way down. Returns `{"floored": bool, "wet": bool}`.
+##
+## A FIXED FRAME COUNT CANNOT ANSWER "IS THIS SPOT WET", AND THAT SHIPPED.
+## The pad ring below used to teleport the bird a metre up and read
+## `_water_bodies` six frames later. Ground gravity in this controller is
+## 28 m/s², so six frames is **0.16 m of fall** — the probe is still in the air
+## when the question is asked. Leg 1's pond is a `CylinderShape3D` of height 2.4
+## centred at y = 0.5, so the water **stops at y = 1.70**: a probe hovering at
+## 2.16 over open water reported *dry*, and the ring certified the retention
+## pond as walkable ground.
+##
+## The measured consequence, on 2026-08-18: `find_dry_ground` accepted the pad at
+## (-17.0, 1.3, -6.0), whose ring point at (-17, ·, -15) is **9.90 m from the
+## pond centre against an 11 m radius**. The first sober fingerprint then held
+## forward for two seconds, waded in, and returned `speed 5.40` — which is
+## `swim_speed` exactly — and `turnrate 19.79`, which is `28.27 × 0.7` and the
+## 0.7 lives in `_tick_water()` and nowhere else. The noise guard refused the
+## report, correctly, and the build went red with **seven substances accused of
+## a broken `turn_mult` because their ratios had been divided by a baseline
+## measured in a pond.**
+##
+## This is lesson 1 at the top of this file, wearing a new hat, INSIDE THE
+## FUNCTION WRITTEN TO PREVENT IT. Settle on a condition, never on a frame count.
+static func _drop(tree: SceneTree, goose: CharacterBody3D, where: Vector3) -> Dictionary:
+	goose.global_position = where
+	goose.velocity = Vector3.ZERO
+	goose.set("state", 0)          # State.GROUND
+	var landed := false
+	for _i in DROP_BUDGET:
+		await tree.physics_frame
+		# `_water_bodies` is the goose's own count of overlapping water Area3Ds,
+		# and it is what forces State.WATER every physics frame. Asking it
+		# directly beats inferring from the state. Checked EVERY frame of the
+		# fall, so a spot over water answers as soon as the bird reaches it
+		# rather than costing the whole budget.
+		if int(goose.get("_water_bodies")) != 0:
+			return {"floored": true, "wet": true}
+		if goose.is_on_floor():
+			landed = true
+			break
+	# Two frames of grace. Area overlaps are reported during the physics step, so
+	# the frame the bird touches down is not always the frame the water it landed
+	# in has been counted.
+	for _j in 2:
+		await tree.physics_frame
+	return {"floored": landed, "wet": int(goose.get("_water_bodies")) != 0}
+
+
 ## A spot with `PAD_RADIUS` metres of dry, floored ground around it, found once
 ## and cached. Returns it; also leaves the goose standing on it.
 ##
@@ -82,6 +138,12 @@ static func fresh_goose(tree: SceneTree, main: Node) -> CharacterBody3D:
 ## and reports `swim_speed` against a window written for `waddle_speed`. **The
 ## measurement moves the bird, so the candidate has to be dry across the ground
 ## the bird will cover, not at the point it starts on.**
+##
+## AND THE PAD HAS TO BE PROVEN STANDING ON IT. Every probe below settles on a
+## condition — see `_drop()` for the 2026-08-18 failure that rule was rewritten
+## for — and the candidate is only accepted after the bird has been put back on
+## the centre and found dry and floored there, which is the pose the measurement
+## actually starts from.
 static func find_dry_ground(tree: SceneTree, goose: CharacterBody3D, tag: String) -> Vector3:
 	if _dry_ok:
 		return _dry
@@ -94,29 +156,37 @@ static func find_dry_ground(tree: SceneTree, goose: CharacterBody3D, tag: String
 			offsets.append(Vector3(cos(ang), 0.0, sin(ang)) * radius)
 
 	for off in offsets:
-		goose.global_position = base + off + Vector3.UP * 2.0
-		goose.velocity = Vector3.ZERO
-		goose.set("state", 0)          # State.GROUND
-		for _i in 16:
-			await tree.physics_frame
-		# `_water_bodies` is the goose's own count of overlapping water Area3Ds,
-		# and it is what forces State.WATER every physics frame. Asking it
-		# directly beats inferring from the state.
-		if int(goose.get("_water_bodies")) != 0 or not goose.is_on_floor():
+		var here: Dictionary = await _drop(tree, goose, base + off + Vector3.UP * 2.0)
+		if bool(here.wet) or not bool(here.floored):
 			continue
 		var centre := goose.global_position
 
+		# EIGHT SPOKES, NOT FOUR. Four spokes at 9 m leave 12.7 m between
+		# neighbours, which is wider than leg 1's pond is across — a water body
+		# sitting in a gap is invisible to the ring and the walk finds it anyway.
+		# The pond that got through on 2026-08-18 was a direct hit on a spoke, so
+		# this is the near miss rather than the one that happened; it costs four
+		# more drops, and only on a candidate that has already passed everything
+		# else.
 		var pad_ok := true
-		for a2 in 4:
-			var ang2 := TAU * float(a2) / 4.0
-			goose.global_position = centre + Vector3(cos(ang2), 0.0, sin(ang2)) * PAD_RADIUS + Vector3.UP
-			goose.velocity = Vector3.ZERO
-			for _j in 6:
-				await tree.physics_frame
-			if int(goose.get("_water_bodies")) != 0:
+		for a2 in 8:
+			var ang2 := TAU * float(a2) / 8.0
+			var ring: Dictionary = await _drop(tree, goose,
+				centre + Vector3(cos(ang2), 0.0, sin(ang2)) * PAD_RADIUS + Vector3.UP * 2.0)
+			# A ring point the bird cannot reach the floor of is a ring point
+			# this function cannot certify — a ledge, a hole, or the far side of
+			# a wall. Rejected rather than assumed dry: an unanswered question
+			# was exactly how the pond got through.
+			if bool(ring.wet) or not bool(ring.floored):
 				pad_ok = false
 				break
 		if not pad_ok:
+			continue
+
+		# BACK TO THE CENTRE, AND PROVE IT THERE. The ring walk leaves the bird
+		# nine metres away; the measurement starts here.
+		var home: Dictionary = await _drop(tree, goose, centre + Vector3.UP * 0.5)
+		if bool(home.wet) or not bool(home.floored):
 			continue
 
 		_dry = centre

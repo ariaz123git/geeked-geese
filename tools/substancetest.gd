@@ -64,6 +64,12 @@ const CLIMB_TOL := 0.18
 ## angular step and input lag moves which frame that is.
 const TURN_TOL := 0.25
 
+## How far the bird may stray from the pad during the walk channel before it is
+## snapped back. Comfortably inside `probe_common.PAD_RADIUS` (9.0), because the
+## turn channel that follows starts from wherever the walk left off and travels
+## the other way. See the leash argument in `_fingerprint()`.
+const LEASH := 6.0
+
 
 ## Substances whose only control mutation changes the WORLD, not the hands, and
 ## which therefore cannot be seen by a controller measurement. Each one needs a
@@ -111,6 +117,11 @@ static func run(tree: SceneTree, main: Node) -> void:
 	# gate is reporting its own jitter as a substance effect.
 	var sober := await _fingerprint(tree, goose, subs)
 	var sober2 := await _fingerprint(tree, goose, subs)
+	# THE PRECONDITION, ASSERTED DIRECTLY. `_fingerprint()` counts the frames the
+	# bird spent in State.WATER during the two ground channels; the ground model
+	# is the only thing those channels are allowed to be measuring.
+	_wet_check("sober", sober)
+	_wet_check("repeat", sober2)
 	print("[subs] sober   speed %.2f m/s  offaxis %.3f rad  turnrate %.2f rad/s  climb %.2f m"
 		% [sober.speed, sober.offaxis, sober.turnrate, sober.climb])
 	print("[subs] repeat  speed %.2f m/s  offaxis %.3f rad  turnrate %.2f rad/s  climb %.2f m"
@@ -126,11 +137,33 @@ static func run(tree: SceneTree, main: Node) -> void:
 	# A NOISE FLOOR IS ONLY USEFUL IF SOMETHING CHECKS IT. Every threshold below
 	# is built from these; if the harness itself is jittering, the thresholds it
 	# derives are meaningless and it must say so rather than quietly widening.
-	_ok(float(noise.offaxis) < 0.05 and float(noise.turnrate) < 1.5 and float(noise.climb) < 0.05,
+	noise["ok"] = (float(noise.offaxis) < 0.05 and float(noise.turnrate) < 1.5
+		and float(noise.climb) < 0.05)
+	_ok(bool(noise.ok),
 		("the harness does not agree with itself between two SOBER runs (offaxis %.3f, turnrate "
 		+ "%.3f, climb %.3f). Every threshold below is derived from this floor, so nothing it "
 		+ "reports about a substance can be trusted. Fix the measurement, not the substances.")
 			% [noise.offaxis, noise.turnrate, noise.climb])
+	# AND THEN IT HAS TO ACT ON WHAT IT JUST SAID.
+	#
+	# This file used to print the sentence above and then run every ratio check
+	# anyway. On 2026-08-18 that turned ONE harness fault into EIGHT failures:
+	# the first sober fingerprint had waded into leg 1's pond and measured
+	# `swim_speed`, so the sober turn rate came back 0.7x low, and seven
+	# substances — berries, bars, fly_agaric, molly, grass, nitrous and
+	# double_double — were each accused of a broken `turn_mult` for being
+	# exactly 1/0.7 = 1.43x out. Every one of those numbers was the pond.
+	#
+	# `probe_common._drop()` has the fix for the cause. This is the second wall:
+	# the two channels that DIVIDE BY SOBER go quiet when sober is not
+	# reproducible, and every channel that stands on its own — drift, the
+	# macropsia pulse, `cannot_idle`, the clock, the cats — keeps running. The
+	# build still fails, on the one line that is true.
+	if not bool(noise.ok):
+		print("[subs] SUPPRESSED for every substance below: peak turn rate and one-flap climb. "
+			+ "Both are ratios against a sober baseline this harness has just said it cannot "
+			+ "reproduce, so both would report the harness's own jitter as a broken substance. "
+			+ "Nothing printed below is evidence about a substance.")
 
 	var ids: Array = subs.library.keys()
 	ids.sort()
@@ -157,6 +190,22 @@ static func _ok(cond: bool, msg: String) -> void:
 	_checks += 1
 	if not cond:
 		_fails.append(msg)
+
+
+## THE WALK TEST HAS TO HAVE BEEN A WALK.
+##
+## Named as a HARNESS fault in as many words, because that is what it is and
+## because this project's four measuring gates spent most of their first runs
+## accusing a healthy game. `probe_common.find_dry_ground()` certifies the pad;
+## this is the receipt that the certificate was good on the day.
+static func _wet_check(who: String, fp: Dictionary) -> void:
+	_ok(int(fp.wet) == 0,
+		("HARNESS FAULT — the %s fingerprint spent %d of its 170 ground frames in State.WATER. "
+		+ "The walk and turn channels measure `swim_speed` (5.4) and `turn_rate * 0.7` in that "
+		+ "state instead of `waddle_speed` (4.2) and `turn_rate`, so this baseline is a "
+		+ "measurement of a different model and every ratio derived from it is wrong by 1/0.7. "
+		+ "The pad `probe_common.find_dry_ground()` chose is not dry across the ground the walk "
+		+ "covers. Fix the pad, not the substances.") % [who, int(fp.wet)])
 
 
 # ---------------------------------------------------------------- one substance
@@ -218,6 +267,7 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 
 	print("[subs] %-14s speed %5.2f  drift %.3f (%.3f rad off)  turnrate %5.2f  climb %5.2f"
 		% [id, fp.speed, fp.driftmag, fp.offaxis, fp.turnrate, fp.climb])
+	_wet_check(String(id), fp)
 
 	# THE MEASUREMENT IS ONLY VALID IF THE SUBSTANCE WAS STILL ON THE BIRD.
 	#
@@ -252,7 +302,7 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 	# which produces a check that fails for reasons unrelated to the thing it
 	# names. Darts is covered anyway: its flap_mult of 1.12 puts its climb 68%
 	# above sober, which is enormous.
-	if absf(want_turn - 1.0) > TURN_RESOLUTION:
+	if absf(want_turn - 1.0) > TURN_RESOLUTION and bool(noise.ok):
 		# `_face()` moves the heading by error * turn_rate * turn_mult * delta, so
 		# the peak rate just after the stick reverses scales with turn_mult
 		# directly. Asserted as a ratio against sober rather than as a direction.
@@ -261,11 +311,11 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 			("%s declares turn_mult %.2f, so its peak turn rate should be %.2fx sober, but "
 			+ "measured %.2fx -- %.2f rad/s against %.2f.")
 				% [id, want_turn, want_turn, got_turn, fp.turnrate, sober.turnrate])
-	elif not is_equal_approx(want_turn, 1.0):
+	elif not is_equal_approx(want_turn, 1.0) and absf(want_turn - 1.0) <= TURN_RESOLUTION:
 		print("[subs]   %s turn_mult %.2f is under the %.0f%% the turn measurement resolves; not asserted"
 			% [id, want_turn, TURN_RESOLUTION * 100.0])
 
-	if needs_climb:
+	if needs_climb and bool(noise.ok):
 		# ONE FLAP'S PEAK CLIMB IS power^2 / (2 * glide_gravity * gravity_mult),
 		# and `power` is flap_impulse * flap_mult * (0.75 + 0.5 * adrenaline).
 		# So the predicted ratio against sober is
@@ -391,6 +441,7 @@ static func _fingerprint(tree: SceneTree, goose: CharacterBody3D, subs: Node) ->
 	var out := {
 		"speed": 0.0, "offaxis": 0.0, "driftmag": 0.0, "turnrate": 0.0,
 		"climb": 0.0, "size": 0.0, "idle": 0.0, "power": 1.0, "active": true,
+		"wet": 0,
 	}
 	var cam: Node3D = goose.get("cam") as Node3D
 
@@ -413,12 +464,65 @@ static func _fingerprint(tree: SceneTree, goose: CharacterBody3D, subs: Node) ->
 	if cam != null:
 		cam.set("_manual_t", 9999.0)
 
+	# A LEASH, BECAUSE THE FASTEST SUBSTANCE OUTRUNS THE PAD.
+	#
+	# `probe_common.PAD_RADIUS` is 9 m and its docstring sizes it for the walk in
+	# `feeltest.gd`: "1.2 s of held forward at `waddle_speed` covers about 5 m."
+	# THIS walk is 2.0 s and it is not at `waddle_speed`. `math` resolves to
+	# speed_mult 1.90 and measures 9.75 m/s, which is **18.5 m** — twice the pad.
+	# `fly_agaric` (11.8 m) and `double_double` (11.4 m) also clear it.
+	#
+	# On leg 1 the certified pad sits 21.5 m from the retention pond's centre
+	# against an 11 m radius, so there are 10.5 m of grass and the pond subtends
+	# 31° either side. Three substances can reach it and the bearing is whatever
+	# yaw the camera was pinned at, so it is a coin toss: measured **two failures
+	# in five runs**, which is close to the ~40% that geometry predicts.
+	#
+	# Extending PAD_RADIUS is the wrong fix — a 20 m clear ring may simply not
+	# exist in a zone, and a harness that fails on level design is a harness
+	# nobody keeps. Shortening the hold is also wrong: drift is a ~4 s sine and
+	# needs the full window.
+	#
+	# So the bird is snapped back whenever it strays, WITH ITS VELOCITY INTACT.
+	# Every channel this loop measures is velocity- or controller-derived — peak
+	# speed, the angle between velocity and the commanded bearing, and `_drift`,
+	# which `_wanted()` computes whether the bird moves or not. **Not one of them
+	# reads position**, so the leash is invisible to all three. The idle channel
+	# below is deliberately NOT leashed: it measures PATH LENGTH, and a teleport
+	# would be summed straight into it as several metres of travel.
+	var leash := goose.global_position
+
 	Input.action_press("gg_forward")
 	# 120 frames, not 60. Drift is a sine of period ~4 s (see below); a one
 	# second window can land on one of its zero crossings and see nothing at all.
 	# Two seconds is half a period and always catches some of the excursion.
 	for i in 120:
 		await tree.physics_frame
+		if Vector2(goose.global_position.x - leash.x, goose.global_position.z - leash.z).length() > LEASH:
+			var carry := goose.velocity
+			goose.global_position = leash
+			goose.velocity = carry
+		# DID THE BIRD GO SWIMMING WHILE WE MEASURED ITS WALK?
+		#
+		# `tools/feeltest.gd` has counted exactly this since it was written —
+		# `_watch_dry()` and `_wet_ticks` — and its own comment says the omission
+		# "happened, and it turned verify.ps1 red". THIS FILE NEVER GOT IT, and
+		# on 2026-08-18 it went red the same way, in the same zone, for the same
+		# reason. Two harnesses over one controller, and only one was watching.
+		#
+		# It is the direct form of a question this file could otherwise only ask
+		# by taking the baseline twice and noticing the two disagreed — which
+		# works, but reports the SYMPTOM. It reported that symptom as SEVEN
+		# substances with a broken `turn_mult`, because a contaminated sober
+		# baseline divides into every ratio below.
+		#
+		# State.WATER swaps `waddle_speed` (4.2) for `swim_speed` (5.4) and the
+		# turn rate for `turn_rate * 0.7`, so every ground channel here silently
+		# becomes a measurement of a different model. One frame of it is a
+		# harness fault, and this counts them. The cause was one line in
+		# `probe_common.find_dry_ground()`; see `probe_common._drop()`.
+		if int(goose.get("_water_bodies")) != 0:
+			out.wet = int(out.wet) + 1
 		out.size = maxf(float(out.size), absf(float(goose.get("size")) - 1.0))
 		var v := Vector2(goose.velocity.x, goose.velocity.z)
 		out.speed = maxf(float(out.speed), v.length())
@@ -478,6 +582,8 @@ static func _fingerprint(tree: SceneTree, goose: CharacterBody3D, subs: Node) ->
 	var prev: float = float(goose.get("heading"))
 	for _i in 50:
 		await tree.physics_frame
+		if int(goose.get("_water_bodies")) != 0:  # see the walk loop
+			out.wet = int(out.wet) + 1
 		var h: float = float(goose.get("heading"))
 		var d: float = goose.get_physics_process_delta_time()
 		if d > 0.0001:

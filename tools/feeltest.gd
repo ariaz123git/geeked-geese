@@ -185,7 +185,8 @@ static func _ground_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
 		var wet_before := _wet_ticks
 		Input.action_press("gg_forward")
 		# 90 ticks. At waddle_speed that covers about 6.3 m, which has to stay
-		# inside PAD_RADIUS; top speed arrives at 0.2 s so more only buys travel.
+		# inside COMMON.PAD_RADIUS; top speed arrives at 0.2 s so more only buys
+		# travel.
 		for i in 90:
 			await tree.physics_frame
 			_watch_dry(goose)
@@ -579,7 +580,13 @@ static func _watch_dry(goose: CharacterBody3D) -> void:
 		_wet_ticks += 1
 
 
-const PAD_RADIUS := 9.0
+# THE LAST SURVIVING HALF OF THE DUPLICATION `probe_common.gd` WAS EXTRACTED TO
+# END. `const PAD_RADIUS := 9.0` lived here, was read by nothing but a comment,
+# and would have silently disagreed with `COMMON.PAD_RADIUS` the first time
+# anyone changed one of them — which is the exact drift that file's own header
+# records the two copies already having done once ("one used a named constant
+# for the pad radius, the other a bare 9.0"). Deleted rather than kept in sync:
+# there is one pad radius and `probe_common.gd` owns it.
 
 
 static func _settle(tree: SceneTree, goose: CharacterBody3D) -> void:
