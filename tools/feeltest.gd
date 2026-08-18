@@ -319,8 +319,19 @@ static func _flight_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
 	var glide := await _descend(tree, goose, 20.0, false)
 	_observe("fly.glide_20m_time", glide.x, "s", "seconds to lose 20 m gliding, forward held, no flap")
 	_observe("fly.glide_20m_run", glide.y, "m", "horizontal distance covered over that 20 m of descent")
-	_observe("fly.glide_ratio", glide.y / 20.0, ":1",
-		"metres forward per metre down over a real drop — this is the number that decides roof-to-roof")
+	# ASSERTED AS A REGRESSION GUARD, NOT AS AN ENDORSEMENT.
+	#
+	# The window is wide and centred on what the game does today, deliberately.
+	# It is here to catch `glide_gravity`, `air_speed` or `max_fall` moving
+	# without anyone noticing that roof-to-roof traversal moved with them — not
+	# to assert that 0.86 : 1 is the RIGHT glide. It is not obviously right:
+	# GEEKED_GEESE_DESIGN.md:130 promises "chain it into a safe glide and you're
+	# fine", and at roughly one metre forward per metre down there is not much
+	# glide to chain into. That question is taste, it changes traversal in eight
+	# zone builders, and it is written up as an open decision in
+	# docs/FEEL_TARGETS.md §5.1 rather than settled here.
+	_assert_window("fly.glide_ratio", glide.y / 20.0, ":1", 0.70, 1.10,
+		"metres forward per metre down over a real 20 m drop; this decides roof-to-roof, and the window guards it against silent change (see FEEL_TARGETS.md 5.1)")
 	_observe("fly.glide_impact", glide.z, "m/s",
 		"arrival speed after a 20 m glide; hard_landing_speed is 13.0, so above that a plain glide lands hard")
 

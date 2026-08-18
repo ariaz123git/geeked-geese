@@ -96,6 +96,7 @@ Values are from the run on **2026-08-17**, sober, leg 1, on dry ground.
 | `fly.climb_peak` | 1.0–14.0 m/s | **6.08** | Above 14 m/s the bird clears anything built in this game in under two seconds, and zone geometry — roofs, racking, the atrium, the whole vertical dimension of the level design — stops meaning anything. |
 | `fly.climb_convergence` | 0.55–1.40× | **0.99** | Metres climbed in the **3rd** second of a held flap over metres climbed in the **1st**. Holding a button must converge on a *rate*. Above 1.40 the flap compounds, altitude is free, and the stamina bar is the only thing between the player and orbit. **This is the assertion the file was written for**; see §4. |
 | `fly.dive_beats_glide` | 1.15–4.0× | **1.65** | The dive has its own button. If it does not measurably beat simply falling, it is not a verb. Measured over a **20 m drop**, not as a sink rate — see §5 for why that distinction matters. |
+| `fly.glide_ratio` | 0.70–1.10 :1 | **0.85–0.87** | Metres forward per metre down over a real 20 m drop — the number that decides whether you can reach that other roof. **This window is a regression guard, not an endorsement.** It is centred on what the game does today so that `glide_gravity`, `air_speed` or `max_fall` cannot move without traversal moving silently with them. Whether 0.86 : 1 is the *right* glide is a live design question and it is **§5.1**, not this table. |
 
 ### Stamina
 
@@ -121,8 +122,7 @@ questions and are written up in §5 rather than quietly asserted.
 |---|---|---|
 | `fly.climb_1st_second` / `fly.climb_3rd_second` | **4.50 m** / **4.45 m** | The two halves of `climb_convergence`, printed so a failure is readable without re-deriving it. |
 | `fly.glide_20m_time` | **1.90 s** | Seconds to lose 20 m gliding, forward held, no flap. |
-| `fly.glide_20m_run` | **17.4–19.5 m** | Horizontal distance covered over that descent. **Not yet stable — see below.** |
-| `fly.glide_ratio` | **0.87–0.98 :1** | Metres forward per metre down. **See §5.1.** |
+| `fly.glide_20m_run` | **16.9–17.3 m** | Horizontal distance covered over that descent. |
 | `fly.glide_impact` | **20.90 m/s** | Arrival speed after a 20 m glide. `hard_landing_speed` is 13.0. **See §5.2.** |
 | `fly.dive_20m_time` | **1.15 s** | The same 20 m with dive held. |
 | `fly.turn_180` | **0.67 s** | Air turn. `air_turn_rate` is 4.2 against the ground's 9.0 — banking, deliberately. |
@@ -133,7 +133,7 @@ questions and are written up in §5 rather than quietly asserted.
 
 A gate that flickers is worse than no gate, because it teaches everyone to
 ignore red. So the harness was run three times back to back on an unchanged
-build. **Eleven of the twelve asserted metrics came back bit-identical:**
+build. **Eleven of the twelve asserted at the time came back bit-identical:**
 
 ```
 ground.latency        1.00  1.00  1.00      fly.one_flap_climb    1.73  1.73  1.73
@@ -165,17 +165,22 @@ Two things fixed it, and the second matters more than the first:
    **HARNESS fault, do not tune the controller from these numbers.** A wrong
    answer now announces itself instead of being reported as a verdict.
 
-### A precondition for ever asserting the glide rows
+### The glide rows were promoted, and what it took
 
-The two horizontal glide rows are still not stable enough to assert: 17.36,
-17.40, 19.54 m across runs. Same root cause — the flight tests start from
-wherever the dry pad was, with whatever camera yaw the previous test left
-behind, and `_raw_input()` rotates the stick by `-cam.get_yaw()`.
+They were OBSERVED at first because they moved 17.36, 17.40 and **19.54 m**
+across identical runs — a 12% swing, and *a metric that moves 12% between
+identical runs cannot fail a build.*
 
-**A metric that moves 12% between identical runs cannot fail a build.** Pinning
-the start pose, or seeding the camera yaw, is the work that has to happen before
-either glide row leaves OBSERVED. Until then they are reported, and §5.1 argues
-from the range rather than from a point.
+The cause was the camera, not the bird. `_raw_input()` rotates the stick by
+`-cam.get_yaw()`, and `goose_camera.gd` auto-follows the direction of travel, so
+the world bearing "forward" means **rotates while the bird is flying**. Correct
+for play; ruinous for measurement. `_aloft()` now parks the rig's `_manual_t`,
+which takes the auto-follow branch out and pins the yaw for the whole test.
+
+Three runs after the fix: **17.12, 17.32, 16.92 m** — a 0.40 m spread against
+2.18 m before, and a ratio of 0.85–0.87 against 0.87–0.98. `fly.glide_ratio` is
+asserted on that basis; `fly.glide_20m_run` stays observed because it is the
+same measurement in less useful units.
 
 ---
 

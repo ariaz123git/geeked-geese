@@ -58,7 +58,7 @@ godot --headless --path . -- --probe --loop-test   # seven legs and the ending
 both clocks, the leg titles, every substance's data, the objective sets, the
 ambience beds, and every audio and texture key the code asks for.
 `tools/inputtest.gd` holds W, flaps, honks and doses, and measures what the bird
-actually did. `tools/feeltest.gd` measures how WELL it did it — 22 metrics, 12 of
+actually did. `tools/feeltest.gd` measures how WELL it did it — 22 metrics, 13 of
 them asserted against windows argued in `docs/FEEL_TARGETS.md`. It caught a flap
 that COMPOUNDED — 7.36 m of climb in the first second of holding the button and
 23.66 m in the third, with a `max_fall` in the controller and no `max_rise`
@@ -283,7 +283,7 @@ than merely unfunny, and it is measurable headless:
 godot --headless --path . -- --probe --feeltest     # step 4 of verify.ps1
 ```
 
-`tools/feeltest.gd` measures 22 of them, 12 asserted against windows;
+`tools/feeltest.gd` measures 22 of them, 13 asserted against windows;
 `docs/FEEL_TARGETS.md` carries the argument for every window, so they can be
 argued with rather than merely obeyed. **Measure it, decide it, change it,
 record the before and the after.** A tuning change backed by a measurement and a

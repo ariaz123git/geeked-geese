@@ -16,19 +16,22 @@ input on eleven of the sixteen substances, past every check this project had.
 ## ⟳ 1. Where the project is right now
 
 **The route has no placeholders left, both bosses are built, and for the first
-time the project can prove the goose responds to the controls.**
+time the project can prove not just that the goose responds to the controls but
+that it responds WELL — and that all sixteen substances actually change how it
+handles.**
 
 | | |
 |---|---|
 | Engine | Godot 4.7.1, GL Compatibility renderer |
-| Code | 65 GDScript files (read the live count off `[gate] PASS — N scripts`) |
+| Code | 67 GDScript files (read the live count off `[gate] PASS — N scripts`) |
 | Zones built | 8 — retention pond / strip mall lot (one zone, two legs), suburbia, cottage country, **the stopover**, cut corn, truck stop, the 18th green |
-| Route legs | 7 flown + the arrival. **No leg reuses another leg's zone any more.** |
+| Route legs | 7 flown + the arrival. **No leg reuses another leg's zone any more.** Leg 7 is now the 230 s `BOSS_DESIGN.md` §2.2.2 asks for. |
 | Substances | 16, all with models, control mutations, true codex facts and — as of this session — a HUD icon |
 | Bosses | **2 built.** The Ranger (leg 3) and **BIG DOWN** (the back half of leg 7) |
 | Assets | 39 textures (23 + 16 substance icons), 46 sounds (39 SFX + 7 zone ambience beds), 22 music stems — **all procedurally generated** |
 | Autoloads | 10 (see `docs/ARCHITECTURE.md` §2 for the order and why it matters) |
-| Gates | 5: compile, invariants (393), controller, credit roll, full campaign. `.\verify.ps1` |
+| Gates | **7**: compile, invariants (404), controller, **feel (22 metrics, 13 asserted)**, **substances (102 checks over 16)**, credit roll, full campaign. `.\verify.ps1`, about 4 minutes |
+| Version control | **A git repo, as of this session.** There was none before, despite `VIBECODING_BRIEFING.md` making "commit before every task" one of its six headline rules. |
 
 ### What works
 Everything in the previous handoff, plus: leg 5 is a dawn marsh instead of a
@@ -49,28 +52,75 @@ discovered; and the flight is flown by geese that flap.
 
 ## ⟳ 2. What changed last session
 
-**1. THE CONTROLLER WAS BROKEN AND NOTHING COULD SEE IT.** `_wanted()`'s
-input-lag buffer read the **oldest** sample rather than the newest one old
-enough, and was trimmed by a 240-entry count instead of by age. Every substance
-with input lag — **eleven of the sixteen** — therefore ramped from 0 to a **four
-second** delay over its first four seconds and stayed there. Fermented berries
-ask for 0.22 s and got 4.0. That is not "drunk", it is "disconnected".
+**0. THE PROJECT IS UNDER GIT NOW.** There was no `.git` at all. Every session
+so far has worked without the undo that `VIBECODING_BRIEFING.md` calls one of
+its six headline rules. `main` holds the untouched baseline; the session's work
+is on `session2-feel`, one commit per idea, so any of it can be read or reverted
+on its own. `_to_delete/` (90 MB of superseded zips and stale `.godot` caches) is
+gitignored rather than deleted — that is the human's call.
 
-Proven, not argued: reverting the fix makes a goose on bars cover **0.00 m** in a
-full second of held-forward, and the compile gate still passes.
+**1. "PLAY IT" IS NO LONGER THE TOP OF THIS LIST, AND THAT WAS A PROCESS BUG.**
+It sat at #1 for two sessions running, everything behind it was blocked on one
+person having a free evening, and so nothing behind it moved. The fix is not to
+delete the line; it is that feel is two things wearing one word. **Taste** — is a
+waddling goose funny — stays the human's, permanently. **Response** — time to top
+speed, stop distance, whether a held flap converges on a climb rate — is
+arithmetic, and nothing in this project was measuring it. See `CLAUDE.md`,
+*"Taste is the human's. Everything measurable is yours."*
 
-**2. Three new gates, because of #1.** The compile gate, the campaign loop test
-and every review this project has ever had were incapable of seeing that bug.
-- `tools/selftest.gd` (`--selftest`) — **393 invariants**: the route, both
-  clocks, the leg titles, every substance's data, the objective sets, the
-  ambience beds, every audio and texture key the code asks for. Every assertion
-  is a bug that already got through once.
-- `tools/inputtest.gd` (`--probe --inputtest`) — holds W, flaps, honks and doses,
-  and measures what the bird did.
-- `verify.ps1`, rewritten. Its four old steps could not catch a GDScript error
-  between them; see §6.
+**2. THE FLAP COMPOUNDED, AND EVERY EXISTING GATE PASSED ON IT.** `_flap()` read
+`velocity.y = maxf(velocity.y, 0.0) + power`, which ADDS the impulse to an
+already-positive climb. The cooldown only lets gravity take 3.3 m/s back against
+a power of 6.08, so a held flap netted **+2.78 m/s on the last one, compounding,
+with no ceiling** — there is a `max_fall` in the controller and there has never
+been a `max_rise`.
 
-**3. The render probe could not write a file on Windows and said it had.**
+| | before | after |
+|---|---|---|
+| climb in the 1st second of held flap | 7.36 m | **4.50 m** |
+| climb in the 3rd second | 23.66 m | **4.45 m** |
+| peak climb rate | 29.5 m/s | **6.08 m/s** |
+| **one flap, from level** | **1.73 m** | **1.73 m** |
+
+`maxf(velocity.y, power)` SETS the climb instead of adding to it, so the single
+flap is bit-for-bit unchanged and the 1.70 m racking promise in §4 survives
+untouched. The independent `inputtest` gate corroborates: its takeoff fell from
+**+34.98 m to +11.30 m**.
+
+**3. TWO NEW GATES.**
+- `tools/feeltest.gd` (`--probe --feeltest`) — 22 controller metrics, 13
+  asserted against windows argued out in `docs/FEEL_TARGETS.md`. Every window
+  cites something this repo already wrote down. Eleven of the twelve are
+  bit-stable across consecutive runs.
+- `tools/substancetest.gd` (`--probe --substancetest`) — doses all sixteen
+  substances and measures the bird. `selftest.gd` enforced the "never only a
+  number that goes up" rule **by reading the `.tres`**, which cannot tell you
+  the mutation reaches the goose; the input-lag bug is the precedent, with
+  eleven of sixteen unplayable while every `.tres` was correct. 102 checks.
+
+**4. BOTH NEW GATES SPENT MOST OF THEIR FIRST RUNS ACCUSING A HEALTHY GAME**,
+and that is the part worth remembering. Leg 1 is the retention pond and the
+goose spawns in it, so the "ground" metrics were measuring `_tick_water()`. Sink
+rate sampled at terminal velocity compared `max_fall` to itself and reported
+that the dive button does nothing. The substance fingerprint took 12.2 s of game
+time against a nitrous that lasts 7.0, so it measured the bird after the
+substance had ended. Drift was measured as a wobble when over a short window it
+is a bias. The climb was predicted without the brain chemistry that scales it.
+**Every one of those first presented as the game being broken.** Both files now
+carry a measured noise floor — sober twice, and refuse to report if the two
+disagree — and contamination guards that fail LOUDLY as *harness* faults, saying
+in as many words: do not tune the game from these numbers.
+
+**5. LEG 7 IS 230 s**, which `docs/BOSS_DESIGN.md` §2.2.2 has always asked for.
+The comment in `main.gd::ROUTE` forbidding it described a constraint that
+`zone_truckstop.gd::_clock_scale()` had already removed, and nobody noticed
+because **a comment cannot run**. It is now
+`tools/selftest.gd::_the_rig_schedule()` — the same constraint as an assertion,
+checked on every clock the leg can legally be dealt. BIG DOWN needed no change:
+`DOCK_OPENS_WITH` puts the truck-stop phase at t=112, which is the 110 s §2.2.2
+specifies, to within two seconds.
+
+**6. The render probe could not write a file on Windows and said it had.**
 `Image.save_png()` *returns* an error rather than raising one, and all twelve
 call sites printed `[probe] wrote /tmp/gg_x.png` unconditionally. The project's
 entire visual verification loop was a step that could not fail. It now takes
@@ -80,7 +130,7 @@ photographs the wrong moment entirely on a machine with a GPU), `--look:` (frame
 something other than the goose — an encounter that arrives from behind was
 literally unphotographable), and `--goto:`.
 
-**4. LEG 5 IS A BESPOKE ZONE.** `zone_stopover.gd` — a National Wildlife Refuge
+**7. LEG 5 IS A BESPOKE ZONE.** `zone_stopover.gd` — a National Wildlife Refuge
 impoundment at dawn: drowned marsh, cattails, dead standing timber, a dyke road,
 an observation tower, a birdwatcher whose scope tracks you, and forty geese
 standing around doing nothing. All sixteen substances are present and the zone
@@ -88,21 +138,21 @@ says nothing about it. Two of its four primaries are about **looking at your own
 flock**, which is true nowhere else in the game. The route has no placeholders
 left.
 
-**5. BIG DOWN IS BUILT.** `boss_big_down.gd` + `prop_models_bigdown.gd` — the
+**8. BIG DOWN IS BUILT.** `boss_big_down.gd` + `prop_models_bigdown.gd` — the
 back half of leg 7. The dock opens with no announcement, the warehouse is racked
 with white down bales that burst into the same feather particle the game has
 spent on faceplants for six legs, the honk finally shatters glass, and the leg
 ends on a roof in the rain looking back across the interstate at the truck stop
 where your flock is. Nobody says a word about any of it.
 
-**6. Every zone has its own air.** Seven procedurally generated ambience beds,
+**9. Every zone has its own air.** Seven procedurally generated ambience beds,
 chosen by zone id in `_load_zone()`. Every leg used to play `amb_parking_lot`.
 The truck stop's "rain" turned out to be a 0.700 s goose hiss that never looped —
 `Sfx` only forces looping on keys ending in `_loop` — so the wettest zone in the
 game opened with seven tenths of a second of hissing and then three minutes of
 silence, under a visible downpour.
 
-**7. The Almanac reaches the ending.** The credit roll ends with one slab per
+**10. The Almanac reaches the ending.** The credit roll ends with one slab per
 substance the player discovered, naming what it actually was. No counter, no
 percentage — a completion score at the end of a forty-five minute run is an
 invitation to farm the rest. Separately: **the credit roll never moved.** Writing
@@ -111,24 +161,24 @@ invitation to farm the rest. Separately: **the credit roll never moved.** Writin
 of the camera. Nobody had seen it because the ending had only ever been probed at
 twelve seconds.
 
-**8. The flight was flown by planks.** `migration.gd` hardcoded the classic
+**11. The flight was flown by planks.** `migration.gd` hardcoded the classic
 visual and never called `animate()`, so every goose in every crossing held its
 wings rigid. Obstacles also had no once-only flag: a wire or turbine re-fired
 every frame for the 20–40 frames it sat in the trigger window, removing a
 *different* goose each time.
 
-**9. The clock lie, a third time.** Leg 1 — the only leg that never passes
+**12. The clock lie, a third time.** Leg 1 — the only leg that never passes
 through `_on_migration_done()` — had been running 180 s against a route that says
 240 for the entire life of the project. `main.gd` gained the public
 `leg_seconds()` accessor `docs/CLOCK_AND_CAMERA_NOTES.md` asked for by name.
 
-**10. `ROUTE.name` was read by nothing at all.** Leg 1 announced itself as the
+**13. `ROUTE.name` was read by nothing at all.** Leg 1 announced itself as the
 strip mall lot and leg 5 as cottage country, while the route, the campaign spec
 and the ending's own credit roll called them the retention pond and the stopover.
 The two reused zones were the only ones that could not know which leg they were
 standing in, and they were exactly the two that got it wrong.
 
-**11. A long tail, found by an adversarial panel.** 32 findings, each fix
+**14. A long tail, found by an adversarial panel.** 32 findings, each fix
 re-checked by an agent that did not write it. The panel caught three fixes that
 did not work — including one that moved `ChaosProp`'s cooldown into
 `_physics_process` and silently broke `CreditSlab`, which overrides it without
@@ -140,7 +190,7 @@ leaking into the camera FOV; hallucinations hard-coded to `y = 0` and therefore
 spawning underwater in the one zone whose ground is at 6.6 m; four substances
 with no HUD icon; a third independent toad.
 
-**13. A second pass over the audit backlog**, all verified headlessly because the
+**15. A second pass over the audit backlog**, all verified headlessly because the
 machine was in use:
 
 - **The credit roll had never actually been fixed, and the reason was an API
@@ -176,7 +226,7 @@ machine was in use:
   four open dock doorways in mid-air; and five aisle lights hung 1.1 m below the
   roof steel in an 11 m dark room, lit.
 
-**12. The new code was then audited by agents that did not write it**, with a
+**16. The new code was then audited by agents that did not write it**, with a
 three-vote refutation panel per finding, because every fix batch this session
 contained at least one fix that did not work. It found, among others:
 
@@ -218,7 +268,7 @@ for two sessions running, which meant everything behind it was blocked on one
 person having a free evening, and so nothing behind it moved. That was a
 process bug, and it has been fixed at the root rather than by deleting the line:
 `tools/feeltest.gd` (step 4 of `verify.ps1`) now measures 22 controller metrics,
-12 of them asserted against windows argued out in `docs/FEEL_TARGETS.md`. Tuning
+13 of them asserted against windows argued out in `docs/FEEL_TARGETS.md`. Tuning
 is work an agent can do and show receipts for. See `CLAUDE.md`, *"Taste is the
 human's. Everything measurable is yours."*
 
@@ -267,6 +317,41 @@ In order:
 ---
 
 ## ⟳ 4. Known issues and honest gaps
+
+**THE GLIDE IS 0.85–0.87 : 1 AND NOBODY HAS DECIDED WHETHER THAT IS RIGHT.** A
+metre forward per metre down is a controlled fall, and
+`GEEKED_GEESE_DESIGN.md:130` promises *"chain it into a safe glide and you're
+fine"*. It is now asserted in `feeltest.gd` **as a regression guard only** —
+centred on today's value so `glide_gravity`, `air_speed` or `max_fall` cannot
+move traversal silently — and the design question is written up in
+`docs/FEEL_TARGETS.md` §5.1 with the argument on both sides. Changing it is one
+line and it invalidates "the goose cannot reach that" in eight zone builders.
+
+**A 20 m glide arrives at 20.9 m/s against a `hard_landing_speed` of 13.0.**
+Sober that is a 15-point "ROUGH LANDING" and a small shake — a reward. On any
+substance with `ragdoll_landings` it is an unavoidable faceplant on every
+descent from height, and nothing in the game teaches flaring on approach. Either
+a good implicit lesson or an unfair one; that depends on playing it.
+`FEEL_TARGETS.md` §5.2.
+
+**The truck stop's closing beat is proportional, not absolute.** The rig
+schedule leaves exactly 6.0% of the leg as empty lot at every clock — 13.8 s at
+leg 7's new 230 s, but 6.6 s at Mission's 110 s floor. A readable moment is
+arguably absolute (a human needs ~10 s to notice an empty lot whatever the clock
+says). One line in `zone_truckstop.gd::_clock_scale()`. Not changed, because
+nothing specifies it and it is pacing.
+
+**`catnip` is the one substance no gate can see.** Its only control mutation is
+`aggro_cats`; its `speed_mult` of 1.06 is explicitly not what makes it legal
+under the design rule. `tools/substancetest.gd` exempts it and prints the reason
+every run, but if `aggro_cats` ever stops working, **nothing in this project
+will notice.** A cat-behaviour probe is the missing check.
+
+**Two feeltest channels declare their own resolution and assert nothing.** Drift
+under 0.30 and `turn_mult` within 10% of 1.0 cannot be told from zero by these
+measurements — `darts` (drift 0.03, turn 1.05) is the extreme case. Every
+substance skipped that way is asserted on another channel, but the coverage is
+not total and the printout says so on every run rather than hiding it.
 
 **Nobody has heard any of the ambience beds, including the agent that generated
 them.** There is no audio probe and no way to listen headless. What *has* been
