@@ -30,7 +30,7 @@ handles.**
 | Bosses | **2 built.** The Ranger (leg 3) and **BIG DOWN** (the back half of leg 7) |
 | Assets | 39 textures (23 + 16 substance icons), 46 sounds (39 SFX + 7 zone ambience beds), 22 music stems — **all procedurally generated** |
 | Autoloads | 10 (see `docs/ARCHITECTURE.md` §2 for the order and why it matters) |
-| Gates | **7**: compile, invariants (404), controller, **feel (22 metrics, 13 asserted)**, **substances (102 checks over 16)**, credit roll, full campaign. `.\verify.ps1`, about 4 minutes |
+| Gates | **7**: compile, invariants (432), controller, **feel (22 metrics, 13 asserted)**, **substances (102 checks over 16)**, credit roll, full campaign. `.\verify.ps1`, about 4 minutes |
 | Version control | **A git repo, as of this session.** There was none before, despite `VIBECODING_BRIEFING.md` making "commit before every task" one of its six headline rules. |
 
 ### What works
@@ -348,6 +348,27 @@ A `turn_mult` within 10% of 1.0 cannot be told from noise by the peak-turn-rate
 measurement; `darts` at 1.05 is the only case, and it is asserted on climb
 instead (its `flap_mult` of 1.12 puts one flap 68% above sober). The printout
 says so on every run rather than hiding it.
+
+**A sweep for this project's own documented failure modes came back clean, and
+two things that LOOK like violations are not.** Worth recording so the next
+session does not re-flag them:
+
+- `migration.gd:508`'s `lerpf(target.y, player_pos.y, 0.85)` looks like the
+  framerate-dependent smoothing `CLAUDE.md` forbids. It is not: `target` is
+  rebuilt from scratch every frame, so this is a fixed blend of two same-frame
+  values, and the actual smoothing on the next line is
+  `lerp(target, clampf(3.4 * delta, ...))`, which is correct.
+- `cat.gd`, `npc_human.gd` and `boss_ranger.gd` all read `is_on_floor()` before
+  `move_and_slide()`. That is the benign grounded-walker pattern — one frame of
+  stale floor state costs 0.37 m/s of gravity that the slide resolves anyway.
+  The goose's version WAS a real bug because it gated a landing EVENT, which is
+  a different thing, and it is already fixed and commented.
+
+Also checked and clean: no duplicate `class_name`, no Godot 3 syntax anywhere,
+no `contact_monitor` set true without `max_contacts_reported`, no
+`CollisionShape3D.disabled` written outside `set_deferred`, no duplicate
+resource ids, no invented `uid://`. The two mechanical ones are now invariants
+(`selftest.gd::_the_files()`) so they stay clean.
 
 **Leg 1's world-space labels collide.** In `shots/gg_zone1_0.png` the flock pen
 prompt and the goose name tags overprint each other near the pond — the visible

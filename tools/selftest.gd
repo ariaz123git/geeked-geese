@@ -66,6 +66,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_labels_are_emitted()
 	_the_ambience(main)
 	_the_rig_schedule(main)
+	_the_files()
 	_the_assets()
 	_the_time_scale()
 
@@ -263,6 +264,126 @@ static func _the_rig_schedule(main: Node) -> void:
 				+ "is a real change: the zone's whole argument is that the lot is measurably emptier "
 				+ "at the end than at the start.")
 					% [leg, secs, gone_at, secs - gone_at, tail * 100.0, RIG_TAIL_FRAC * 100.0])
+
+
+# ────────────────────────────────────────────── the files themselves
+
+## TWO SILENT FAILURES THAT LIVE IN TEXT RATHER THAN IN CODE.
+##
+## `CLAUDE.md` warns about both by name and nothing checked either. Both are
+## silent in the worst way — the project loads, every gate passes, and the wrong
+## thing is bound:
+##
+##   1. **Duplicate `ExtResource`/`SubResource` ids inside one file.** The rule
+##      is stated outright: "duplicates are silent and bind the wrong resource.
+##      Assert uniqueness before writing a file." This is that assertion.
+##   2. **Duplicate `class_name`.** One flat global namespace shared with every
+##      engine class and every autoload — "grep before adding one; duplicates
+##      are silent, last-wins."
+##
+## Both were swept by hand first and the tree was clean. That is exactly when to
+## write the check: a clean sweep is worth nothing next month unless something
+## keeps it clean.
+##
+## DirAccess rather than ResourceLoader.list_directory is deliberate and matches
+## `tools/gate.gd` — dev tooling that never ships in an export, which is the
+## exception CLAUDE.md carves out.
+const FILE_SKIP_DIRS := [".godot", ".git", "_to_delete", "addons"]
+
+
+static func _the_files() -> void:
+	var scripts: Array[String] = []
+	var resources: Array[String] = []
+	_walk_files("res://", scripts, resources)
+
+	_ok(scripts.size() > 0, "the file sweep found no scripts at all — the walk is broken")
+	_ok(resources.size() > 0, "the file sweep found no scenes or resources at all")
+
+	for path in resources:
+		var f := FileAccess.open(path, FileAccess.READ)
+		if f == null:
+			_ok(false, "could not open %s to check its resource ids" % path)
+			continue
+		var text := f.get_as_text()
+		f.close()
+
+		var seen := {}
+		for line in text.split("\n"):
+			if not (line.begins_with("[ext_resource") or line.begins_with("[sub_resource")):
+				continue
+			var rid := _quoted_after(line, "id=")
+			if rid == "":
+				continue
+			_ok(not seen.has(rid),
+				("%s declares the resource id '%s' twice. Duplicates are silent and bind the "
+				+ "WRONG resource — the file loads and the game is quietly incorrect.")
+					% [path, rid])
+			seen[rid] = true
+
+	var declared := {}
+	for path in scripts:
+		var f2 := FileAccess.open(path, FileAccess.READ)
+		if f2 == null:
+			continue
+		var text2 := f2.get_as_text()
+		f2.close()
+		for line in text2.split("\n"):
+			var t := line.strip_edges()
+			if not t.begins_with("class_name "):
+				continue
+			var cn := t.substr(11).strip_edges()
+			var sp := cn.find(" ")
+			if sp > 0:
+				cn = cn.substr(0, sp)
+			_ok(not declared.has(cn),
+				("class_name %s is declared in BOTH %s and %s. It is one flat global namespace "
+				+ "shared with every engine class and every autoload, and a duplicate is silent: "
+				+ "last one wins.") % [cn, declared.get(cn, "?"), path])
+			declared[cn] = path
+			break
+
+
+## The contents of the first quoted string following `key` on this line, or ""
+## if there isn't one. Deliberately a small helper rather than a regex: this
+## runs over every scene in the project on every build.
+static func _quoted_after(line: String, key: String) -> String:
+	var at := line.find(key)
+	if at < 0:
+		return ""
+	var rest := line.substr(at + key.length())
+	var open_q := rest.find(QUOTE)
+	if open_q < 0:
+		return ""
+	rest = rest.substr(open_q + 1)
+	var close_q := rest.find(QUOTE)
+	if close_q < 0:
+		return ""
+	return rest.substr(0, close_q)
+
+
+## A double-quote as a named constant, so no string literal in this file has to
+## contain an escaped one.
+const QUOTE := '"'
+
+
+static func _walk_files(dir_path: String, scripts: Array[String], resources: Array[String]) -> void:
+	var d := DirAccess.open(dir_path)
+	if d == null:
+		return
+	d.list_dir_begin()
+	var fname := d.get_next()
+	while fname != "":
+		if not fname.begins_with("."):
+			var full := dir_path.path_join(fname) if dir_path != "res://" else "res://" + fname
+			if d.current_is_dir():
+				if not FILE_SKIP_DIRS.has(fname):
+					_walk_files(full, scripts, resources)
+			elif fname.ends_with(".gd"):
+				scripts.append(full)
+			elif fname.ends_with(".tres") or fname.ends_with(".tscn"):
+				resources.append(full)
+		fname = d.get_next()
+	d.list_dir_end()
 
 
 # ─────────────────────────────────────────────────────────────── the titles
