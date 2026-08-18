@@ -1043,6 +1043,15 @@ func _probe_if_headless() -> void:
 		preload("res://tools/doctest.gd").run(get_tree(), self)
 		return
 
+	# A REPORT, NOT A GATE, and deliberately not in `tool_flags` or verify.ps1.
+	# It gives docs/DECISIONS.md D-006 — the glide ratio, Open (human) — the cost
+	# nobody had counted: how many surfaces in every built zone become reachable
+	# by glide alone if the ratio widens. It asserts nothing, because the
+	# decision is taste and an agent must not close it. See tools/glidetest.gd.
+	if args.has("--glidetest"):
+		await preload("res://tools/glidetest.gd").run(get_tree(), self)
+		return
+
 	# THE THIRD GATE, and the only one that presses a key. Holds W, flaps, honks,
 	# and doses, then asserts the bird actually did something. It exists because
 	# an input-lag bug that made eleven of the sixteen substances unplayable got

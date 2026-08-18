@@ -31,7 +31,7 @@ stopped being the useful framing. **Rules age. State and decisions are dated.**
 
 ## Starting
 
-1. **Run `.\verify.ps1` before touching anything.** Eight gates, about four
+1. **Run `.\verify.ps1` before touching anything.** Nine gates, about four
    minutes. You need to know whether you inherited a green tree — if it is red
    when you arrive, that is the first thing to say and the first thing to fix.
 2. **Read HANDOFF §1–§4**, then skim **DECISIONS** for anything `Open (human)`.
@@ -121,7 +121,18 @@ Playtesting, deciding what is funny, and judging whether the game is fun — see
 `CLAUDE.md`, *"Taste is the human's. Everything measurable is yours."* The open
 entries in `docs/DECISIONS.md` marked **Open (human)** are the current list, and
 it is short on purpose: right now it is the glide ratio (**D-006**), the
-hard-landing threshold (**D-005**), and the truck stop's closing beat (**D-007**).
+hard-landing threshold (**D-005**), the truck stop's closing beat (**D-007**),
+and whether tolerance should stop softening penalties (**D-019**). Two of the
+four now carry a measured cost without being closed — see below.
 
 **Never fabricate a judgement about how something feels.** Report what you
 measured, or say you decided without measuring and why. Never claim you played it.
+
+**But an open decision can be given its NUMBER without being closed, and that is
+the most useful thing an agent can do here.** D-006 sat open for two sessions
+behind an uncounted claim — *"it would silently invalidate every 'the goose
+cannot reach that' assumption in eight zone builders"*. `tools/glidetest.gd`
+counted it in one pass: 42 of 113 elevated surfaces glide-reachable today, 86 at
+3:1, and the whole cost concentrated in three zones with suburbia going from 0
+to 16. The decision is exactly as open as it was; the human now has the price
+tag. **Look for the uncounted claim inside every open decision.**

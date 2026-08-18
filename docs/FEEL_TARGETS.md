@@ -262,6 +262,67 @@ every "the goose cannot reach that" assumption in eight zone builders.
 leaving `max_fall` at 34 for dives. One export, one line in `_tick_fly()`. It
 would need the full campaign re-run and probably a pass over zone geometry.
 
+#### The cost, counted — 2026-08-18
+
+"It would silently invalidate every *the goose cannot reach that* assumption in
+eight zone builders" was the argument against, and **nobody had counted it.**
+`tools/glidetest.gd` now does, across every zone the director builds:
+
+```
+godot --headless --path . -- --probe --glidetest 2>&1 | grep '^\[glide\]'
+```
+
+It finds every static box collider whose top face is big enough for the goose
+capsule (≥ 0.75 m²), keeps the ones above 1.5 m, and asks, for each ordered pair,
+whether the higher one can reach the lower one **by gliding alone** — no flap, no
+dive, no thermal, because the ratio has no effect on climbing.
+
+**168 standable surfaces across the seven zones, 113 of them elevated.**
+
+| glide | elevated surfaces reachable by glide | vs today |
+|---|---|---|
+| **0.85 : 1** (today) | **42 of 113 — 37%** | — |
+| 1.5 : 1 | 68 — 60% | **+26** |
+| 2.0 : 1 | 79 — 70% | **+37** |
+| 3.0 : 1 | 86 — 76% | **+44** |
+
+Per zone, and this is where the number stops being an average:
+
+| leg | zone | elevated | 0.85 | 1.5 | 2.0 | 3.0 |
+|---|---|---|---|---|---|---|
+| 1/2 | the pond / strip mall lot | 9 | 4 | 4 | 4 | 4 |
+| 3 | **suburbia** | 21 | **0** | 11 | 13 | **16** |
+| 4 | cottage country | 38 | 20 | 27 | 30 | 34 |
+| 5 | the stopover | 9 | 3 | 5 | 5 | 5 |
+| 6 | the cut corn | 8 | 4 | 4 | 4 | 4 |
+| 7 | the truck stop | 28 | 11 | 17 | 23 | 23 |
+
+**Two findings the average hides.**
+
+**Suburbia is the whole decision.** Not one of its 21 elevated surfaces is
+glide-reachable from another today — the longest glide available in the zone is
+**0.0 m** — and at 3:1 sixteen of them are. Suburbia is the leg
+`CAMPAIGN_SPEC.md` §2.3 introduces height on ("the roof, the trampoline-as-stairs,
+the fenced backyards"), and it is built entirely on the assumption that getting
+between roofs costs flaps. Widening the glide does not adjust that zone; it
+deletes its premise.
+
+**Legs 1, 2 and 6 do not care at all.** Flat ground with a building on it: 4
+reachable at every ratio tested. The pond, the lot and the corn field would not
+notice a 3:1 glide, which means the cost is not spread across the campaign — it
+is concentrated in exactly the three zones (3, 4, 7) built around verticality.
+
+**The counts are ceilings.** Straight-line reach, no obstacles between, and a
+yawed box measured by its axis-aligned footprint — every approximation errs
+toward *reachable*, deliberately, so the number cannot understate the risk. The
+header of `tools/glidetest.gd` lists all five.
+
+**D-006 is still Open (human) and this does not close it.** It says what
+changing the glide costs: 37% → 76% of the game's elevated geometry becoming
+reachable without a flap, and one zone losing its premise entirely. Whether that
+is a price worth paying for the rooftop fantasy is taste, and taste is not an
+agent's.
+
 ### 5.2 Any 20 m glide arrives at 20.9 m/s, and `hard_landing_speed` is 13.0
 
 So a plain descent from tall geometry always registers as a hard landing.

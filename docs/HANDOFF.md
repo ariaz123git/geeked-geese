@@ -1,8 +1,8 @@
 # HANDOFF — current state
 
 **Updated:** end of the session that gave leg 1 a different game from leg 2,
-gave each of the seven flights its own shape, and then turned the repo's own
-prose into something a gate can fail on.
+gave each of the seven flights its own shape, turned the repo's own prose into
+something a gate can fail on, and finally put a number on the glide.
 
 > **How this file works.** `CLAUDE.md` holds the *rules* — they rarely change.
 > This file holds the *state* — it changes every session. Read this first, then
@@ -42,7 +42,7 @@ Nothing answered prose *facts* rotting. Now `--doctest` does.
 | | |
 |---|---|
 | Engine | Godot 4.7.1, GL Compatibility renderer |
-| Code | 70 GDScript files (read the live count off `[gate] PASS — N scripts`) |
+| Code | 71 GDScript files (read the live count off `[gate] PASS — N scripts`) |
 | Zones built | 8 — retention pond / strip mall lot (one zone, two legs, **two shelves now**), suburbia, cottage country, the stopover, cut corn, truck stop, the 18th green |
 | Route legs | 7 flown + the arrival |
 | Substances | 16, all with models, control mutations, true codex facts and a HUD icon. **Leg 1 offers 3 of them**; every other leg offers its zone's full set |
@@ -183,6 +183,31 @@ half — `ERROR: N resources still in use at exit`, printed by two green gates
 since before this session — is diagnosed, not fixed, and the file says exactly
 what was tried and measured.
 
+### 6. D-006 has its number, and it is concentrated rather than spread
+
+`tools/glidetest.gd` — **a report, not a gate**, because the decision is taste
+and an agent must not close it. It walks every zone the director builds, finds
+every static box collider whose top face fits the goose capsule, and asks which
+elevated surfaces are reachable from another **by gliding alone**.
+
+```
+[glide] 168 standable surfaces, 113 of them elevated above 1.5 m
+[glide] 0.85 : 1  ->   42 of 113 elevated surfaces glide-reachable (37%)
+[glide] 3.00 : 1  ->   86 of 113 elevated surfaces glide-reachable (76%)   [+44]
+```
+
+The argument against widening the glide was that it *"would silently invalidate
+every 'the goose cannot reach that' assumption in eight zone builders"*, and
+nobody had counted it. Counted, the cost is not spread across the campaign:
+**legs 1, 2 and 6 are identical at every ratio tested** — flat ground with a
+building on it — while **suburbia goes from 0 of its 21 elevated surfaces to
+16.** The longest glide available anywhere in suburbia today is **0.0 m**. It is
+the leg that introduces height and it is built on getting between roofs costing
+flaps; a 3:1 glide does not adjust that zone, it deletes its premise.
+
+Five approximations are named in the file's header and every one errs toward
+*reachable*, so the counts are ceilings. **D-006 stays Open (human).**
+
 ---
 
 ## ⟳ 3. What to do next
@@ -199,13 +224,16 @@ the highest form of help an agent can offer here.
 
 ### Ranked, for an agent
 
-1. **Give D-006 its cost.** The argument against widening the glide is that it
-   "would silently invalidate every *the goose cannot reach that* assumption in
-   eight zone builders" — a cost nobody has counted. Walk each built zone,
-   enumerate every walkable surface above ground, mark it reachable/not from the
-   nearest lower surface at today's 0.85 : 1 and at a candidate ratio. The
-   deliverable is a **diff of two reachability sets**. Carried from last
-   session; still the highest-value thing an agent can do here.
+1. **Decide D-006, or don't — but it now has its number.** `tools/glidetest.gd`
+   (`--probe --glidetest`, a report, not a gate) walked all seven zones:
+   **168 standable surfaces, 113 elevated, 42 of them (37%) glide-reachable
+   today and 86 (76%) at 3 : 1.** The cost is concentrated rather than spread —
+   legs 1, 2 and 6 are identical at every ratio tested, while **suburbia goes
+   from 0 of its 21 elevated surfaces to 16**, and the longest glide available
+   in that zone today is 0.0 m. Full table and the five named approximations in
+   `docs/FEEL_TARGETS.md` §5.1. **Still Open (human); an agent must not close
+   it.** What is left is the same walk for D-005 (item 2), which reuses the same
+   enumeration.
 
 2. **Give D-005 its number.** `impact = absf(_last_y_speed)` against
    `hard_landing_speed` 13.0 with `glide_gravity` 11.0 makes the threshold a
@@ -356,7 +384,7 @@ is overwritten by the Almanac's own `_ready()`.
 
 **Gaps in the gates themselves, named honestly:**
 
-- **`input_lag` has no behavioural coverage in any of the eight gates.** It is
+- **`input_lag` has no behavioural coverage in any of the nine gates.** It is
   the field that caused this project's most expensive bug — eleven of sixteen
   substances unplayable — and `substancetest` counts it as satisfying the design
   rule while asserting nothing about it. Same for `grid_snap`.
@@ -368,8 +396,13 @@ is overwritten by the Almanac's own `_ready()`.
   wiring is asserted **statically** rather than behaviourally.
 - **`migtest`'s `lateral.half_cross` cannot fail unless `full_cross` fails too** —
   it is derived from the same drive rather than measured independently.
-- **`verify.ps1` checks for `SCRIPT ERROR` on one of its eight steps.** Step 7
-  does it; the other seven do not.
+- ~~**`verify.ps1` checks for `SCRIPT ERROR` on one of its eight steps.**~~
+  **Fixed 2026-08-18.** All nine steps do, through one shared `ScriptErrors`
+  helper. It is `SCRIPT ERROR` and not a blanket `ERROR:` on purpose, and the
+  helper says why: the compile gate legitimately prints 26 attributed lines, and
+  two probes exit with `ERROR: N resources still in use` from a teardown
+  ordering issue that is diagnosed and open. See `docs/RECENT_FAILURES.md`
+  F-001, which this half retired.
 - **The failsafe is armed after the first zone has already been built.**
   `_arm_failsafe()` runs partway through `_ready()`, so a crash or stall before
   that point is still an invisible process.
