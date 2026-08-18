@@ -426,6 +426,21 @@ func _load_zone() -> void:
 		hud.set_zone_title(title)
 
 	await _brief_zone()
+	# THE MOUSE HAS TO COME BACK, AND ONLY ONE PATH EVER GAVE IT BACK.
+	#
+	# `_show_roster_if_lost()` releases the cursor to let the player read who
+	# died, and nothing on the zone-entry path recaptured it: `_brief_zone()`'s
+	# only `_capture_mouse(true)` is gated on `briefing.show_once()`, which
+	# returns false for every leg after the first. So from leg 2 onward, **every
+	# flight that lost a goose handed the next zone a dead camera** —
+	# `goose_camera.gd` discards all mouse motion while the cursor is visible, and
+	# the player gets it back only by happening to left-click the window.
+	#
+	# Fixed here rather than in `_show_roster_if_lost()`, which is also awaited
+	# from `_show_results()` where the free cursor is correct. `_menus_open()`
+	# guards the case where the player opened something during the briefing.
+	if not _menus_open():
+		_capture_mouse(_mouse_was_captured)
 	# Guarded because the await can outlive the HUD — a restart, or the player
 	# quitting from the briefing card, frees it while this coroutine is parked.
 	if hud and is_instance_valid(hud) and hud.has_method("toast"):
@@ -1011,7 +1026,11 @@ func _probe_if_headless() -> void:
 	# the substance data and the objective sets all say the same thing. Every
 	# assertion in it is a bug that already got through once. See tools/selftest.gd.
 	if args.has("--selftest"):
-		preload("res://tools/selftest.gd").run(get_tree(), self)
+		# AWAITED. `run()` became a coroutine when `_the_time_scale()` stopped
+		# reading the clock on the statement after the reset that sets it — the
+		# only form of that check which can see a third writer is one that lets
+		# the tree run for a few frames first.
+		await preload("res://tools/selftest.gd").run(get_tree(), self)
 		return
 
 	# THE THIRD GATE, and the only one that presses a key. Holds W, flaps, honks,

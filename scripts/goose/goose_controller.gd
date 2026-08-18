@@ -90,6 +90,9 @@ var _drift := Vector2.ZERO
 var _drift_seed := Vector2.ZERO
 var _input_buffer: Array = []       ## [[age, Vector2], ...] for input_lag
 var _last_y_speed := 0.0
+## Speed the tick BEFORE `move_and_slide()` resolved it. `_resolve_collisions()`
+## grades every prop hit on this; see the argument there.
+var _last_speed := 0.0
 ## True while the bird is off the ground after leaving it WITHOUT upward speed —
 ## i.e. it walked off something rather than being launched off it. Gates the
 ## GROUND-state landing consequence; see _physics_process().
@@ -341,6 +344,11 @@ func _physics_process(delta: float) -> void:
 			State.FLY: _tick_fly(delta, m)
 
 	_last_y_speed = velocity.y
+	# Sampled here for the same reason `_last_y_speed` is: `move_and_slide()`
+	# slides velocity along every contact normal, so after it the speed of an
+	# impact is the speed you have LEFT, not the speed you arrived with.
+	# `_resolve_collisions()` grades prop hits on this.
+	_last_speed = velocity.length()
 	move_and_slide()
 	# THE LANDING CHECK LIVES HERE, not in _tick_fly().
 	#
@@ -649,7 +657,28 @@ func _face(target_yaw: float, rate: float, delta: float) -> void:
 
 func _resolve_collisions() -> void:
 	var m: Dictionary = Subs.mods
-	var speed := velocity.length()
+	# THE SPEED OF THE HIT IS THE SPEED BEFORE THE HIT.
+	#
+	# This read `velocity.length()`, and it runs AFTER `move_and_slide()` — which
+	# has already slid the velocity along every contact normal it resolved. So the
+	# harder the impact, the smaller the number it reported, and a square-on hit
+	# reported zero.
+	#
+	# Measured in Godot 4.7.1 with this exact capsule and this exact drive:
+	# waddling into a prop head-on at full `waddle_speed` gives pre-slide 4.226 and
+	# **post-slide 0.000**. `chaos_prop.gd` opens with `if force < 2.5: return`, so
+	# the most frequent scoring event in the game — running into a shopping cart —
+	# produced no score, no crash, no shake, no pop, and could never reach
+	# `break_force`. A 45° glance measured 2.970 and scored, which is why this was
+	# invisible: props DID break, just never when you hit them properly.
+	#
+	# A dive onto a prop was the same bug twice over: the floor normal zeroes
+	# `velocity.y` before this line, so `_do_land()` graded that tick as a 34 m/s
+	# hard landing while the prop underneath was told the force was nothing.
+	#
+	# `_last_speed` is sampled beside `_last_y_speed`, on the same line-before-the-
+	# slide principle and for the same reason.
+	var speed := _last_speed
 	for i in get_slide_collision_count():
 		var c := get_slide_collision(i)
 		var other := c.get_collider()
@@ -714,6 +743,33 @@ func _tick_eat(delta: float) -> void:
 			at = pick.global_position + Vector3.UP * 0.4
 
 		if Subs.take(res, dose):
+			# SIX SUBSTANCES HAVE BEEN PROMISING THIS AND NOTHING HAS EVER PAID IT.
+			#
+			# `Substance.stamina_restore` is exported, is set non-zero by bars
+			# (0.20), darts (0.20), double_double (0.40), grass (0.25), math
+			# (0.50) and molly (0.30) — and was read by NOTHING. It is not a key
+			# in `resolve()`'s dictionary, so it never reached `Subs.mods`, and no
+			# file under scripts/ named it. The `.tres` files are the design
+			# record for this game; six of them recorded a stamina refund the
+			# player has never once received.
+			#
+			# Wired here rather than deleted, and the distinction is the
+			# `float_height` precedent above: that dial went because it could not
+			# be honestly connected from this file — there was no water surface to
+			# connect it to. This one can, in one statement, at the exact moment
+			# the dose lands, with both the substance and the bird in scope.
+			#
+			# Flat and capped, not scaled by dose quality or tolerance: it is not
+			# in `resolve()` and putting it there would make a stamina refund
+			# something `_aggregate()` has to sum across actives, which is a
+			# different and larger change. `tools/selftest.gd::_the_substance_fields()`
+			# is the assertion that this stayed connected.
+			#
+			# THIS IS A BALANCE CHANGE AND IT IS ONE LINE. `flap_cost` is 0.058, so
+			# math's 0.50 is about 8.6 extra flaps from one dose. Nothing in this
+			# project measures whether that is too generous. See docs/DECISIONS.md.
+			if res.stamina_restore > 0.0:
+				stamina = minf(1.0, stamina + res.stamina_restore)
 			if _eating.has_method("consumed"):
 				_eating.consumed()
 			var label := "SWEET SPOT" if in_band else \

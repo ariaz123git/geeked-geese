@@ -121,8 +121,39 @@ func resolve(dose: float, tolerance: int) -> Dictionary:
 		"drift": drift * bad,
 		"flap_mult": 1.0 + (flap_mult - 1.0) * good,
 		"speed_mult": 1.0 + (speed_mult - 1.0) * good,
-		"gravity_mult": 1.0 + (gravity_mult - 1.0) * bad,
-		"turn_mult": 1.0 + (turn_mult - 1.0) * bad,
+		# FLOORED, BECAUSE `bad` IS UNBOUNDED AND THESE TWO CROSS ZERO.
+		#
+		# `quality` on an overdose is `1.0 + (dose - sweet_max) * 1.5` and `bad`
+		# multiplies that by another 1.6, so a full-charge dose reaches bad = 2.37.
+		# Both of these fields are declared BELOW 1.0 by most of the shelf, and
+		# `1.0 + (v - 1.0) * bad` goes negative once `bad > 1 / (1 - v)`. Nothing
+		# downstream clamps either one: `_aggregate()` multiplies them raw, and the
+		# controller's only two readers do not check the sign.
+		#
+		# Two live bugs, both reachable by simply HOLDING the eat key — `_tick_eat`
+		# saturates `_eat_charge` at exactly 1.0, so max dose is the default outcome
+		# of not letting go:
+		#
+		#   * special_k (gravity_mult 0.55, sweet_max 0.68) turns NEGATIVE above
+		#     dose 0.939. At 1.0 it resolves to -0.066, so `_tick_ground` accelerates
+		#     the bird UPWARD at 1.84 m/s² and `_tick_fly` makes glide AND dive
+		#     gravity negative too — there is no input that brings it down. It rises
+		#     roughly 150 m over the dose's scaled 15.6 s and comes back through a
+		#     `_tick_ground` fall, which has no `max_fall`, at 90–115 m/s.
+		#   * math and special_k make `turn_mult` <= 0 at ANY overdose (robo above
+		#     0.867, toad_slime above 0.787, percs above 0.955). `_face()` clamps its
+		#     step to `[0, 1]`, so a negative rate is an exact no-op: the heading
+		#     freezes for the whole duration while the bird keeps sliding, and the
+		#     Almanac cheerfully prints "Turning x0.34" for a multiplier delivered
+		#     as zero.
+		#
+		# 0.05 keeps gravity real but negligible; 0.08 keeps the bird steerable at
+		# a twelfth of normal, which is a punishing overdose rather than a frozen
+		# one. Asserted at dose 1.0 in `tools/selftest.gd::_the_overdose()` —
+		# no gate in this project had ever resolved a substance above 0.6, so the
+		# entire overdose branch was unmeasured.
+		"gravity_mult": maxf(0.05, 1.0 + (gravity_mult - 1.0) * bad),
+		"turn_mult": maxf(0.08, 1.0 + (turn_mult - 1.0) * bad),
 		"ragdoll_landings": ragdoll_landings,
 		"cannot_idle": cannot_idle,
 		"time_scale": time_scale,

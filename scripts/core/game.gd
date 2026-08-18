@@ -83,7 +83,27 @@ func _process(delta: float) -> void:
 		combo_timer -= real
 		if combo_timer <= 0.0:
 			combo = 0
-	if zone_running:
+	# THE LEG CLOCK STOPS WHEN THE GAME DOES. It did not, and this node is
+	# `PROCESS_MODE_ALWAYS`, so `_process` kept running behind every menu: ninety
+	# seconds in Settings cost ninety seconds of a 240 s leg, and the Almanac —
+	# which the game actively encourages you to read — was the most expensive
+	# thing in it.
+	#
+	# The second-order failure is worse than the lost time. If the menu is still
+	# open when the clock runs out, `set_phase(MIGRATION)` fires from behind it:
+	# `main._on_phase` loads the migration and opens the results card at layer 28,
+	# UNDER the pause menu at 30, where `results_screen._input` swallows the
+	# dismissing keypress with `set_input_as_handled()` and `_dismiss()` then
+	# writes `get_tree().paused = false` unconditionally — so the leg teardown and
+	# the flight briefing run underneath a pause menu that still thinks it is open.
+	#
+	# `main.gd::_brief_zone()` already documents this exact mechanism and holds
+	# the clock by hand for the briefings only. This is the general case.
+	#
+	# The combo timer above is deliberately left alone: it is a two-second window
+	# on a scoring flourish, and freezing it would let a player park a combo in a
+	# menu indefinitely.
+	if zone_running and not get_tree().paused:
 		zone_time_left = maxf(0.0, zone_time_left - real)
 		if zone_time_left <= 0.0:
 			zone_running = false

@@ -1046,7 +1046,16 @@ func _break_panes(list: Array[int], by_honk: bool) -> void:
 		_sfx.play_at(&"smash", self, 0.0, 1.22)
 		if n > 2:
 			_sfx.play_at(&"crash_light", self, -5.0, 0.86)
-	Mission.note(&"pane_broken", {"n": n, "honk": by_honk})
+	# THE OLD WHOLE-EVENT NOTE USED TO BE HERE AND IT WAS NEVER DELETED, so every
+	# shatter emitted n + 1 matching `pane_broken` events: n from the loop above,
+	# plus this one. `glazier` asks for ten panes on leg 7 and was completing on
+	# five single-pane fly-throughs, or nine panes taken in honk batches, paying
+	# its 240 × 1.6 = 384 at roughly half the intended work. Nobody saw the row
+	# tick because `mission_hud.gd` caps BONUS rows at two and glazier is appended
+	# behind the truck stop's five — the counter was wrong AND invisible.
+	#
+	# Deleted rather than renamed: nothing reads the `{n, honk}` payload. If a
+	# whole-event hook is wanted later it must NOT reuse this event name.
 
 	if phase == Phase.ATRIUM and _last_wall_is_out():
 		_make_weather(&"you")
