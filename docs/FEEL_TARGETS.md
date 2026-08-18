@@ -259,7 +259,52 @@ and **which of those it is depends on playing it.** Left observed on purpose.
 
 ---
 
-## 6. What will never be in this file
+## 6. The flight, computed — and why this section is weaker than the rest
+
+**Everything above this line was MEASURED. This section was not.** It is derived
+from `migration.gd`'s own constants, because migration mode is half the game —
+seven flights against seven zones — and has no feel instrument at all. Derived
+numbers are real arithmetic but they are not evidence that the code does what
+the arithmetic says. Treat this as a lead, not a result, and if it matters,
+build the gate.
+
+`_tick_player()` integrates position directly rather than running physics, so
+the response times fall straight out:
+
+| | | |
+|---|---|---|
+| Corridor width | **26 m** | `CORRIDOR_X` 13, both ways |
+| Lateral speed | **17 m/s** | |
+| **Full corridor crossing** | **1.53 s** | edge to edge |
+| Half crossing | **0.76 s** | centre to edge |
+| Climb, 5 → 34 m | **2.54 s** | flap 13.0 against a 1.6 sink |
+| Dive, 34 → 5 m | **1.46 s** | dive 18.2 plus the sink |
+| Passive sink, no input | **18.1 s** | to fall the whole band |
+
+### The one that is interesting
+
+`CAMPAIGN_SPEC.md` §2.6 gives leg 7 — THE PEAK, the hardest flight in the game —
+a hazard spawn interval of **[0.9, 1.6] s**. A full corridor crossing takes
+**1.53 s**.
+
+So at the tight end of that range **the player cannot cross the full corridor
+between two hazards.** A half crossing (0.76 s) fits comfortably inside even a
+0.9 s gap.
+
+That is not obviously wrong — it is arguably the correct shape for a peak. It
+means the corridor is wide enough that you **commit to a side** and make small
+corrections, rather than swinging across the whole lane on every obstacle. What
+it is not is *stated anywhere*, and a property this load-bearing being an
+accident of two numbers in two different files is exactly the pattern that
+produced the clock lie three times.
+
+**If it is intended, write it down.** If it is not, the lever is
+`CORRIDOR_X`, the lateral 17.0, or the spawn interval — and moving any of them
+changes all seven flights.
+
+---
+
+## 7. What will never be in this file
 
 Whether the goose is funny. Whether the honk lands. Whether the strip mall is a
 good first zone. Whether the ending earns itself. Whether any of it is *fun*.

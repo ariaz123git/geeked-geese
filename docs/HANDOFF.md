@@ -370,6 +370,19 @@ no `contact_monitor` set true without `max_contacts_reported`, no
 resource ids, no invented `uid://`. The two mechanical ones are now invariants
 (`selftest.gd::_the_files()`) so they stay clean.
 
+**MIGRATION HAS NO FEEL INSTRUMENT AT ALL, and one derived number is worth a
+look.** Seven flights against seven zones and nothing measures any of them
+beyond "the campaign completed". `_tick_player()` integrates position directly,
+so the response times fall out of the constants: a full corridor crossing is
+**1.53 s**, a half crossing 0.76 s, a full climb 2.54 s. Leg 7 — the peak —
+spawns hazards every **[0.9, 1.6] s**, so at the tight end **a full corridor
+crossing does not fit between two hazards** and a half crossing comfortably
+does. That is arguably the right shape for the hardest flight: you commit to a
+side rather than swinging across the lane. It is also written down nowhere, and
+a property this load-bearing living in two constants in two files is the pattern
+that produced the clock lie three times. `docs/FEEL_TARGETS.md` §6 — **derived,
+not measured**, and labelled as such.
+
 **Leg 1's world-space labels collide.** In `shots/gg_zone1_0.png` the flock pen
 prompt and the goose name tags overprint each other near the pond — the visible
 result is a smear reading `[G] …AKE GOR… THE DD`. Six geese with names, a
