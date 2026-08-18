@@ -445,7 +445,9 @@ and it is a good one: a label that shines through the strip mall wall tells the
 player their flock is inside the building. Instead the prompt now sits at 1.66,
 clear of the flock's own geometry, with `render_priority = 4` so it wins ties
 against the tags. It reads `[G]  MAKE TERRY THE DD`, whole, in
-`shots/gg_zone1_0.png`.
+`shots/gg_zone1_0.png` — which is gitignored, so regenerate it with
+`--probe --leg:1 --shots:1 --secs:2`; the command is the durable artefact, not
+the image.
 
 Everything else in the twelve renders read correctly: leg 7's HUD clock says
 **3:49** for its new 230 s, leg 5's dawn marsh is intact, and the Almanac shows

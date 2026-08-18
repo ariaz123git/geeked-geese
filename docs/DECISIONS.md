@@ -11,7 +11,9 @@ at length; they should link here for its *status* rather than asserting it.
 > it. That "supersede, don't edit" rule is the whole point: it makes reversals
 > visible instead of silent. This is established practice, not a house
 > invention. The single-file, low-ceremony shape is borrowed from the same
-> author's other project (`C:/projects/habitmaxxer`, `docs/decisions/DECISIONS.md`).
+> author's other project — **an entirely separate repo**, `C:/projects/habitmaxxer`,
+> whose `docs/decisions/DECISIONS.md` and `docs/README.md` are the working model.
+> Nothing at that path exists in *this* repo; ours is `docs/DECISIONS.md`.
 
 ---
 
@@ -101,7 +103,9 @@ Refs: `tools/feeltest.gd`; `docs/FEEL_TARGETS.md` §5.1.
 Status: Decided (agent)
 Decision: Raised from 1.03 m and given priority over the decorative name tags. `no_depth_test` stays **off**.
 Why: At 1.03 it was below head height on a 1.3 m bird, so the geese in front drew their necks through it — the render read `[G] …AKE GOR… THE DD`. `no_depth_test` would have "fixed" it by letting the label shine through the strip mall wall, which tells the player their flock is inside the building. Verified by render: now reads `[G] MAKE TERRY THE DD`, whole.
-Refs: `scripts/world/flock_pen.gd`; `shots/gg_zone1_0.png`.
+Refs: `scripts/world/flock_pen.gd`. Evidence regenerates with
+`godot --path . --rendering-driver opengl3 -- --probe --leg:1 --shots:1 --secs:2 --out:<dir>`
+— `shots/` is gitignored, so the command is the durable artefact, not the PNG.
 
 ## D-007 · 2026-08-18 · The truck stop's closing beat stays proportional
 Status: Open (human)

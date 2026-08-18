@@ -16,9 +16,10 @@ You play a Canada goose. Design doc: `GEEKED_GEESE_DESIGN.md`.
 > below.
 
 **Current goal: make it feel good.** The campaign is built — seven legs, seven
-flights, **two bosses** and an ending, verified end to end, and as of 2026-08-17
-it is measured too: eight gates, including a feel harness that found the flap
-compounding and a substance gate that doses all sixteen and watches the bird.
+flights, **two bosses** and an ending, verified end to end — and as of the
+2026-08-17/18 session it is *measured* too: eight gates, including a feel
+harness that caught the flap compounding and a substance gate that doses all
+sixteen and watches what the bird does.
 The next real work is still tuning rather than content — `docs/HANDOFF.md` §3 —
 but tuning is now something an agent can do and show receipts for. What is
 *not* an agent's is taste; see *"Taste is the human's"* below, and the
