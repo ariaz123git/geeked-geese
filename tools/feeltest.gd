@@ -1,0 +1,539 @@
+extends RefCounted
+## THE FEEL HARNESS — the sixth gate, and the first one with an OPINION.
+##
+## THE GAP THIS EXISTS TO CLOSE. `tools/inputtest.gd` says so itself, in its own
+## header: "WHAT THIS CANNOT DO: judge whether any of it FEELS good. That is the
+## human's job and this file does not have an opinion about it. Every threshold
+## below is deliberately loose — they are there to catch 'broken', never 'not
+## tuned'."
+##
+## That sentence is why every session of this project has opened by asking the
+## human to go and play it, and why `docs/HANDOFF.md` §3 has said "Play it" at
+## the top of the list twice in a row. The project could prove the bird MOVES.
+## It could not prove the bird moves WELL, so the only available move was to
+## defer — and deferring is what made the loop stall.
+##
+## THE ARGUMENT FOR MEASURING FEEL. "Feel" is not one thing. It decomposes:
+##
+##   * Things that are pure taste — is a waddling goose funny, is the honk timed
+##     right, is the Ranger's voice good. **This file has nothing to say about
+##     those and never will.** They are the human's, permanently.
+##   * Things that are a NUMBER with a defensible window — how long the bird
+##     takes to reach top speed, how far it slides after you let go, whether
+##     holding the flap button converges on a climb rate or diverges into orbit.
+##     Those are measurable, they are the ones that make a controller feel
+##     broken rather than merely unfunny, and **nothing in this project was
+##     measuring them.**
+##
+## This file does the second kind. Its windows are not vibes: every one of them
+## cites a number this project already wrote down somewhere, or a consequence
+## that follows from the geometry the zones are built to. The reasoning for each
+## lives in `docs/FEEL_TARGETS.md`, next to the number, so it can be ARGUED WITH
+## rather than merely obeyed. A window nobody can argue with is a vibe wearing a
+## lab coat.
+##
+##     godot --headless --path . -- --probe --feeltest 2>&1 | grep '^\[feel\]'
+##
+## Exit 0 = every asserted metric is inside its window. Exit 1 = at least one is
+## not, and the failing line prints the value, the window and the one-sentence
+## reason the window is where it is.
+##
+## TWO CLASSES OF METRIC, and the distinction is load-bearing:
+##
+##   ASSERTED — has a window, fails the build. Only ever added once the value
+##              has been measured, reasoned about, and written up in
+##              FEEL_TARGETS.md.
+##   OBSERVED — measured and printed, no window, does not fail anything. This is
+##              where a metric lives while it is still being understood. It is
+##              NOT a weakened assertion; it is an honest "we are watching this
+##              and have not earned an opinion yet". Promoting one to ASSERTED
+##              is a deliberate act with a written reason.
+##
+## Adding a metric here is cheap. Adding a WINDOW is not, and should not be.
+
+const TICK := 1.0 / 60.0
+
+## Result rows: {name, value, unit, lo, hi, asserted, why}
+static var _rows: Array[Dictionary] = []
+static var _fails: Array[String] = []
+
+
+static func run(tree: SceneTree, main: Node) -> void:
+	_rows.clear()
+	_fails.clear()
+
+	var goose: CharacterBody3D = await _fresh_goose(tree, main)
+	if goose == null:
+		print("[feel] FAIL — no goose in the zone")
+		tree.quit(1)
+		return
+
+	# THE CLOCK HAS TO BE HONEST OR EVERY NUMBER BELOW IS A LIE. Two autoloads
+	# write Engine.time_scale (Subs sets the substance baseline, Juice multiplies
+	# hitstop on top at process_priority 100). Every measurement here converts
+	# physics frames to seconds at 1/60, so a time_scale that is not 1.0 silently
+	# rescales the entire report. Checked, never assumed.
+	if absf(Engine.time_scale - 1.0) > 0.02:
+		print("[feel] FAIL — Engine.time_scale is %.3f, not 1.0. Every timing below would be wrong." % Engine.time_scale)
+		tree.quit(1)
+		return
+
+	await _ground_tests(tree, goose)
+	await _flight_tests(tree, goose)
+	await _stamina_tests(tree, goose)
+	await _latency_tests(tree, goose)
+
+	_report()
+	if _fails.is_empty():
+		var asserted := 0
+		for r in _rows:
+			if bool(r.asserted):
+				asserted += 1
+		print("[feel] PASS — %d measurements, %d asserted, all in window" % [_rows.size(), asserted])
+		tree.quit(0)
+		return
+	print("[feel] FAIL — %d metric(s) outside their window:" % _fails.size())
+	for f in _fails:
+		print("[feel]   %s" % f)
+	tree.quit(1)
+
+
+# ---------------------------------------------------------------- recording
+
+## A metric with a window. Fails the build when outside it.
+static func _assert_window(name: String, value: float, unit: String, lo: float, hi: float, why: String) -> void:
+	_rows.append({
+		"name": name, "value": value, "unit": unit,
+		"lo": lo, "hi": hi, "asserted": true, "why": why,
+	})
+	if value < lo or value > hi:
+		_fails.append("%s = %.2f %s, want [%.2f..%.2f] — %s" % [name, value, unit, lo, hi, why])
+
+
+## A metric with no window yet. Printed, never fails. See the header.
+static func _observe(name: String, value: float, unit: String, note: String) -> void:
+	_rows.append({
+		"name": name, "value": value, "unit": unit,
+		"lo": 0.0, "hi": 0.0, "asserted": false, "why": note,
+	})
+
+
+static func _report() -> void:
+	for r in _rows:
+		var n: String = r.name
+		var v: float = r.value
+		var u: String = r.unit
+		if bool(r.asserted):
+			var lo: float = r.lo
+			var hi: float = r.hi
+			var verdict := "ok" if (v >= lo and v <= hi) else "OUT"
+			print("[feel] %-26s %8.2f %-5s [%6.2f..%6.2f] %s" % [n, v, u, lo, hi, verdict])
+		else:
+			var note: String = r.why
+			print("[feel] %-26s %8.2f %-5s (observed)      %s" % [n, v, u, note])
+
+
+# ---------------------------------------------------------------- ground
+
+static func _ground_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
+	# --- top speed, time to reach it, and the latency before anything happens ---
+	await _settle(tree, goose)
+	var latency := -1
+	var top := 0.0
+	var samples: Array[float] = []
+	Input.action_press("gg_forward")
+	for i in 120:
+		await tree.physics_frame
+		var s := _flat_speed(goose)
+		samples.append(s)
+		if latency < 0 and s > 0.01:
+			latency = i + 1
+		top = maxf(top, s)
+	Input.action_release("gg_forward")
+
+	var t_to_top := 0.0
+	for i in samples.size():
+		if samples[i] >= top * 0.95:
+			t_to_top = float(i + 1) * TICK
+			break
+
+	_assert_window("ground.latency", float(maxi(latency, 0)), "tick", 1.0, 3.0,
+		"a press must move the bird on the next physics tick; 3 ticks is 50 ms and already reads as lag")
+	_assert_window("ground.top_speed", top, "m/s", 3.0, 6.0,
+		"below 3 m/s an 80 m zone takes half a minute to cross; above 6 it stops reading as a waddle")
+	_assert_window("ground.time_to_top", t_to_top, "s", 0.10, 0.40,
+		"under 0.10 s the bird has no weight at all; over 0.40 s it feels like pushing a fridge")
+
+	# --- stop distance: let go at speed and see how far it coasts ---
+	await _settle(tree, goose)
+	Input.action_press("gg_forward")
+	for _i in 60:
+		await tree.physics_frame
+	Input.action_release("gg_forward")
+	var p0 := goose.global_position
+	for _i in 90:
+		await tree.physics_frame
+		if _flat_speed(goose) < 0.05:
+			break
+	var slide := goose.global_position - p0
+	slide.y = 0.0
+	_assert_window("ground.stop_distance", slide.length(), "m", 0.05, 0.80,
+		"the goose capsule is about 0.7 m; coasting more than a body length past the key reads as ice")
+
+	# --- 180 degrees: how long to turn round ---
+	await _settle(tree, goose)
+	Input.action_press("gg_forward")
+	for _i in 60:
+		await tree.physics_frame
+	var h0: float = float(goose.get("heading"))
+	Input.action_release("gg_forward")
+	Input.action_press("gg_back")
+	var turn_t := 0.0
+	for i in 180:
+		await tree.physics_frame
+		var h: float = float(goose.get("heading"))
+		if absf(angle_diff(h, h0)) > PI - deg_to_rad(10.0):
+			turn_t = float(i + 1) * TICK
+			break
+	Input.action_release("gg_back")
+	_assert_window("ground.turn_180", turn_t, "s", 0.15, 0.80,
+		"chasing a rolling cart is the core comedy verb; over 0.8 s to turn round makes it misery")
+
+
+# ---------------------------------------------------------------- flight
+
+static func _flight_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
+	# --- ONE FLAP, from level flight. The design's own number. ---
+	#
+	# docs/HANDOFF.md:302 argues from "a goose climbs the racking one level per
+	# flap" and BIG DOWN's racking is built on a 1.70 m beam pitch to suit it.
+	# That makes 1.70 m the single most load-bearing feel number in the project:
+	# a level of warehouse racking is a unit of climb the player is meant to be
+	# able to spend one flap on.
+	await _aloft(tree, goose, 60.0)
+	var y0 := goose.global_position.y
+	Input.action_press("gg_flap")
+	await tree.physics_frame
+	Input.action_release("gg_flap")
+	var peak := 0.0
+	for _i in 90:
+		await tree.physics_frame
+		peak = maxf(peak, goose.global_position.y - y0)
+		if goose.velocity.y < 0.0 and peak > 0.01:
+			break
+	_assert_window("fly.one_flap_climb", peak, "m", 1.30, 2.30,
+		"one flap is one level of BIG DOWN's racking (1.70 m beam pitch, docs/HANDOFF.md:302)")
+
+	# --- HELD FLAP. Does it converge, or does the goose become a helicopter? ---
+	#
+	# THE ASSERTION THIS FILE WAS WRITTEN FOR. `_flap()` does
+	#     velocity.y = maxf(velocity.y, 0.0) + power
+	# which ADDS the impulse to an already-positive climb. Gravity only takes
+	# glide_gravity * flap_cooldown back between flaps, so if power exceeds that
+	# product the climb rate compounds without bound and the only thing between
+	# the player and orbit is the stamina bar. There is a max_fall. There is no
+	# max_rise.
+	# MEASURED AS ALTITUDE GAINED PER SECOND, NOT AS vy AT AN INSTANT.
+	#
+	# A flap that does not compound produces a SAWTOOTH: vy jumps to the impulse,
+	# decays for one cooldown, jumps again. Sampling vy at exactly t=1 s and
+	# t=3 s then reads two arbitrary points on that sawtooth, and the ratio
+	# between them swings with nothing but the phase — a healthy controller could
+	# report 1.7 and fail. Integrating over a whole second removes the phase
+	# entirely, and metres-climbed-per-second is also the quantity the player
+	# actually experiences.
+	await _aloft(tree, goose, 160.0)
+	var y_start := goose.global_position.y
+	var y_at_1 := 0.0
+	var y_at_2 := 0.0
+	var y_at_3 := 0.0
+	var climb_peak := 0.0
+	Input.action_press("gg_flap")
+	for i in 180:
+		await tree.physics_frame
+		climb_peak = maxf(climb_peak, goose.velocity.y)
+		if i == 59:
+			y_at_1 = goose.global_position.y
+		if i == 119:
+			y_at_2 = goose.global_position.y
+		if i == 179:
+			y_at_3 = goose.global_position.y
+	Input.action_release("gg_flap")
+
+	var gain_first := y_at_1 - y_start
+	var gain_third := y_at_3 - y_at_2
+
+	_assert_window("fly.climb_peak", climb_peak, "m/s", 1.0, 14.0,
+		"above 14 m/s the bird clears any rooftop in the game in under two seconds and zone geometry stops meaning anything")
+	# Guarded so a zero first second cannot produce a divide-by-zero ratio.
+	_assert_window("fly.climb_convergence", gain_third / maxf(gain_first, 0.001), "x", 0.55, 1.40,
+		"metres climbed in the 3rd second of held flap over the 1st; above 1.40 the flap compounds and altitude is free")
+	_observe("fly.climb_1st_second", gain_first, "m", "altitude gained in the 1st second of held flap")
+	_observe("fly.climb_3rd_second", gain_third, "m", "altitude gained in the 3rd second of held flap")
+
+	# --- THE GLIDE AND THE DIVE, OVER A DROP A PLAYER WOULD ACTUALLY TAKE. ---
+	#
+	# THE MEASUREMENT BUG THIS REPLACES. The first version sampled sink rate at
+	# three and four seconds and compared them. Both came back 34.00 m/s and the
+	# dive/glide ratio came back exactly 1.00, which reads as a damning finding
+	# and is nothing of the kind: `max_fall` is 34 and BOTH branches clamp to it,
+	# so any measurement taken after terminal velocity compares a constant to
+	# itself. Sampling at terminal cannot see the difference between the two
+	# verbs, because at terminal there isn't one.
+	#
+	# What a player experiences is not a terminal velocity. It is a DROP: I am on
+	# that roof, I want to be on that other roof, how long does it take and how
+	# hard do I hit. So the drop is what gets measured — 20 m, roughly the tall
+	# geometry in this game (the distribution centre's atrium is four storeys).
+	var glide := await _descend(tree, goose, 20.0, false)
+	_observe("fly.glide_20m_time", glide.x, "s", "seconds to lose 20 m gliding, forward held, no flap")
+	_observe("fly.glide_20m_run", glide.y, "m", "horizontal distance covered over that 20 m of descent")
+	_observe("fly.glide_ratio", glide.y / 20.0, ":1",
+		"metres forward per metre down over a real drop — this is the number that decides roof-to-roof")
+	_observe("fly.glide_impact", glide.z, "m/s",
+		"arrival speed after a 20 m glide; hard_landing_speed is 13.0, so above that a plain glide lands hard")
+
+	var dive := await _descend(tree, goose, 20.0, true)
+	_observe("fly.dive_20m_time", dive.x, "s", "seconds to lose the same 20 m with dive held")
+	_assert_window("fly.dive_beats_glide", glide.x / maxf(dive.x, 0.001), "x", 1.15, 4.0,
+		"the dive has its own button; if it does not measurably beat falling over a real drop it is not a verb")
+
+	# --- turning in the air, which is deliberately slower than on the ground ---
+	await _aloft(tree, goose, 90.0)
+	Input.action_press("gg_forward")
+	for _i in 60:
+		await tree.physics_frame
+	var h0: float = float(goose.get("heading"))
+	Input.action_release("gg_forward")
+	Input.action_press("gg_back")
+	var turn_t := 0.0
+	for i in 240:
+		await tree.physics_frame
+		if absf(angle_diff(float(goose.get("heading")), h0)) > PI - deg_to_rad(10.0):
+			turn_t = float(i + 1) * TICK
+			break
+	Input.action_release("gg_back")
+	_observe("fly.turn_180", turn_t, "s", "air_turn_rate is 4.2 against the ground's 9.0 — banking, on purpose")
+
+
+# ---------------------------------------------------------------- stamina
+
+static func _stamina_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
+	# How many flaps does a full bar buy, and how long to earn it back? These
+	# are the two numbers behind every "when do I spend" decision in flight.
+	await _aloft(tree, goose, 200.0)
+	goose.set("stamina", 1.0)
+	var flaps := 0
+	var last_cd := 0.0
+	Input.action_press("gg_flap")
+	for _i in 900:
+		await tree.physics_frame
+		var cd: float = float(goose.get("_flap_cd"))
+		# A flap is the frame the cooldown gets re-armed from ~0.
+		if cd > last_cd + 0.01:
+			flaps += 1
+		last_cd = cd
+		if float(goose.get("stamina")) <= 0.05:
+			break
+	Input.action_release("gg_flap")
+	_assert_window("stam.flaps_to_empty", float(flaps), "flap", 6.0, 24.0,
+		"under 6 flaps a bar is not a resource, it is a hiccup; over 24 it is not a constraint at all")
+
+	await _settle(tree, goose)
+	goose.set("stamina", 0.0)
+	var refill := 0.0
+	for i in 900:
+		await tree.physics_frame
+		if float(goose.get("stamina")) >= 0.99:
+			refill = float(i + 1) * TICK
+			break
+	_assert_window("stam.refill_ground", refill, "s", 1.5, 8.0,
+		"this is the length of the pause the game forces on a grounded bird; over 8 s it is a punishment, not a rhythm")
+
+
+# ---------------------------------------------------------------- latency
+
+static func _latency_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
+	# A dose has to LAND. Not how it feels — how many frames before the control
+	# mutation the player paid for is actually in Subs.mods.
+	await _settle(tree, goose)
+	var subs: Node = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Subs")
+	if subs == null:
+		return
+	var res: Resource = subs.call("get_substance", &"bars")
+	if res == null:
+		return
+	subs.call("take", res, 0.6)
+	var ticks := -1
+	for i in 120:
+		await tree.physics_frame
+		var m: Dictionary = subs.get("mods")
+		var lag: float = m.input_lag
+		if lag > 0.001:
+			ticks = i + 1
+			break
+	_assert_window("dose.latency", float(maxi(ticks, 0)), "tick", 1.0, 12.0,
+		"the dose is the game's core verb; more than 12 ticks (0.2 s) between eating and the world changing breaks cause and effect")
+
+	# The camera is the other half of "responsive". Snap the bird sideways and
+	# time the rig catching up. Deliberately OBSERVED: the right answer depends
+	# on how the shot is framed, which is taste, not physics.
+	await _settle(tree, goose)
+	var cam: Node3D = goose.get("cam") as Node3D
+	if cam == null:
+		return
+	# A BARE ZERO IS NOT A MEASUREMENT. The first version of this initialised the
+	# timer to 0.0 and only wrote it on success, so "never caught up in 300
+	# frames" and "caught up instantly" both printed 0.00. -1.0 is the sentinel,
+	# and the residual distance is reported alongside so the row says something
+	# either way.
+	print("[feel] camera rig is %s (parent %s)"
+		% [cam.name, cam.get_parent().name if cam.get_parent() != null else "<none>"])
+	goose.global_position += Vector3(20.0, 0.0, 0.0)
+	var t0 := Time.get_ticks_msec()
+	var settle_t := -1.0
+	var resid := 0.0
+	for _i in 600:
+		await tree.process_frame
+		resid = cam.global_position.distance_to(goose.global_position)
+		if resid < 4.0:
+			settle_t = float(Time.get_ticks_msec() - t0) * 0.001
+			break
+	_observe("cam.catch_up", settle_t, "s",
+		"seconds for the rig to get within 4 m of a bird teleported 20 m; -1 means it never did")
+	_observe("cam.residual", resid, "m", "rig-to-bird distance when that window closed")
+
+
+# ---------------------------------------------------------------- helpers
+
+static func angle_diff(a: float, b: float) -> float:
+	return wrapf(a - b, -PI, PI)
+
+
+## Fall `drop` metres from level flight. Returns (seconds, horizontal run, arrival speed).
+##
+## Deliberately measures a DROP rather than a sink rate: both branches clamp to
+## `max_fall`, so any sample taken at terminal velocity compares 34.00 to 34.00
+## and reports that the dive button does nothing.
+static func _descend(tree: SceneTree, goose: CharacterBody3D, drop: float, diving: bool) -> Vector3:
+	await _aloft(tree, goose, 40.0 + drop * 3.0)
+	var p0 := goose.global_position
+	Input.action_press("gg_forward")
+	if diving:
+		Input.action_press("gg_dive")
+	var secs := 0.0
+	var impact := 0.0
+	for i in 600:
+		await tree.physics_frame
+		if p0.y - goose.global_position.y >= drop:
+			secs = float(i + 1) * TICK
+			impact = -goose.velocity.y
+			break
+	Input.action_release("gg_forward")
+	if diving:
+		Input.action_release("gg_dive")
+	var run := goose.global_position - p0
+	run.y = 0.0
+	return Vector3(secs, run.length(), impact)
+
+
+static func _flat_speed(goose: CharacterBody3D) -> float:
+	return Vector2(goose.velocity.x, goose.velocity.z).length()
+
+
+static func _fresh_goose(tree: SceneTree, main: Node) -> CharacterBody3D:
+	var game := main.get_node_or_null("/root/Game")
+	if game != null:
+		game.zone_running = true
+	for _i in 30:
+		await tree.physics_frame
+	var cur: Node = main.get("current")
+	if cur == null or not is_instance_valid(cur):
+		return null
+	var g = cur.get("goose")
+	return g as CharacterBody3D
+
+
+## DRY GROUND, FOUND ONCE, REUSED BY EVERY TEST.
+##
+## THE MEASUREMENT BUG THIS EXISTS BECAUSE OF, and it was in the first run of
+## this very file. Leg 1 is the RETENTION POND, and the goose spawns in it. So
+## the "ground" tests measured `_tick_water()`: top speed came back 5.40 m/s,
+## which is `swim_speed`, not the `waddle_speed` of 4.2 the window was written
+## for, and stop distance came back 1.41 m because the water branch has no
+## friction term at all — it decelerates at `swim_accel` toward a zero target.
+##
+## Both numbers were real. Both were measurements of the wrong model, and both
+## would have been reported as feel failures of a controller that was fine.
+## An instrument gets calibrated before it is allowed to accuse anything.
+static var _dry := Vector3.ZERO
+static var _dry_ok := false
+
+
+static func _find_dry_ground(tree: SceneTree, goose: CharacterBody3D) -> void:
+	if _dry_ok:
+		return
+	var base := goose.global_position
+	var offsets: Array[Vector3] = [Vector3.ZERO]
+	for r: float in [7.0, 14.0, 21.0, 28.0]:
+		for a in 8:
+			var ang := TAU * float(a) / 8.0
+			offsets.append(Vector3(cos(ang), 0.0, sin(ang)) * r)
+
+	for off in offsets:
+		goose.global_position = base + off + Vector3.UP * 2.0
+		goose.velocity = Vector3.ZERO
+		goose.set("state", 0)
+		for _i in 16:
+			await tree.physics_frame
+		# `_water_bodies` is the goose's own count of overlapping water Area3Ds,
+		# which is the thing that forces State.WATER every physics frame. Asking
+		# it directly beats inferring from the state.
+		if int(goose.get("_water_bodies")) == 0 and goose.is_on_floor():
+			_dry = goose.global_position
+			_dry_ok = true
+			print("[feel] dry ground at %.1f, %.1f, %.1f (%.1f m from spawn)"
+				% [_dry.x, _dry.y, _dry.z, Vector2(off.x, off.z).length()])
+			return
+
+	_dry = base
+	_dry_ok = true
+	print("[feel] WARNING — no dry ground found within 28 m; ground metrics measure the water model")
+
+
+## On dry ground, sober, stationary, buffer drained.
+static func _settle(tree: SceneTree, goose: CharacterBody3D) -> void:
+	_release_all()
+	# Annotated, not inferred: Engine.get_main_loop() is typed MainLoop, which has
+	# no `root`, so the whole chain is a Variant and ':=' is a parse error.
+	var subs: Node = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Subs")
+	if subs != null and subs.has_method("reset_for_new_leg"):
+		subs.call("reset_for_new_leg")
+	await _find_dry_ground(tree, goose)
+	goose.global_position = _dry
+	goose.set("state", 0)          # State.GROUND
+	goose.set("stamina", 1.0)
+	goose.velocity = Vector3.ZERO
+	for _i in 60:
+		await tree.physics_frame
+
+
+## In the air, level, motionless, with `height` metres of clear sky underneath.
+##
+## Teleporting rather than flying up there is deliberate: every flight metric
+## below is about the FLIGHT MODEL, and starting each one from a real takeoff
+## would fold the takeoff's launch impulse and whatever the run-up left in the
+## horizontal into the number being measured.
+static func _aloft(tree: SceneTree, goose: CharacterBody3D, height: float) -> void:
+	await _settle(tree, goose)
+	goose.global_position += Vector3.UP * height
+	goose.set("state", 2)          # State.FLY
+	goose.velocity = Vector3.ZERO
+	await tree.physics_frame
+	goose.velocity = Vector3.ZERO
+
+
+static func _release_all() -> void:
+	for a in ["gg_forward", "gg_back", "gg_left", "gg_right", "gg_flap", "gg_dive", "gg_honk"]:
+		if InputMap.has_action(a):
+			Input.action_release(a)

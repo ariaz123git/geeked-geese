@@ -475,7 +475,33 @@ func _flap(m: Dictionary) -> void:
 	if _sfx:
 		_sfx.play_var([&"flap_1", &"flap_2", &"flap_3"], -5.0, 0.09)
 	var power: float = flap_impulse * m.flap_mult * (0.75 + 0.25 * Subs.brain.adrenaline * 2.0)
-	velocity.y = maxf(velocity.y, 0.0) + power
+	# THE FLAP SETS THE CLIMB. IT DOES NOT ADD TO IT.
+	#
+	# This line used to read `maxf(velocity.y, 0.0) + power`, which ADDS the
+	# impulse on top of an already-positive climb. One flap costs 0.30 s of
+	# cooldown, and glide_gravity only takes 11.0 * 0.30 = 3.3 m/s back over that
+	# window — while power is 6.08 at resting adrenaline. So every held flap
+	# netted +2.78 m/s on the last one, compounding, with no ceiling: there is a
+	# `max_fall` in this file and there has never been a max_rise. The only thing
+	# between the player and orbit was the stamina bar.
+	#
+	# Measured, not argued (tools/feeltest.gd, --feeltest):
+	#     before   7.36 m climbed in the 1st second of held flap, 23.66 m in the
+	#              3rd. Ratio 3.22x. Peak climb 29.5 m/s, which is faster than
+	#              the terminal fall speed of 34 is far from, and enough to clear
+	#              anything built in this game in about a second and a half.
+	#     after    4.50 m in the 1st second and 4.45 m in the 3rd. Ratio 0.99.
+	#              Peak climb 6.08 m/s, which is exactly `power` — the sawtooth
+	#              never gets above one flap's worth, which is the point.
+	#
+	# `maxf(velocity.y, power)` leaves the SINGLE flap bit-for-bit unchanged —
+	# from level flight both forms give exactly `power` — so the one number the
+	# design actually committed to survives untouched: one flap still lifts the
+	# bird 1.73 m, which is the level-per-flap the 1.70 m racking beam pitch in
+	# BIG DOWN was built around (docs/HANDOFF.md, §4). What it removes is only
+	# the stacking, and it self-limits across flap_mult: Double-Double's 2x flap
+	# rate doubles power AND halves the cooldown, and still converges.
+	velocity.y = maxf(velocity.y, power)
 	stamina = maxf(0.0, stamina - flap_cost)
 	_flap_cd = flap_cooldown / maxf(m.flap_mult, 0.4)
 	_flap_anim = 1.0

@@ -2,7 +2,7 @@
 <#
   Geeked Geese verification loop.
 
-    .\verify.ps1              # gate, invariants, controller, credit roll, campaign
+    .\verify.ps1              # gate, invariants, controller, feel, credit roll, campaign
     .\verify.ps1 -Shots       # also render every zone and tell you where the PNGs are
     .\verify.ps1 -Quick       # skips the 20 s campaign run
 
@@ -144,7 +144,33 @@ if ($inCode -ne 0) {
 }
 
 # ---------------------------------------------------------------------------
-# 4. THE CREDIT ROLL, MEASURED. The ending's fifth beat is slabs walking up the
+# 4. THE FEEL HARNESS. The controller gate above proves the bird MOVES; its own
+#    header says its thresholds catch "broken, never not tuned" and that judging
+#    feel "is the human's job". That sentence is why this project's handoff
+#    opened with "Play it" at the top of the list two sessions running, and why
+#    nothing ever came off that list.
+#
+#    This step measures the half of feel that is a NUMBER, against windows that
+#    each cite something already written down in this repo. It found, on its
+#    first run, that a held flap COMPOUNDED: 7.36 m of climb in the first second
+#    and 23.66 m in the third, with no max_rise anywhere in the controller.
+#    Every other gate passed on that build. tools/feeltest.gd, docs/FEEL_TARGETS.md.
+# ---------------------------------------------------------------------------
+Write-Host "`n=== feel ===" -ForegroundColor Cyan
+$feelOut = & $GODOT --headless --no-header --path $root -- --probe --feeltest 2>&1 | Out-String
+$feelCode = $LASTEXITCODE
+$feelLines = ($feelOut -split "`r?`n") | Where-Object { $_ -match '^\[feel\]' }
+$feelLines | ForEach-Object { Write-Host $_ }
+if ($feelCode -ne 0) {
+    Fail "feel" "exit $feelCode"
+} elseif (-not ($feelLines -match 'PASS')) {
+    Fail "feel" "no [feel] PASS line"
+} else {
+    Pass "feel" ($feelLines | Where-Object { $_ -match 'PASS' })
+}
+
+# ---------------------------------------------------------------------------
+# 5. THE CREDIT ROLL, MEASURED. The ending's fifth beat is slabs walking up the
 #    fairway, and its drive has been wrong twice - both times a speed nobody
 #    could see without watching the ending for four to six minutes. Physics runs
 #    headless, so the speed can just be measured. main.gd::_roll_test().
@@ -163,7 +189,7 @@ if ($rollCode -ne 0) {
 }
 
 # ---------------------------------------------------------------------------
-# 5. THE WHOLE CAMPAIGN, HEADLESS, IN ABOUT TWENTY SECONDS. The strongest check
+# 6. THE WHOLE CAMPAIGN, HEADLESS, IN ABOUT TWENTY SECONDS. The strongest check
 #    in the project and the cheapest: it drives all seven legs, all seven
 #    flights, the results card, the roster and the ending. If it stops early,
 #    read the [loop] t=... phase=... lines - it prints what it is stuck behind.
@@ -186,7 +212,7 @@ if (-not $Quick) {
 }
 
 # ---------------------------------------------------------------------------
-# 6. RENDER AND LOOK. Optional, because it needs a real display and about a
+# 7. RENDER AND LOOK. Optional, because it needs a real display and about a
 #    minute - but it is NOT optional before claiming anything about how the
 #    game looks. Every visual bug in this project's history was found by
 #    reading a PNG and none of them were findable by reading code: an

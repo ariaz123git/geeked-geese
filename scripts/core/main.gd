@@ -962,7 +962,7 @@ func _probe_if_headless() -> void:
 	# compile gate that takes 30 s and a software-rendered finale probe that
 	# takes 160 s are not the same job. `--failsafe:N` overrides both, and exists
 	# so the deadline itself can be tested without waiting four minutes for it.
-	var tool_flags := ["--gate", "--selftest", "--inputtest", "--rolltest"]
+	var tool_flags := ["--gate", "--selftest", "--inputtest", "--rolltest", "--feeltest"]
 	var is_tool := false
 	for f in tool_flags:
 		if args.has(f):
@@ -1000,6 +1000,21 @@ func _probe_if_headless() -> void:
 	# which had ever touched an input. See tools/inputtest.gd.
 	if args.has("--inputtest"):
 		await preload("res://tools/inputtest.gd").run(get_tree(), self)
+		return
+
+	# THE SIXTH GATE, and the first one with an OPINION. inputtest proves the
+	# bird MOVES; its own header says its thresholds are there to catch "broken,
+	# never not tuned", and that judging feel "is the human's job". That sentence
+	# is why this project's handoff has opened with "Play it" at the top of the
+	# list two sessions running.
+	#
+	# feeltest measures the half of feel that is a NUMBER — time to top speed,
+	# stop distance, whether held flap converges on a climb rate — against
+	# windows that each cite something this project already wrote down. The taste
+	# half (is a waddling goose funny) stays the human's, permanently. See
+	# tools/feeltest.gd and docs/FEEL_TARGETS.md.
+	if args.has("--feeltest"):
+		await preload("res://tools/feeltest.gd").run(get_tree(), self)
 		return
 
 	# THE CREDIT ROLL, MEASURED. Headless, because physics runs headless and the
