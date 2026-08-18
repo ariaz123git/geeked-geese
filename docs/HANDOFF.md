@@ -235,11 +235,23 @@ In order:
    * Any 20 m glide arrives at **20.9 m/s** against a `hard_landing_speed` of
      13.0. Sober that is a 15-point "ROUGH LANDING" and a reward; on a substance
      with `ragdoll_landings` it is an unavoidable faceplant every descent.
-2. **Leg 7's clock.** BIG DOWN opens the dock on the clock rather than on a fixed
-   countdown, so it works at 180 s today. The design wants 230 s (110 truck stop
-   → ≤75 tower → 15 roof), which needs `zone_truckstop.gd::DEPART_AT` rescaled
-   to the 110-second first phase. The comment in `main.gd::ROUTE` explains why
-   that has not been done.
+2. ~~**Leg 7's clock.**~~ **Done this session.** Leg 7 is 230 s, which is what
+   `docs/BOSS_DESIGN.md` §2.2.2 asks for, and BIG DOWN's `DOCK_OPENS_WITH`
+   (118 s left) puts the truck-stop phase at t=112 — the 110 s §2.2.2 specifies,
+   to within two seconds. **No code changed except the number.** The comment in
+   `main.gd::ROUTE` forbidding it described a constraint that
+   `zone_truckstop.gd::_clock_scale()` had already removed, and nobody noticed
+   because a comment cannot run. It is now
+   `tools/selftest.gd::_the_rig_schedule()`, which reproduces the scaling and
+   checks the last rig still departs with the zone's closing beat intact on
+   every clock the leg can legally be dealt.
+   * **One open taste question, recorded rather than decided.** That closing
+     beat is *proportional* — the schedule leaves exactly 6.0% of the leg empty
+     at every clock, so 13.8 s at 230 s and 6.6 s at Mission's 110 s floor. A
+     readable moment is arguably absolute, not proportional: a human needs
+     roughly ten seconds to notice an empty lot whatever the clock says. Making
+     it absolute is a one-line change to `_clock_scale()`. Not made, because
+     nothing specifies it and it is pacing.
 3. **The Ranger's leg 6 exam** — the corn field it was written for now exists.
 4. **Convert a zone to a real `.tscn`.** Still the accepted debt, still the wrong
    way to do level design, and now eight zones deep.

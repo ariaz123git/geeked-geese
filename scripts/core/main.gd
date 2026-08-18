@@ -33,10 +33,30 @@ const ROUTE := [
 	{"zone": "res://scripts/world/zone_cottage.gd",    "name": "COTTAGE COUNTRY",    "seconds": 180.0},
 	{"zone": "res://scripts/world/zone_stopover.gd",   "name": "THE STOPOVER",       "seconds": 150.0},
 	{"zone": "res://scripts/world/zone_corn.gd",       "name": "THE CUT CORN",       "seconds": 180.0},
-	# 180, not 230: the truck stop's departure schedule (`DEPART_AT`) is written
-	# against a 180 s clock, and a rig that leaves after the leg ends is a rig
-	# that never leaves.
-	{"zone": "res://scripts/world/zone_truckstop.gd",  "name": "THE TRUCK STOP",     "seconds": 180.0},
+	# 230, which is what docs/BOSS_DESIGN.md §2.2.2 asks for: 110 in the truck
+	# stop, then the tower, then the roof.
+	#
+	# THIS SAID 180 FOR A REASON THAT HAD STOPPED BEING TRUE. The comment here
+	# used to forbid 230 because "the truck stop's departure schedule
+	# (`DEPART_AT`) is written against a 180 s clock, and a rig that leaves after
+	# the leg ends is a rig that never leaves." That was correct when written and
+	# was made obsolete by `zone_truckstop.gd::_clock_scale()`, which rescales
+	# the whole schedule proportionally to whatever clock the leg is handed.
+	# Nobody noticed, because a comment cannot run: the constraint sat here as
+	# prose, blocking a change it no longer described, and `docs/HANDOFF.md`
+	# carried it forward as an open item.
+	#
+	# It is now an assertion instead — `tools/selftest.gd::_the_rig_schedule()`
+	# reproduces the scaling and checks the last rig still departs, with the
+	# zone's closing beat intact, on EVERY clock this leg can legally be dealt.
+	# Measured at 230: scale 1.278, last rig gone at 216 s, 13.8 s of empty lot,
+	# the same 6.0% of the leg the schedule leaves at every other clock.
+	#
+	# BIG DOWN needed no change. It opens the dock when the leg has
+	# DOCK_OPENS_WITH (118 s) LEFT rather than at a fixed elapsed time, precisely
+	# so it would survive this: t=62 on the old clock, t=112 on this one, which
+	# is the 110 s truck-stop phase §2.2.2 specifies, to within two seconds.
+	{"zone": "res://scripts/world/zone_truckstop.gd",  "name": "THE TRUCK STOP",     "seconds": 230.0},
 ]
 
 ## Completing THIS leg's flight ends the run. It is 7, not 8, and that is the

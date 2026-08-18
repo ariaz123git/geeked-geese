@@ -65,6 +65,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_defs_are_wired()
 	_the_labels_are_emitted()
 	_the_ambience(main)
+	_the_rig_schedule(main)
 	_the_assets()
 	_the_time_scale()
 
@@ -151,6 +152,117 @@ static func _the_clock(main: Node) -> void:
 		"a fresh run does not start leg 1 on its route clock (%.0f s)" % main.leg_seconds(1))
 	game.zone_time_left = before
 	game.zone_running = was_running
+
+
+# ──────────────────────────────────────────────── the truck stop's rig schedule
+
+## THE INVARIANT A COMMENT WAS STANDING IN FOR, AND SHOULD NOT HAVE BEEN.
+##
+## `main.gd::ROUTE` shipped leg 7 at 180 s carrying a comment that forbade the
+## 230 s `docs/BOSS_DESIGN.md` §2.2.2 asks for, because "the truck stop's
+## departure schedule (`DEPART_AT`) is written against a 180 s clock, and a rig
+## that leaves after the leg ends is a rig that never leaves."
+##
+## That was true when it was written. It STOPPED being true when
+## `zone_truckstop.gd` grew `_clock_scale()`, which rescales `DEPART_AT`
+## proportionally to whatever clock the leg is actually handed. Nobody noticed,
+## because **a comment cannot run.** The constraint sat there as prose, blocking
+## a change it no longer described.
+##
+## This is that constraint as an assertion instead. It reproduces
+## `_clock_scale()`'s arithmetic and checks that the last rig still departs with
+## a beat of empty lot after it — across EVERY clock this leg can legally be
+## played on, not just the one in the route today. `Mission` can subtract 60 s
+## for a bad leg 6, so the short end is real rather than hypothetical.
+##
+## What RIG_MARGIN defends is the zone's own thesis: the point of the place is
+## that "the lot is measurably emptier at 2:00 than it was at 0:00", and the
+## last departure leaving a few seconds of empty parking lot is called "the most
+## honest thing in the game" fifty lines above `DEPART_AT`.
+const TRUCKSTOP_PATH := "res://scripts/world/zone_truckstop.gd"
+
+## THE CLOSING BEAT IS PROPORTIONAL, SO THE ASSERTION HAS TO BE.
+##
+## The first version of this check demanded an absolute 8 s of empty lot and
+## failed at Mission's 110 s floor with 6.6 s. That was the check being wrong,
+## not the game: `_clock_scale()` is proportional by construction, and the
+## shipped schedule leaves exactly **6.0% of the leg** empty at EVERY clock in
+## the legal range — 6.6 s at 110, 10.8 s at 180, 13.8 s at 230. Demanding a
+## flat 8 s was demanding something the design never promised on a short clock.
+##
+## 5% is the floor: one percentage point of headroom under what ships, which is
+## enough to catch the last `DEPART_AT` entry being dragged toward the end of
+## the leg, or the [0.55, 1.35] clamp being hit and proportionality breaking,
+## without failing on a rounding difference.
+const RIG_TAIL_FRAC := 0.05
+
+
+static func _the_rig_schedule(main: Node) -> void:
+	var route: Array = main.get_script().get_script_constant_map().get("ROUTE", [])
+	var mission := main.get_node_or_null("/root/Mission")
+	if mission == null:
+		return
+
+	var zs: Resource = load(TRUCKSTOP_PATH)
+	if zs == null:
+		_ok(false, "the truck stop zone script did not load: %s" % TRUCKSTOP_PATH)
+		return
+	var consts: Dictionary = zs.get_script_constant_map()
+	var depart: Array = consts.get("DEPART_AT", [])
+	var base: float = float(consts.get("SCHEDULE_BASE", 0.0))
+	var arm: float = float(consts.get("ARM_TIME", 0.0))
+
+	_ok(depart.size() > 0, "zone_truckstop.gd has no DEPART_AT")
+	_ok(base > 0.0, "zone_truckstop.gd has no SCHEDULE_BASE for DEPART_AT to be relative to")
+	if depart.is_empty() or base <= 0.0:
+		return
+
+	# Ascending, or "the last one" is not the last one and every check below is
+	# measuring the wrong rig.
+	for i in range(1, depart.size()):
+		var prev: float = depart[i - 1]
+		var cur: float = depart[i]
+		_ok(cur > prev,
+			"zone_truckstop.gd DEPART_AT is not ascending at index %d (%.0f follows %.0f)" % [i, cur, prev])
+
+	var last: float = depart[depart.size() - 1]
+
+	for i in route.size():
+		var leg := i + 1
+		var e: Dictionary = route[i]
+		if str(e.get("zone", "")) != TRUCKSTOP_PATH:
+			continue
+
+		# Both ends of the range this leg can actually be dealt: the floor Mission
+		# will clamp a punished leg down to, and the route's own number.
+		var declared: float = float(e.get("seconds", 0.0))
+		var floor_secs: float = float(mission.clamp_zone_seconds(0.0))
+		for secs: float in [floor_secs, declared]:
+			# _clock_scale()'s arithmetic, reproduced. If that function changes,
+			# this is the assertion that notices.
+			#
+			# ARM_TIME IS SCALED TOO. The zone sets `_rig_arm[i] = ARM_TIME *
+			# scale`, so the whole departure costs (DEPART_AT + ARM_TIME) * scale.
+			# Adding an unscaled ARM_TIME here made this check report 5.4 s of
+			# tail where the game delivers 6.6, which is how a correct schedule
+			# came to look broken.
+			var scale: float = clampf(secs / base, 0.55, 1.35)
+			var gone_at: float = (last + arm) * scale
+
+			# 1. The constraint the ROUTE comment actually stated.
+			_ok(gone_at < secs,
+				("leg %d on a %.0f s clock: the last rig does not finish leaving until %.0f s and the "
+				+ "leg ends at %.0f. A rig that leaves after the leg ends is a rig that never leaves.")
+					% [leg, secs, gone_at, secs])
+
+			# 2. And it has to leave a beat of empty lot behind it.
+			var tail: float = (secs - gone_at) / maxf(secs, 1.0)
+			_ok(tail >= RIG_TAIL_FRAC,
+				("leg %d on a %.0f s clock: the last rig is gone at %.0f s, leaving %.1f s (%.1f%%) of "
+				+ "empty lot, under the %.0f%% floor. The schedule ships 6.0%% at every clock, so this "
+				+ "is a real change: the zone's whole argument is that the lot is measurably emptier "
+				+ "at the end than at the start.")
+					% [leg, secs, gone_at, secs - gone_at, tail * 100.0, RIG_TAIL_FRAC * 100.0])
 
 
 # ─────────────────────────────────────────────────────────────── the titles
