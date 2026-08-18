@@ -51,6 +51,8 @@ extends RefCounted
 ##
 ## Adding a metric here is cheap. Adding a WINDOW is not, and should not be.
 
+const COMMON := preload("res://tools/probe_common.gd")
+
 const TICK := 1.0 / 60.0
 
 ## Result rows: {name, value, unit, lo, hi, asserted, why}
@@ -66,9 +68,9 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_rows.clear()
 	_fails.clear()
 	_wet_ticks = 0
-	_dry_ok = false
+	COMMON.reset()
 
-	var goose: CharacterBody3D = await _fresh_goose(tree, main)
+	var goose: CharacterBody3D = await COMMON.fresh_goose(tree, main)
 	if goose == null:
 		print("[feel] FAIL — no goose in the zone")
 		tree.quit(1)
@@ -261,12 +263,12 @@ static func _ground_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
 	# that mean nothing. That happened, and it turned verify.ps1 red.
 	#
 	# The distinction the message has to carry: this is the HARNESS failing to
-	# get a clean read, not the game failing. The fix is in _find_dry_ground(),
+	# get a clean read, not the game failing. The fix is in probe_common.find_dry_ground(),
 	# never in goose_controller.gd.
 	if _wet_ticks > 0:
 		_fails.append(("ground metrics are CONTAMINATED - the goose was in water for %d "
 			+ "measurement ticks, so the rows above describe _tick_water(), not "
-			+ "_tick_ground(). This is a HARNESS fault: _find_dry_ground() found a pad "
+			+ "_tick_ground(). This is a HARNESS fault: probe_common.find_dry_ground() found a pad "
 			+ "too near the pond. Fix the search. Do not tune the controller from these "
 			+ "numbers.") % _wet_ticks)
 
@@ -531,113 +533,23 @@ static func _watch_dry(goose: CharacterBody3D) -> void:
 		_wet_ticks += 1
 
 
-static func _fresh_goose(tree: SceneTree, main: Node) -> CharacterBody3D:
-	var game := main.get_node_or_null("/root/Game")
-	if game != null:
-		game.zone_running = true
-	for _i in 30:
-		await tree.physics_frame
-	var cur: Node = main.get("current")
-	if cur == null or not is_instance_valid(cur):
-		return null
-	var g = cur.get("goose")
-	return g as CharacterBody3D
-
-
-## DRY GROUND, FOUND ONCE, REUSED BY EVERY TEST.
-##
-## THE MEASUREMENT BUG THIS EXISTS BECAUSE OF, and it was in the first run of
-## this very file. Leg 1 is the RETENTION POND, and the goose spawns in it. So
-## the "ground" tests measured `_tick_water()`: top speed came back 5.40 m/s,
-## which is `swim_speed`, not the `waddle_speed` of 4.2 the window was written
-## for, and stop distance came back 1.41 m because the water branch has no
-## friction term at all — it decelerates at `swim_accel` toward a zero target.
-##
-## Both numbers were real. Both were measurements of the wrong model, and both
-## would have been reported as feel failures of a controller that was fine.
-## An instrument gets calibrated before it is allowed to accuse anything.
-static var _dry := Vector3.ZERO
-static var _dry_ok := false
-
-## How far the bird may wander from the start pose during a ground measurement.
-## The walk test is the longest of them: held forward at waddle_speed 4.2 covers
-## about 5 m, and stop_distance coasts a little past that.
 const PAD_RADIUS := 9.0
 
 
-static func _find_dry_ground(tree: SceneTree, goose: CharacterBody3D) -> void:
-	if _dry_ok:
-		return
-	var base := goose.global_position
-	var offsets: Array[Vector3] = [Vector3.ZERO]
-	for r: float in [7.0, 14.0, 21.0, 28.0]:
-		for a in 8:
-			var ang := TAU * float(a) / 8.0
-			offsets.append(Vector3(cos(ang), 0.0, sin(ang)) * r)
-
-	for off in offsets:
-		goose.global_position = base + off + Vector3.UP * 2.0
-		goose.velocity = Vector3.ZERO
-		goose.set("state", 0)
-		for _i in 16:
-			await tree.physics_frame
-		# `_water_bodies` is the goose's own count of overlapping water Area3Ds,
-		# which is the thing that forces State.WATER every physics frame. Asking
-		# it directly beats inferring from the state.
-		if int(goose.get("_water_bodies")) != 0 or not goose.is_on_floor():
-			continue
-		var centre := goose.global_position
-
-		# A DRY POINT IS NOT ENOUGH. IT HAS TO BE A DRY PAD.
-		#
-		# THE FLAKE THIS EXISTS BECAUSE OF, and it turned verify.ps1 red on an
-		# unchanged, healthy controller. An earlier version took the first spot
-		# that was dry and floored WHILE STANDING STILL. On leg 1 that can be
-		# the pond shoreline: the walk test then holds forward for two seconds,
-		# covers 8.4 m at waddle_speed, wades in, and top speed comes back 5.40
-		# — which is swim_speed — against a window written for 4.2.
-		#
-		# The measurement MOVES the bird, so the candidate has to be dry across
-		# the ground the bird will cover, not at the point it starts on.
-		var pad_ok := true
-		for a2 in 4:
-			var ang2 := TAU * float(a2) / 4.0
-			goose.global_position = centre + Vector3(cos(ang2), 0.0, sin(ang2)) * PAD_RADIUS + Vector3.UP
-			goose.velocity = Vector3.ZERO
-			for _j in 6:
-				await tree.physics_frame
-			if int(goose.get("_water_bodies")) != 0:
-				pad_ok = false
-				break
-		if not pad_ok:
-			continue
-
-		_dry = centre
-		_dry_ok = true
-		print("[feel] dry ground at %.1f, %.1f, %.1f (%.1f m from spawn, %.0f m dry pad)"
-			% [_dry.x, _dry.y, _dry.z, Vector2(off.x, off.z).length(), PAD_RADIUS])
-		return
-
-	_dry = base
-	_dry_ok = true
-	print("[feel] WARNING — no dry ground found within 28 m; ground metrics measure the water model")
-
-
-## On dry ground, sober, stationary, buffer drained.
 static func _settle(tree: SceneTree, goose: CharacterBody3D) -> void:
-	_release_all()
+	COMMON.release_all()
 	# Annotated, not inferred: Engine.get_main_loop() is typed MainLoop, which has
 	# no `root`, so the whole chain is a Variant and ':=' is a parse error.
 	var subs: Node = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Subs")
 	if subs != null and subs.has_method("reset_for_new_leg"):
 		subs.call("reset_for_new_leg")
-	await _find_dry_ground(tree, goose)
+	var pad := await COMMON.find_dry_ground(tree, goose, "[feel]")
 	# Hand the camera back its auto-follow; _aloft() parks it to pin the stick's
 	# world bearing and every measurement starts here.
 	var cam0: Node3D = goose.get("cam") as Node3D
 	if cam0 != null:
 		cam0.set("_manual_t", 0.0)
-	goose.global_position = _dry
+	goose.global_position = pad
 	goose.set("state", 0)          # State.GROUND
 	goose.set("stamina", 1.0)
 	goose.velocity = Vector3.ZERO
@@ -674,8 +586,3 @@ static func _aloft(tree: SceneTree, goose: CharacterBody3D, height: float) -> vo
 	await tree.physics_frame
 	goose.velocity = Vector3.ZERO
 
-
-static func _release_all() -> void:
-	for a in ["gg_forward", "gg_back", "gg_left", "gg_right", "gg_flap", "gg_dive", "gg_honk"]:
-		if InputMap.has_action(a):
-			Input.action_release(a)

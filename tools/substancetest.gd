@@ -41,6 +41,8 @@ extends RefCounted
 ## scripts/core/substance.gd exists to forbid". A thing that only makes you
 ## faster is the number that goes up.
 
+const COMMON := preload("res://tools/probe_common.gd")
+
 const TICK := 1.0 / 60.0
 
 ## The dose every measurement uses. Inside the sweet band of every substance in
@@ -86,16 +88,14 @@ const EXEMPT := {}
 
 static var _fails: Array[String] = []
 static var _checks := 0
-static var _dry := Vector3.ZERO
-static var _dry_ok := false
 
 
 static func run(tree: SceneTree, main: Node) -> void:
 	_fails.clear()
 	_checks = 0
-	_dry_ok = false
+	COMMON.reset()
 
-	var goose: CharacterBody3D = await _fresh_goose(tree, main)
+	var goose: CharacterBody3D = await COMMON.fresh_goose(tree, main)
 	if goose == null:
 		print("[subs] FAIL — no goose in the zone")
 		tree.quit(1)
@@ -557,9 +557,9 @@ static func _fingerprint(tree: SceneTree, goose: CharacterBody3D, subs: Node) ->
 
 ## Back to the dry pad, on the ground, still — WITHOUT clearing the substance.
 static func _reset(tree: SceneTree, goose: CharacterBody3D) -> void:
-	_release_all()
-	await _find_dry_ground(tree, goose)
-	goose.global_position = _dry
+	COMMON.release_all()
+	var pad := await COMMON.find_dry_ground(tree, goose, "[subs]")
+	goose.global_position = pad
 	goose.set("state", 0)
 	goose.set("stamina", 1.0)
 	goose.velocity = Vector3.ZERO
@@ -569,7 +569,7 @@ static func _reset(tree: SceneTree, goose: CharacterBody3D) -> void:
 	# This was 30 frames, and shortening it to 15 to fit the fingerprint inside
 	# a 7 s nitrous introduced a flake that failed the build: the FIRST sober
 	# fingerprint of a run measured a top speed of 4.96 m/s against
-	# waddle_speed's 4.20, because `_find_dry_ground()` leaves the bird a metre
+	# waddle_speed's 4.20, because `probe_common.find_dry_ground()` leaves the bird a metre
 	# up over its last pad probe and a quarter second is not always long enough
 	# to land and stop sliding. The second sober run read 4.20 and the noise
 	# guard refused the report, correctly.
@@ -591,64 +591,3 @@ static func _sober_up(tree: SceneTree, goose: CharacterBody3D, subs: Node) -> vo
 	for _i in 20:
 		await tree.physics_frame
 
-
-## Same dry-pad search as tools/feeltest.gd, and for the same reason: leg 1 is
-## the retention pond, the goose spawns in it, and a "ground" measurement taken
-## in water is measuring _tick_water(). See that file's comment.
-static func _find_dry_ground(tree: SceneTree, goose: CharacterBody3D) -> void:
-	if _dry_ok:
-		return
-	var base := goose.global_position
-	var offsets: Array[Vector3] = [Vector3.ZERO]
-	for r: float in [7.0, 14.0, 21.0, 28.0]:
-		for a in 8:
-			var ang := TAU * float(a) / 8.0
-			offsets.append(Vector3(cos(ang), 0.0, sin(ang)) * r)
-
-	for off in offsets:
-		goose.global_position = base + off + Vector3.UP * 2.0
-		goose.velocity = Vector3.ZERO
-		goose.set("state", 0)
-		for _i in 16:
-			await tree.physics_frame
-		if int(goose.get("_water_bodies")) != 0 or not goose.is_on_floor():
-			continue
-		var centre := goose.global_position
-		var pad_ok := true
-		for a2 in 4:
-			var ang2 := TAU * float(a2) / 4.0
-			goose.global_position = centre + Vector3(cos(ang2), 0.0, sin(ang2)) * 9.0 + Vector3.UP
-			goose.velocity = Vector3.ZERO
-			for _j in 6:
-				await tree.physics_frame
-			if int(goose.get("_water_bodies")) != 0:
-				pad_ok = false
-				break
-		if not pad_ok:
-			continue
-		_dry = centre
-		_dry_ok = true
-		print("[subs] dry ground at %.1f, %.1f, %.1f" % [_dry.x, _dry.y, _dry.z])
-		return
-	_dry = base
-	_dry_ok = true
-	print("[subs] WARNING — no dry pad found; ground channels measure the water model")
-
-
-static func _fresh_goose(tree: SceneTree, main: Node) -> CharacterBody3D:
-	var game := main.get_node_or_null("/root/Game")
-	if game != null:
-		game.zone_running = true
-	for _i in 30:
-		await tree.physics_frame
-	var cur: Node = main.get("current")
-	if cur == null or not is_instance_valid(cur):
-		return null
-	var g = cur.get("goose")
-	return g as CharacterBody3D
-
-
-static func _release_all() -> void:
-	for a in ["gg_forward", "gg_back", "gg_left", "gg_right", "gg_flap", "gg_dive", "gg_honk"]:
-		if InputMap.has_action(a):
-			Input.action_release(a)
