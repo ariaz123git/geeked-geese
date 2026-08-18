@@ -68,6 +68,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_rig_schedule(main)
 	_the_files()
 	_the_dose_window(main)
+	_the_docs()
 	_the_assets()
 	_the_time_scale()
 
@@ -455,6 +456,113 @@ static func _the_dose_window(main: Node) -> void:
 		# And the whole band has to be reachable before the charge saturates.
 		_ok(hi * ct <= ct + 0.001,
 			"%s's band closes at %.2f s but a full charge takes %.2f s" % [id, hi * ct, ct])
+
+
+# ──────────────────────────────── the docs, checked against the code
+
+## A COMMENT CANNOT RUN — SO CHECK THE ONES THAT MATTER.
+##
+## This project's most expensive recurring failure is not a crash. It is a
+## constraint recorded as prose that keeps applying after it stops being true.
+## Three counted so far: `main.gd::ROUTE` forbade a 230 s leg 7 for a reason
+## `_clock_scale()` had already removed; `boss_ranger.gd` said leg 6's exam was
+## unbuilt because "leg 6 does not exist yet" after the corn field shipped; and
+## `CLAUDE.md`'s own banner told every session the game had never been measured,
+## for a whole session after it had been.
+##
+## Most prose cannot be checked. **These two can**, and they are the two that go
+## stale first, because they are counts that change whenever someone does the
+## right thing:
+##
+##   1. Every gate flag `main.gd` dispatches must be documented in `CLAUDE.md`.
+##      Adding a gate and not documenting it is the single easiest way to make
+##      the verification story wrong, and it is invisible until someone needs it.
+##   2. `docs/HANDOFF.md`'s claimed GDScript file count must match reality. It is
+##      the first number a fresh session reads about the size of the project, it
+##      was wrong twice in one session, and it is free to check.
+##
+## Deliberately NOT asserted: the invariant count. It is self-referential — every
+## assertion added here changes the number the doc has to claim — and a check
+## that fights its own author gets deleted rather than obeyed.
+const DOC_CLAUDE := "res://CLAUDE.md"
+const DOC_HANDOFF := "res://docs/HANDOFF.md"
+const SRC_MAIN := "res://scripts/core/main.gd"
+
+
+static func _the_docs() -> void:
+	var claude := _read_text(DOC_CLAUDE)
+	var handoff := _read_text(DOC_HANDOFF)
+	var main_src := _read_text(SRC_MAIN)
+	_ok(claude != "", "could not read CLAUDE.md to check it against the code")
+	_ok(handoff != "", "could not read docs/HANDOFF.md to check it against the code")
+	_ok(main_src != "", "could not read main.gd to check the docs against it")
+	if claude == "" or handoff == "" or main_src == "":
+		return
+
+	# 1. Every gate flag the engine dispatches has to be written down.
+	var flags := _tool_flags(main_src)
+	_ok(flags.size() >= 4,
+		"could not find main.gd's `tool_flags` list — this check has gone blind, fix the parse")
+	for one_flag in flags:
+		_ok(claude.contains(one_flag),
+			("main.gd dispatches the gate flag `%s` and CLAUDE.md never mentions it. A gate nobody "
+			+ "knows about is a gate nobody runs.") % one_flag)
+
+	# 2. The script count HANDOFF advertises has to be the real one.
+	var scripts: Array[String] = []
+	var resources: Array[String] = []
+	_walk_files("res://", scripts, resources)
+	var claimed := _int_before(handoff, " GDScript files")
+	if claimed > 0:
+		_ok(claimed == scripts.size(),
+			("docs/HANDOFF.md says %d GDScript files; there are %d. It is the first number a fresh "
+			+ "session reads about the size of this project.") % [claimed, scripts.size()])
+
+
+## The contents of `tool_flags := [ ... ]` in main.gd, as a list of "--flag".
+static func _tool_flags(src: String) -> Array[String]:
+	var out: Array[String] = []
+	var at := src.find("tool_flags")
+	if at < 0:
+		return out
+	var open_b := src.find("[", at)
+	var close_b := src.find("]", open_b)
+	if open_b < 0 or close_b < 0:
+		return out
+	for chunk in src.substr(open_b + 1, close_b - open_b - 1).split(","):
+		var one := chunk.strip_edges().replace(QUOTE, "").strip_edges()
+		if one.begins_with("--"):
+			out.append(one)
+	return out
+
+
+## The integer immediately preceding `marker`, or -1. Used for "| Code | 69
+## GDScript files" without caring where in the table it sits.
+static func _int_before(text: String, marker: String) -> int:
+	var at := text.find(marker)
+	if at < 0:
+		return -1
+	var digits := ""
+	var i := at - 1
+	while i >= 0:
+		var ch := text[i]
+		if ch >= "0" and ch <= "9":
+			digits = ch + digits
+		elif digits != "":
+			break
+		elif ch != " ":
+			break
+		i -= 1
+	return int(digits) if digits != "" else -1
+
+
+static func _read_text(path: String) -> String:
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return ""
+	var body := f.get_as_text()
+	f.close()
+	return body
 
 
 # ─────────────────────────────────────────────────────────────── the titles

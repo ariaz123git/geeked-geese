@@ -3,15 +3,36 @@
 3D physics-comedy game. **Godot 4.7.1**, GDScript, Windows 11.
 You play a Canada goose. Design doc: `GEEKED_GEESE_DESIGN.md`.
 
-> **Read `docs/HANDOFF.md` first.** This file is the *stable rules*. HANDOFF is
-> *what is actually true right now* — current state, what changed last session,
-> what to do next, and what is broken. It changes every session; this file
-> rarely does.
+> **Read order for a fresh session** — and when two disagree, the earlier wins:
+> **(0)** the code and `.\verify.ps1`, the only things that cannot lie about what
+> is built; **(1)** `docs/HANDOFF.md` for current state; **(2)** `docs/DECISIONS.md`
+> for what is settled and what is still the human's call; **(3)** this file for
+> the stable rules; **(4)** `docs/FEEL_TARGETS.md` and the specs for why a number
+> is what it is. Full lifecycle, and the mistakes that cost real time here:
+> `docs/SESSION_PROTOCOL.md`.
+>
+> **This file is deliberately below HANDOFF and DECISIONS in that order.** It
+> changes rarely, which is its value and also its risk — see the banner note
+> below.
 
 **Current goal: make it feel good.** The campaign is built — seven legs, seven
-flights, a boss, and an ending, verified running end to end. What it has never
-had is a human playing it. The next real work is tuning, not content; see
-`docs/HANDOFF.md` §3.
+flights, **two bosses** and an ending, verified end to end, and as of 2026-08-17
+it is measured too: eight gates, including a feel harness that found the flap
+compounding and a substance gate that doses all sixteen and watches the bird.
+The next real work is still tuning rather than content — `docs/HANDOFF.md` §3 —
+but tuning is now something an agent can do and show receipts for. What is
+*not* an agent's is taste; see *"Taste is the human's"* below, and the
+`Open (human)` entries in `docs/DECISIONS.md`.
+
+> **THIS BANNER WAS WRONG FOR A WHOLE SESSION, AND THAT IS THE LESSON.** It used
+> to end "What it has never had is a human playing it. The next real work is
+> tuning" — and stayed there after a session had built the instruments to do
+> that tuning, because nothing makes a rarely-edited file get re-read. **A
+> constraint recorded as prose keeps applying after it stops being true**, which
+> has now cost this project three separate blockages (this banner, `ROUTE`'s
+> clock comment, `boss_ranger.gd`'s "leg 6 does not exist yet"). If you are
+> about to leave a reason in a comment, ask whether it can be an assertion
+> instead — and if it cannot, date it and log it in `docs/DECISIONS.md`.
 
 Design docs: route and ending in `docs/CAMPAIGN_SPEC.md`, bosses in
 `docs/BOSS_DESIGN.md`, architecture in `docs/ARCHITECTURE.md`. Multiplayer in
@@ -52,6 +73,7 @@ godot --headless --path . -- --probe --inputtest   # the bird obeys
 godot --headless --path . -- --probe --feeltest    # the bird obeys WELL
 godot --headless --path . -- --probe --substancetest  # all 16 substances bite
 godot --headless --path . -- --probe --migtest     # the flight answers the stick
+godot --headless --path . -- --probe --rolltest    # the credit roll actually travels
 godot --headless --path . -- --probe --loop-test   # seven legs and the ending
 ```
 

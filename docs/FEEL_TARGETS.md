@@ -242,9 +242,9 @@ Both are one-line changes. Both change how the whole game traverses. Neither is
 a bug, and asserting a window on either would be inventing a taste judgement and
 calling it arithmetic.
 
-### 5.1 The glide is 0.98 : 1
+### 5.1 The glide is 0.85 : 1
 
-A goose currently travels **0.98 m forward per 1 m down**. That is a controlled
+A goose currently travels **0.85 m forward per 1 m down**. That is a controlled
 fall, not a glide. `GEEKED_GEESE_DESIGN.md:130` promises *"chain it into a safe
 glide and you're fine"*, and at 1:1 there is not much glide to chain into.
 

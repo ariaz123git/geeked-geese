@@ -30,7 +30,9 @@ handles.**
 | Bosses | **2 built.** The Ranger (leg 3) and **BIG DOWN** (the back half of leg 7) |
 | Assets | 39 textures (23 + 16 substance icons), 46 sounds (39 SFX + 7 zone ambience beds), 22 music stems — **all procedurally generated** |
 | Autoloads | 10 (see `docs/ARCHITECTURE.md` §2 for the order and why it matters) |
-| Gates | **8**: compile, invariants (529), controller, **feel (22 metrics, 13 asserted)**, **substances (117 over 16)**, **flight (9 measurements)**, credit roll, full campaign. `.\verify.ps1`, about 4 minutes |
+| Gates | **8**: compile, invariants (541), controller, **feel (22 metrics, 13 asserted)**, **substances (117 over 16)**, **flight (9 measurements)**, credit roll, full campaign. `.\verify.ps1`, about 4 minutes |
+| Docs that check themselves | `selftest.gd::_the_docs()` asserts every gate flag `main.gd` dispatches is documented in `CLAUDE.md`, and that HANDOFF's own script count is real. It caught `--rolltest` undocumented on its first run. |
+| Decisions | `docs/DECISIONS.md` — ADR-lite. **Three entries are `Open (human)`** and must not be closed by an agent: D-005, D-006, D-007. |
 | Version control | **A git repo, as of this session.** There was none before, despite `VIBECODING_BRIEFING.md` making "commit before every task" one of its six headline rules. |
 
 ### What works
@@ -121,6 +123,27 @@ because **a comment cannot run**. It is now
 checked on every clock the leg can legally be dealt. BIG DOWN needed no change:
 `DOCK_OPENS_WITH` puts the truck-stop phase at t=112, which is the 110 s §2.2.2
 specifies, to within two seconds.
+
+**5b. THE PROJECT REMEMBERS THINGS NOW, AND SOME OF IT IS ENFORCED.** Three
+docs were added and one habit was made checkable:
+
+- `docs/DECISIONS.md` — ADR-lite (Michael Nygard's "supersede, don't edit"),
+  seeded with all thirteen decisions from this session. **It is the only place
+  that distinguishes settled from open**, and three entries are `Open (human)`.
+- `docs/SESSION_PROTOCOL.md` — the read order, the start and finish checklists,
+  and the traps that cost real time here (`sed -i` eating CRLF, a reused local
+  name hanging the parser with no output, harnesses accusing a healthy game).
+- `CLAUDE.md` opens with a **numbered read order and a conflict rule**, and its
+  own banner now carries the reason it was rewritten: it told every session the
+  game "has never had a human playing it" for a full session after that stopped
+  being the useful framing. Rules age; state and decisions are dated.
+- `selftest.gd::_the_docs()` makes two of those claims **fail the build** when
+  they rot: every gate flag the engine dispatches must be documented, and
+  HANDOFF's script count must be the real one. It found `--rolltest` — the
+  credit-roll gate — documented nowhere, on its first run.
+
+The invariant count is deliberately NOT asserted: it is self-referential, and a
+check that fights its own author gets deleted rather than obeyed.
 
 **6. The render probe could not write a file on Windows and said it had.**
 `Image.save_png()` *returns* an error rather than raising one, and all twelve
@@ -278,10 +301,13 @@ human's. Everything measurable is yours."*
 
 In order:
 
-1. **Two feel questions that are genuinely yours** — `docs/FEEL_TARGETS.md` §5.
-   Neither is a bug; both are one-line changes that alter traversal everywhere,
-   which is why they were left rather than decided.
-   * The glide is **0.87–0.98 : 1** — a metre forward per metre down, which is a
+1. **Three questions that are genuinely yours** — tracked as `Open (human)` in
+   `docs/DECISIONS.md`, which is now the one place that distinguishes settled
+   from open. **An agent must not close these.** D-006 the glide ratio, D-005
+   the hard-landing threshold, D-007 the truck stop's closing beat. The first
+   two are argued at length in `docs/FEEL_TARGETS.md` §5; none is a bug, and
+   each is a one-line change that alters traversal or pacing everywhere.
+   * The glide is **0.85–0.87 : 1** — a metre forward per metre down, which is a
      controlled fall. `GEEKED_GEESE_DESIGN.md:130` promises *"chain it into a
      safe glide and you're fine"*, and at 1:1 there is not much glide to chain.
    * Any 20 m glide arrives at **20.9 m/s** against a `hard_landing_speed` of
@@ -424,6 +450,18 @@ against the tags. It reads `[G]  MAKE TERRY THE DD`, whole, in
 Everything else in the twelve renders read correctly: leg 7's HUD clock says
 **3:49** for its new 230 s, leg 5's dawn marsh is intact, and the Almanac shows
 16/16.
+
+**`FOOTPRINTS` is never checked against the meshes it describes, and it is not
+documentation — it is load-bearing.** `prop_models.gd::build()` sizes with
+`model.scale = want / footprint(kind)`, so a declared box that disagrees with
+the mesh makes every `size:`-scaled placement wrong by exactly that error, in
+every zone that asks for one. Nothing has ever compared the two, and
+`docs/HANDOFF.md` already suspected `FOOTPRINTS[&"down_bale"]` of being 8–12%
+small. **A checker was attempted this session and abandoned**: building every
+kind through `build(kind, {})` crashed inside the builders, which want params
+the empty dictionary does not supply. The idea is sound and the pattern is
+`tools/feeltest.gd`; the work is figuring out the per-kind default params first.
+Nothing was left in the tree.
 
 **Nobody has heard any of the ambience beds, including the agent that generated
 them.** There is no audio probe and no way to listen headless. What *has* been
