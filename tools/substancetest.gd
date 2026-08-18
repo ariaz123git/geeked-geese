@@ -62,19 +62,6 @@ const CLIMB_TOL := 0.18
 ## angular step and input lag moves which frame that is.
 const TURN_TOL := 0.25
 
-## Smallest `drift` the off-axis measurement can honestly resolve.
-##
-## Drift enters as `raw += _drift`, where `_drift` peaks at about 0.825 * drift
-## against a stick of length 1. So drift 0.10 can bend the bearing by at most
-## 4.7 degrees AT THE PEAK OF ITS SINE, and the sine has a period of roughly
-## four seconds -- a two second sample can easily catch it near a zero crossing
-## and see nothing. Below this value the channel cannot tell "the drift is
-## small" from "the drift is missing", so it says so instead of guessing.
-##
-## The substances this leaves unasserted on drift are all covered on another
-## channel: grass, molly, fly_agaric, nitrous, math and Double-Double every one
-## of them declare a flap_mult or gravity_mult and are asserted on climb.
-const DRIFT_RESOLUTION := 0.30
 
 ## Substances whose only control mutation changes the WORLD, not the hands, and
 ## which therefore cannot be seen by a controller measurement. Each one needs a
@@ -84,15 +71,18 @@ const DRIFT_RESOLUTION := 0.30
 ## an allowlist is how a real failure gets reclassified as an expected one. A
 ## substance goes in here only when its mutation is genuinely somewhere else in
 ## the game, never because the measurement was inconvenient to write.
-const EXEMPT := {
-	&"catnip":
-		"Its control mutation is `aggro_cats` — the cats in the zone come for "
-		+ "you. That is a mutation of the WORLD, not of the hands, so no "
-		+ "controller measurement can see it. Its `speed_mult` of 1.06 is NOT "
-		+ "what makes it legal under the design rule; a +6% walk is exactly "
-		+ "the number-that-goes-up the rule exists to forbid. If aggro_cats "
-		+ "ever stops working, this gate will not notice. Nothing does.",
-}
+## IT IS CURRENTLY EMPTY, AND THAT IS WHERE AN ALLOWLIST SHOULD BE.
+##
+## Catnip was the one entry. Its only control mutation is `aggro_cats` — the
+## cats in the zone come for you — which no measurement of the GOOSE can see,
+## and its `speed_mult` of 1.06 is emphatically not what makes it legal under
+## the design rule; a +6% walk is the number-that-goes-up the rule forbids.
+##
+## The exemption was honest and it was also an admission: this file said, in as
+## many words, that if `aggro_cats` stopped working nothing in the project would
+## notice. So rather than keep the admission, `_the_cats()` below measures the
+## CATS instead of the goose, and catnip is asserted like everything else.
+const EXEMPT := {}
 
 static var _fails: Array[String] = []
 static var _checks := 0
@@ -180,18 +170,19 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 	# quality and tolerance are applied, and it is the resolved dictionary the
 	# aggregator and then the controller actually see.
 	var r: Dictionary = res.resolve(DOSE, 0)
-	var want_wander: bool = float(r.drift) >= DRIFT_RESOLUTION
+
 	var want_turn: float = float(r.turn_mult)
 	var want_flap: float = float(r.flap_mult)
 	var want_grav: float = float(r.gravity_mult)
 	var want_tscale: float = float(r.time_scale)
 	var want_scale: bool = float(r.scale_amp) > 0.05
 	var want_idle: bool = bool(r.cannot_idle)
+	var want_cats: bool = bool(r.aggro_cats)
 	var needs_climb: bool = not is_equal_approx(want_flap, 1.0) or not is_equal_approx(want_grav, 1.0)
 
-	var observable := (want_wander or not is_equal_approx(want_turn, 1.0) or needs_climb
+	var observable := (float(r.drift) > 0.001 or not is_equal_approx(want_turn, 1.0) or needs_climb
 		or not is_equal_approx(want_tscale, 1.0) or want_scale or want_idle
-		or float(r.input_lag) > 0.001 or bool(r.grid_snap))
+		or float(r.input_lag) > 0.001 or bool(r.grid_snap) or want_cats)
 
 	# 1. THE DESIGN RULE ITSELF.
 	if EXEMPT.has(id):
@@ -225,8 +216,8 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 
 	var fp := await _fingerprint(tree, goose, subs)
 
-	print("[subs] %-14s speed %5.2f  offaxis %.3f  turnrate %5.2f  climb %5.2f"
-		% [id, fp.speed, fp.offaxis, fp.turnrate, fp.climb])
+	print("[subs] %-14s speed %5.2f  drift %.3f (%.3f rad off)  turnrate %5.2f  climb %5.2f"
+		% [id, fp.speed, fp.driftmag, fp.offaxis, fp.turnrate, fp.climb])
 
 	# THE MEASUREMENT IS ONLY VALID IF THE SUBSTANCE WAS STILL ON THE BIRD.
 	#
@@ -243,16 +234,15 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 
 	# 3. EVERY DECLARED MUTATION MUST SHOW UP, IN THE RIGHT DIRECTION.
 
-	if float(r.drift) > 0.001 and not want_wander:
-		print("[subs]   %s drift %.2f is under the %.2f the off-axis measurement resolves; not asserted"
-			% [id, float(r.drift), DRIFT_RESOLUTION])
-	if want_wander:
-		# `drift` is a slow random walk added to the stick. The bird stops going
-		# where it is pointed, so the heading wanders during a straight hold.
-		_ok(fp.offaxis > sober.offaxis + maxf(0.04, float(noise.offaxis) * 3.0),
-			("%s declares drift %.2f but the bird travelled only %.3f rad off the bearing the "
-			+ "stick asked for, against sober's %.3f. The drift is not reaching the stick.")
-				% [id, float(r.drift), fp.offaxis, sober.offaxis])
+	if float(r.drift) > 0.001:
+		# Gated on the drift VECTOR, which is deterministic. The off-axis ANGLE
+		# it produced is printed beside it as black-box corroboration, but it is
+		# far too phase-dependent to fail a build on -- see _fingerprint().
+		_ok(float(fp.driftmag) > float(r.drift) * 0.15,
+			("%s declares drift %.2f but the largest drift vector the controller computed all "
+			+ "measurement was %.4f. It is not reaching _wanted(); check the .tres, resolve(), "
+			+ "and the `m.drift += r.drift` line in _aggregate().")
+				% [id, float(r.drift), fp.driftmag])
 
 	# ONLY ASSERT WHAT THE INSTRUMENT CAN RESOLVE.
 	#
@@ -314,7 +304,70 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 			("%s declares cannot_idle but the bird moved %.2f m in 0.4 s of NO input. Letting go "
 			+ "is supposed to not stop you.") % [id, fp.idle])
 
+	if want_cats:
+		await _the_cats(tree, subs, res)
+
 	await _sober_up(tree, goose, subs)
+
+
+## THE ONE MUTATION THAT IS NOT ABOUT THE GOOSE.
+##
+## `aggro_cats` is catnip's entire reason to exist, and it changes the WORLD:
+## `cat.gd::_physics_process` reads `Subs.mods.aggro_cats` and flips the cat into
+## `_frenzy`, at which point it hunts at FRENZY_SPEED instead of wandering at
+## WANDER_SPEED. Nothing about the bird changes, so the fingerprint above is
+## blind to it and this file used to say so and give up.
+##
+## `responds_to_nip` is rolled at random per cat (`randf() < 0.67`), and
+## `cat.gd`'s own comment says the flag is there to be set deliberately before
+## `add_child()`. Setting it here makes the check deterministic rather than
+## leaving a one-in-2500 chance that all seven cats in leg 1 shrug.
+static func _the_cats(tree: SceneTree, subs: Node, res: Substance) -> void:
+	var cats := tree.get_nodes_in_group("cat")
+	_ok(not cats.is_empty(),
+		("%s's only control mutation is aggro_cats and there are no cats in the zone, so it "
+		+ "cannot be checked at all. Leg 1 builds seven; if that changed, this gate went blind.")
+			% res.id)
+	if cats.is_empty():
+		return
+
+	subs.call("reset_for_new_leg")
+	for c in cats:
+		c.set("responds_to_nip", true)
+	for _i in 8:
+		await tree.physics_frame
+
+	var before := 0
+	for c in cats:
+		if bool(c.get("_frenzy")):
+			before += 1
+	_ok(before == 0, "%d of %d cats were already in a frenzy before the catnip landed" % [before, cats.size()])
+
+	subs.call("take", res, DOSE)
+	for _i in 12:
+		await tree.physics_frame
+	var during := 0
+	for c in cats:
+		if bool(c.get("_frenzy")):
+			during += 1
+	print("[subs] %-14s cats in frenzy %d of %d" % [res.id, during, cats.size()])
+	_ok(during == cats.size(),
+		("%s declares aggro_cats but only %d of %d cats went into a frenzy. Subs.mods.aggro_cats "
+		+ "is not reaching cat.gd.") % [res.id, during, cats.size()])
+
+	# AND IT HAS TO LET GO AGAIN. `cat.gd` clears `_frenzy` on the `elif not nip
+	# and _frenzy` branch; a cat that stays frenzied after the catnip ends is a
+	# zone that never calms down.
+	subs.call("reset_for_new_leg")
+	for _i in 8:
+		await tree.physics_frame
+	var after := 0
+	for c in cats:
+		if bool(c.get("_frenzy")):
+			after += 1
+	_ok(after == 0,
+		("%d of %d cats stayed in a frenzy after the catnip was cleared. The zone never calms "
+		+ "down.") % [after, cats.size()])
 
 
 # ---------------------------------------------------------------- measurement
@@ -336,8 +389,8 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 ## was read, rather than assuming it.
 static func _fingerprint(tree: SceneTree, goose: CharacterBody3D, subs: Node) -> Dictionary:
 	var out := {
-		"speed": 0.0, "offaxis": 0.0, "turnrate": 0.0, "climb": 0.0,
-		"size": 0.0, "idle": 0.0, "power": 1.0, "active": true,
+		"speed": 0.0, "offaxis": 0.0, "driftmag": 0.0, "turnrate": 0.0,
+		"climb": 0.0, "size": 0.0, "idle": 0.0, "power": 1.0, "active": true,
 	}
 	var cam: Node3D = goose.get("cam") as Node3D
 
@@ -389,6 +442,24 @@ static func _fingerprint(tree: SceneTree, goose: CharacterBody3D, subs: Node) ->
 			var yaw: float = float(cam.call("get_yaw"))
 			var want := Vector2(0.0, -1.0).rotated(-yaw)
 			out.offaxis = maxf(float(out.offaxis), absf(v.angle_to(want)))
+
+		# AND THE DRIFT VECTOR ITSELF, WHICH IS THE DETERMINISTIC ONE.
+		#
+		# `_wanted()` builds `_drift` from sines whose phase rides on
+		# `Time.get_ticks_msec()`, seeded per goose by an unseeded `randf()`.
+		# So HOW FAR off the bearing the bird ends up in any two-second window
+		# is genuinely random: measured off-axis for percs ranged 0.15 to 0.99
+		# rad across runs, and gating on it failed about one run in seven. A
+		# gate that is usually green is not a gate.
+		#
+		# `_drift` is computed and then added to the stick on the very next
+		# line of `_wanted()`, so a non-zero magnitude here IS the aggregation
+		# path working: .tres -> resolve() -> mods.drift -> _wanted(). It does
+		# not wander, so it can be asserted, and it resolves far smaller drifts
+		# than the off-axis angle can — every substance that declares any drift
+		# at all is now covered instead of only the five biggest.
+		var dv: Vector2 = goose.get("_drift")
+		out.driftmag = maxf(float(out.driftmag), dv.length())
 
 	# --- reverse the stick: peak turn rate ---
 	#
@@ -465,8 +536,24 @@ static func _reset(tree: SceneTree, goose: CharacterBody3D) -> void:
 	goose.set("state", 0)
 	goose.set("stamina", 1.0)
 	goose.velocity = Vector3.ZERO
-	for _i in 15:
+
+	# SETTLE ON A CONDITION, NOT A FRAME COUNT.
+	#
+	# This was 30 frames, and shortening it to 15 to fit the fingerprint inside
+	# a 7 s nitrous introduced a flake that failed the build: the FIRST sober
+	# fingerprint of a run measured a top speed of 4.96 m/s against
+	# waddle_speed's 4.20, because `_find_dry_ground()` leaves the bird a metre
+	# up over its last pad probe and a quarter second is not always long enough
+	# to land and stop sliding. The second sober run read 4.20 and the noise
+	# guard refused the report, correctly.
+	#
+	# Waiting for "on the floor and not moving" costs about two frames when the
+	# bird is already settled and takes as long as it needs when it is not, so
+	# it is both faster in the common case and correct in the rare one.
+	for _i in 45:
 		await tree.physics_frame
+		if goose.is_on_floor() and Vector2(goose.velocity.x, goose.velocity.z).length() < 0.05:
+			break
 
 
 ## Clear every substance and wait for the clock to come back to 1.0.

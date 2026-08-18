@@ -96,7 +96,9 @@ untouched. The independent `inputtest` gate corroborates: its takeoff fell from
   substances and measures the bird. `selftest.gd` enforced the "never only a
   number that goes up" rule **by reading the `.tres`**, which cannot tell you
   the mutation reaches the goose; the input-lag bug is the precedent, with
-  eleven of sixteen unplayable while every `.tres` was correct. 102 checks.
+  eleven of sixteen unplayable while every `.tres` was correct. **117 checks**,
+  including the cats: `aggro_cats` is catnip's whole reason to exist and no
+  measurement of the *bird* can see it, so that one measures the cats.
 
 **4. BOTH NEW GATES SPENT MOST OF THEIR FIRST RUNS ACCUSING A HEALTHY GAME**,
 and that is the part worth remembering. Leg 1 is the retention pond and the
@@ -341,17 +343,11 @@ arguably absolute (a human needs ~10 s to notice an empty lot whatever the clock
 says). One line in `zone_truckstop.gd::_clock_scale()`. Not changed, because
 nothing specifies it and it is pacing.
 
-**`catnip` is the one substance no gate can see.** Its only control mutation is
-`aggro_cats`; its `speed_mult` of 1.06 is explicitly not what makes it legal
-under the design rule. `tools/substancetest.gd` exempts it and prints the reason
-every run, but if `aggro_cats` ever stops working, **nothing in this project
-will notice.** A cat-behaviour probe is the missing check.
-
-**Two feeltest channels declare their own resolution and assert nothing.** Drift
-under 0.30 and `turn_mult` within 10% of 1.0 cannot be told from zero by these
-measurements — `darts` (drift 0.03, turn 1.05) is the extreme case. Every
-substance skipped that way is asserted on another channel, but the coverage is
-not total and the printout says so on every run rather than hiding it.
+**One substance channel still declares its own resolution and asserts nothing.**
+A `turn_mult` within 10% of 1.0 cannot be told from noise by the peak-turn-rate
+measurement; `darts` at 1.05 is the only case, and it is asserted on climb
+instead (its `flap_mult` of 1.12 puts one flap 68% above sober). The printout
+says so on every run rather than hiding it.
 
 **Leg 1's world-space labels collide.** In `shots/gg_zone1_0.png` the flock pen
 prompt and the goose name tags overprint each other near the pond — the visible
