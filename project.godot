@@ -1,0 +1,48 @@
+; GEEKED GEESE — Honk Responsibly
+; Godot 4.7.1
+
+config_version=5
+
+[application]
+
+config/name="Geeked Geese"
+config/description="Honk Responsibly."
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[autoload]
+
+; Order matters: Prefs first (everything reads settings), then asset services,
+; then Subs before Unlocks (Unlocks subscribes to Subs' signals).
+Prefs="*res://scripts/core/prefs.gd"
+Tex="*res://scripts/core/tex.gd"
+Sfx="*res://scripts/core/sfx.gd"
+Subs="*res://scripts/core/substance_manager.gd"
+Game="*res://scripts/core/game.gd"
+Flock="*res://scripts/core/flock_state.gd"
+Unlocks="*res://scripts/core/unlocks.gd"
+; Juice reads Subs' intent and writes Engine.time_scale last (priority 100).
+Juice="*res://scripts/core/juice.gd"
+; Mission must come last: its _ready() resolves Game/Subs/Flock.
+Mission="*res://scripts/core/mission.gd"
+; Music last: it reads Mission/Game/Subs signals on _ready().
+Music="*res://scripts/core/music.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+
+[physics]
+
+common/physics_ticks_per_second=60
+3d/default_gravity=14.0
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+anti_aliasing/quality/msaa_3d=2
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=1
+textures/default_filters/anisotropic_filtering_level=2

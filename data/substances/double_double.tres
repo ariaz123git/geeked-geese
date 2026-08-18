@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="Substance" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/substance.gd" id="1_sub"]
+
+[resource]
+script = ExtResource("1_sub")
+id = &"double_double"
+display_name = "Double-Double"
+mimics = "Caffeine"
+blurb = "Found in a dumpster. Still warm. Do not investigate why."
+codex_fact = "Caffeine occurs naturally in the nectar of coffee and citrus flowers, not just the beans. A 2013 study in Science found that caffeinated nectar sharpens a bee's memory of a flower and makes it return more often — the plant is dosing its pollinator to build brand loyalty."
+tint = Color(0.85, 0.55, 0.16, 1)
+charge_time = 0.9
+sweet_min = 0.34
+sweet_max = 0.72
+duration = 13.0
+comedown = 7.5
+dopamine = 0.26
+adrenaline = 0.62
+gaba = -0.3
+serotonin = 0.04
+input_lag = 0.0
+drift = 0.13
+flap_mult = 1.85
+speed_mult = 1.34
+gravity_mult = 0.94
+turn_mult = 1.5
+ragdoll_landings = false
+cannot_idle = true
+time_scale = 1.0
+smash_through = false
+fx_mode = 2
+fx_strength = 1.0
+honk_pitch = 1.44
+stamina_restore = 0.4
+chaos_mult = 1.35

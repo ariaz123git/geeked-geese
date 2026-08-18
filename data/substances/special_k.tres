@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="Substance" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/substance.gd" id="1_sub"]
+
+[resource]
+script = ExtResource("1_sub")
+id = &"special_k"
+display_name = "Special K"
+mimics = "Ketamine"
+blurb = "A cereal box in the recycling. You are no longer driving from inside your own head."
+codex_fact = "Ketamine is on the World Health Organization's List of Essential Medicines. It is one of the safest anaesthetics available where reliable oxygen and electricity are not, which is why it is standard in field surgery, disaster medicine and veterinary practice worldwide."
+tint = Color(0.62, 0.58, 0.92, 1)
+charge_time = 1.0
+sweet_min = 0.35
+sweet_max = 0.68
+duration = 12.0
+comedown = 6.0
+dopamine = 0.5
+adrenaline = -0.52
+gaba = 0.7
+serotonin = 0.2
+input_lag = 0.14
+drift = 0.18
+flap_mult = 0.9
+speed_mult = 0.85
+gravity_mult = 0.55
+turn_mult = 0.34
+ragdoll_landings = true
+cannot_idle = false
+time_scale = 0.82
+smash_through = false
+camera_detach = 1.0
+grid_snap = false
+hud_amnesia = false
+hallucinate = 0.0
+no_fall_damage = true
+tolerance_gain = 1
+fx_mode = 3
+fx_strength = 1.2
+honk_pitch = 0.55
+stamina_restore = 0.0
+chaos_mult = 2.0

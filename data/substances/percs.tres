@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="Substance" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/substance.gd" id="1_sub"]
+
+[resource]
+script = ExtResource("1_sub")
+id = &"percs"
+display_name = "Percs"
+mimics = "Oxycodone"
+blurb = "A pill organiser dropped in the parking lot. You cannot be hurt. You also cannot be bothered."
+codex_fact = "Oxycodone was synthesised in 1916 and marketed for decades as a safer alternative to morphine and heroin — the same claim that had been made for heroin itself when Bayer sold it as a cough remedy in 1898. The reason this one removes your fall damage is the actual mechanism: opioids do not repair the injury, they remove your knowledge of it."
+tint = Color(0.94, 0.86, 0.62, 1)
+charge_time = 0.9
+sweet_min = 0.3
+sweet_max = 0.58
+duration = 22.0
+comedown = 15.0
+dopamine = 0.85
+adrenaline = -0.65
+gaba = 0.55
+serotonin = 0.3
+input_lag = 0.24
+drift = 0.22
+flap_mult = 0.8
+speed_mult = 0.7
+gravity_mult = 0.9
+turn_mult = 0.6
+ragdoll_landings = false
+cannot_idle = false
+time_scale = 1.0
+smash_through = false
+camera_detach = 0.0
+grid_snap = false
+hud_amnesia = false
+hallucinate = 0.0
+no_fall_damage = true
+scale_amp = 0.0
+scale_period = 7.0
+aggro_cats = false
+no_early_exit = false
+tolerance_gain = 2
+fx_mode = 3
+fx_strength = 0.7
+honk_pitch = 0.72
+stamina_restore = 0.0
+chaos_mult = 1.3

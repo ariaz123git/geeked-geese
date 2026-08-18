@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="Substance" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/substance.gd" id="1_sub"]
+
+[resource]
+script = ExtResource("1_sub")
+id = &"math"
+display_name = "Math"
+mimics = "Methamphetamine"
+blurb = "A page of long division blowing across the lot. Grade 9. Someone's having a week."
+codex_fact = "Methamphetamine was mass-produced and legal within living memory. Germany issued it to troops as Pervitin in the Second World War, and it was sold in the United States by prescription as a weight-loss and antidepressant drug into the 1970s. It is still an approved prescription medication under the name Desoxyn."
+tint = Color(0.85, 0.92, 0.98, 1)
+charge_time = 0.8
+sweet_min = 0.3
+sweet_max = 0.62
+duration = 20.0
+comedown = 16.0
+dopamine = 0.9
+adrenaline = 0.92
+gaba = -0.6
+serotonin = -0.45
+input_lag = 0.0
+drift = 0.22
+flap_mult = 1.5
+speed_mult = 1.9
+gravity_mult = 0.9
+turn_mult = 0.34
+ragdoll_landings = true
+cannot_idle = true
+time_scale = 1.0
+smash_through = true
+camera_detach = 0.0
+grid_snap = false
+hud_amnesia = false
+hallucinate = 0.0
+no_fall_damage = false
+tolerance_gain = 2
+fx_mode = 2
+fx_strength = 1.7
+honk_pitch = 1.85
+stamina_restore = 0.5
+chaos_mult = 1.8
