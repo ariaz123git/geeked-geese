@@ -69,6 +69,43 @@ IDs increment. Newest on top.
 
 ---
 
+## D-019 · 2026-08-18 · Tolerance softens penalties, against the documented economy — recorded, not changed
+Status: Open (human)
+Decision: **Unresolved, and deliberately not decided by an agent.** `resolve()` picks `good` or `bad` per FIELD, but each of the four multipliers is a benefit on one side of 1.0 and a penalty on the other, so each scaling is right for only half its range.
+Why: `docs/ARCHITECTURE.md` §3 and `substance.gd`'s own comment both say *"tolerance scales the good parts and never the bad ones — that asymmetry is the entire economy."* Measured at tolerance 3 (`tol = 0.488`): **eight substances have penalties softened** (percs' flap 0.80 → 0.90, speed 0.70 → 0.85; grass 0.78 → 0.89; plus bars, berries, gravy, robo, special_k, toad_slime) and **eight have benefits that never fade** (double_double's turn stays 1.50 at every tolerance, molly's 1.20, darts' 1.05; special_k's gravity stays 0.55, and four more). So the fourth percocet impairs you less than the first. The doc's own worked example — *"the fourth double-double gives you less speed and the same jitter"* — is one of the cases that is already correct.
+**Recommendation if you want one:** select the scale by the DIRECTION of the declared value rather than by the field name, for `flap_mult`, `speed_mult` and `turn_mult` only. **Left open because** it makes six substances materially more punishing at tolerance and no instrument in this project can evaluate that; and because `gravity_mult` below 1.0 is genuinely ambiguous — floatier is a traversal *benefit* and a control *impairment* at once, which is a design call rather than arithmetic.
+Refs: `scripts/core/substance.gd::resolve`; `docs/HANDOFF.md` §4.
+
+## D-018 · 2026-08-18 · `Substance.stamina_restore` is wired, not deleted
+Status: Decided (agent — revertible in one `if`)
+Decision: `goose_controller.gd` now adds `res.stamina_restore` to the bird's stamina when a dose lands, flat and capped at 1.0. It was exported, set non-zero by **six** substances — bars 0.20, darts 0.20, double_double 0.40, grass 0.25, math 0.50, molly 0.30 — and read by **nothing**: not a key in `resolve()`, not named in any file under `scripts/`.
+Why: The `.tres` files are this game's design record and six of them recorded a refund the player has never once received. Wired rather than deleted because the `float_height` precedent turns on *can it be honestly connected* — that dial went because there was no water surface to connect it to; this one connects in one statement at the exact site the dose lands, with substance and bird both in scope. **It is a balance change and nothing measures it**: `flap_cost` is 0.058, so math's 0.50 is about 8.6 extra flaps per dose. Revert by deleting the `if`.
+Refs: `scripts/goose/goose_controller.gd::_tick_eat`; guarded by **D-017**.
+
+## D-017 · 2026-08-18 · Every export on `Substance` must be connected to something
+Status: Decided (agent)
+Decision: `tools/selftest.gd::_the_substance_fields()` fails the build if an export on `Substance` is neither a key in `resolve()`'s returned Dictionary nor named by any file under `scripts/`. **No allowlist**, deliberately.
+Why: `stamina_restore` (D-018) was dead for the life of the project and every gate passed, including the one that doses all sixteen substances and measures the bird — because they all reach into `Subs.take()` and none of them reads the export surface. The check is a floor, not a proof: naming a field anywhere counts, so it cannot false-fail, only false-pass. Watched fail on `stamina_restore` before the fix and pass after: **553 invariants**, up from 541.
+Refs: `tools/selftest.gd`.
+
+## D-016 · 2026-08-18 · A blown noise floor suppresses the ratio channels rather than reporting them
+Status: Decided (agent)
+Decision: When `substancetest.gd`'s two sober runs disagree, the two channels measured **as a ratio against sober** — peak turn rate and one-flap climb — are skipped for every substance, with a printed banner. Everything that stands on its own — drift, the macropsia pulse, `cannot_idle`, the clock, the cats — keeps running, and the build still fails on the one honest line.
+Why: The file already printed *"nothing it reports about a substance can be trusted"* and then ran every ratio check anyway. On the red build that opened this session that turned **one** harness fault into **eight** failures, seven of which accused healthy substances of a broken `turn_mult` for being exactly 1/0.7 out. Canary-proven: forcing the floor to fail gives **1 of 109** instead of 8, and the one is true.
+Refs: `tools/substancetest.gd`.
+
+## D-015 · 2026-08-18 · The substance fingerprint is leashed to the pad
+Status: Decided (agent)
+Decision: The walk channel snaps the bird back to the pad, velocity intact, whenever it strays more than 6 m. The idle channel is deliberately **not** leashed — it sums path length and a teleport would be counted as travel.
+Why: `PAD_RADIUS` is 9 m and its docstring sizes it for `feeltest`'s *"1.2 s of held forward at waddle_speed … about 5 m."* The substance fingerprint holds forward for **2.0 s** and not at `waddle_speed`: `math` measures 9.75 m/s = **18.5 m**, `fly_agaric` 11.8, `double_double` 11.4. On leg 1 the pad sits 21.5 m from an 11 m pond, leaving 10.5 m of grass and a 31° half-angle — measured **three failures in five runs**, against the ~40% the geometry predicts. Extending the pad was rejected: a 20 m clear ring may not exist in a zone, and a harness that fails on level design gets deleted. Nothing the walk measures reads position, so the leash is invisible to all three channels.
+Refs: `tools/substancetest.gd::_fingerprint`.
+
+## D-014 · 2026-08-18 · The dry-pad probe settles on a condition and rejects what it cannot answer
+Status: Decided (agent)
+Decision: `probe_common.gd` gains `_drop()`. Every pad probe now waits for the bird to reach the floor or the water instead of counting frames, the ring has **eight** spokes instead of four, a ring point the bird cannot floor is **rejected** rather than assumed dry, and the candidate is re-proven standing on its own centre before it is accepted. `substancetest.gd` also counts frames spent in water during a ground channel and names it a HARNESS FAULT — which `feeltest.gd` had done since it was written and this file never had.
+Why: **This session opened on a red build.** The ring probed for water 6 frames after a 1 m teleport; ground gravity is 28 m/s², so that is 0.16 m of fall, and leg 1's pond is a cylinder that stops at y = 1.70 — a probe hovering at 2.16 over open water reported *dry*. The certified pad's ring point was **9.90 m from the pond centre against an 11 m radius**. The first sober fingerprint waded in and returned `speed 5.40` (`swim_speed` exactly) and `turnrate 19.79` (`28.27 × 0.7`, and the 0.7 lives only in `_tick_water()`). Seven substances were then accused of a broken `turn_mult`. Canary-proven by forcing the pad into the pond: **the old reproducibility guard passes** — both sober runs agree, being equally underwater — while the new counter fires 18 times.
+Refs: `tools/probe_common.gd`; `tools/substancetest.gd`; `tools/feeltest.gd`.
+
 ## D-013 · 2026-08-18 · The Ranger's leg 6 exam stays unbuilt, blocked on a sound
 Status: Open
 Decision: `docs/BOSS_DESIGN.md` §2.1.4's exam is not built. Its propane cannon needs a bang, every sound in this game is generated by `tools/gen_audio.py`, and **no agent can hear the result.**

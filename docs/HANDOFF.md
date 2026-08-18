@@ -1,8 +1,10 @@
 # HANDOFF — current state
 
-**Updated:** end of the session that built the Stopover and BIG DOWN, gave every
-zone its own air — and discovered that the goose had been obeying four-second-old
-input on eleven of the sixteen substances, past every check this project had.
+**Updated:** end of the session that **arrived on a red build**, found the reason
+was the harness measuring the goose in a pond, and then — with the instruments
+honest again — found that running into a shopping cart had never scored, that
+pausing the game never stopped the leg clock, and that holding the eat key on
+Special K flew the bird out of the level.
 
 > **How this file works.** `CLAUDE.md` holds the *rules* — they rarely change.
 > This file holds the *state* — it changes every session. Read this first, then
@@ -15,10 +17,17 @@ input on eleven of the sixteen substances, past every check this project had.
 
 ## ⟳ 1. Where the project is right now
 
-**The route has no placeholders left, both bosses are built, and for the first
-time the project can prove not just that the goose responds to the controls but
-that it responds WELL — and that all sixteen substances actually change how it
-handles.**
+**The route has no placeholders left, both bosses are built, the project can
+prove the goose responds WELL and that all sixteen substances change how it
+handles — and, as of this session, the instruments that prove it have been
+audited by agents that did not write them.**
+
+That audit is the thing to carry forward. Eight gates were green at the end of
+the last session; **one of them was red when this one opened**, two of the
+invariants inside another could not fail at all, and the check that was supposed
+to be the tripwire for a third `Engine.time_scale` writer read the clock on the
+statement after the reset that sets it. A gate that cannot fail is the failure
+mode this project rates worst, and it now has four fewer of them.
 
 | | |
 |---|---|
@@ -30,9 +39,9 @@ handles.**
 | Bosses | **2 built.** The Ranger (leg 3) and **BIG DOWN** (the back half of leg 7) |
 | Assets | 39 textures (23 + 16 substance icons), 46 sounds (39 SFX + 7 zone ambience beds), 22 music stems — **all procedurally generated** |
 | Autoloads | 10 (see `docs/ARCHITECTURE.md` §2 for the order and why it matters) |
-| Gates | **8**: compile, invariants (541), controller, **feel (22 metrics, 13 asserted)**, **substances (117 over 16)**, **flight (9 measurements)**, credit roll, full campaign. `.\verify.ps1`, about 4 minutes |
+| Gates | **8**: compile, invariants (**619**, up from 541), controller, **feel (22 metrics, 13 asserted)**, **substances (135 over 16, up from 117)**, **flight (9 measurements)**, credit roll, full campaign. `.\verify.ps1`, about 4 minutes |
 | Docs that check themselves | `selftest.gd::_the_docs()` asserts every gate flag `main.gd` dispatches is documented in `CLAUDE.md`, and that HANDOFF's own script count is real. It caught `--rolltest` undocumented on its first run. |
-| Decisions | `docs/DECISIONS.md` — ADR-lite. **Three entries are `Open (human)`** and must not be closed by an agent: D-005, D-006, D-007. |
+| Decisions | `docs/DECISIONS.md` — ADR-lite. **Four entries are `Open (human)`** and must not be closed by an agent: D-005, D-006, D-007 and the new **D-019**. Six new entries this session, D-014 to D-019; five are agent-decided and each revertible on its own. |
 | Version control | **A git repo, as of this session.** There was none before, despite `VIBECODING_BRIEFING.md` making "commit before every task" one of its six headline rules. |
 
 ### What works
@@ -54,297 +63,449 @@ discovered; and the flight is flown by geese that flap.
 
 ## ⟳ 2. What changed last session
 
-**0. THE PROJECT IS UNDER GIT NOW.** There was no `.git` at all. Every session
-so far has worked without the undo that `VIBECODING_BRIEFING.md` calls one of
-its six headline rules. `main` holds the untouched baseline; the session's work
-is on `session2-feel`, one commit per idea, so any of it can be read or reverted
-on its own. `_to_delete/` (90 MB of superseded zips and stale `.godot` caches) is
-gitignored rather than deleted — that is the human's call.
+**THE TREE WAS RED WHEN THIS SESSION OPENED, AND THE FIRST HOUR WENT ON WHY.**
+`.\verify.ps1` step 4c failed with eight lines: one saying the harness could not
+reproduce its own baseline, and seven accusing healthy substances of a broken
+`turn_mult`. All eight were the retention pond.
 
-**1. "PLAY IT" IS NO LONGER THE TOP OF THIS LIST, AND THAT WAS A PROCESS BUG.**
-It sat at #1 for two sessions running, everything behind it was blocked on one
-person having a free evening, and so nothing behind it moved. The fix is not to
-delete the line; it is that feel is two things wearing one word. **Taste** — is a
-waddling goose funny — stays the human's, permanently. **Response** — time to top
-speed, stop distance, whether a held flap converges on a climb rate — is
-arithmetic, and nothing in this project was measuring it. See `CLAUDE.md`,
-*"Taste is the human's. Everything measurable is yours."*
+### 1. `find_dry_ground()` certified the pond as walkable ground
 
-**2. THE FLAP COMPOUNDED, AND EVERY EXISTING GATE PASSED ON IT.** `_flap()` read
-`velocity.y = maxf(velocity.y, 0.0) + power`, which ADDS the impulse to an
-already-positive climb. The cooldown only lets gravity take 3.3 m/s back against
-a power of 6.08, so a held flap netted **+2.78 m/s on the last one, compounding,
-with no ceiling** — there is a `max_fall` in the controller and there has never
-been a `max_rise`.
+The pad ring probed for water **6 frames after a 1 m teleport**. Ground gravity
+in this controller is 28 m/s², so that is **0.16 m of fall** — the bird was still
+in the air when the question was asked. Leg 1's pond is a `CylinderShape3D` of
+height 2.4 centred at y = 0.5, so the water **stops at y = 1.70**, and a probe
+hovering at 2.16 over open water answered *dry*.
 
-| | before | after |
+The accepted pad was (-17.0, 1.3, -6.0). Its ring point at (-17, ·, -15) is
+**9.90 m from the pond centre against an 11 m radius.** The first sober
+fingerprint held forward for two seconds, waded in, and returned:
+
+| | measured | what it is |
 |---|---|---|
-| climb in the 1st second of held flap | 7.36 m | **4.50 m** |
-| climb in the 3rd second | 23.66 m | **4.45 m** |
-| peak climb rate | 29.5 m/s | **6.08 m/s** |
-| **one flap, from level** | **1.73 m** | **1.73 m** |
+| `speed` | **5.40 m/s** | `swim_speed` exactly. Ground tops out at 4.20. |
+| `turnrate` | **19.79 rad/s** | `28.27 × 0.7`, and the 0.7 lives in `_tick_water()` and nowhere else. |
 
-`maxf(velocity.y, power)` SETS the climb instead of adding to it, so the single
-flap is bit-for-bit unchanged and the 1.70 m racking promise in §4 survives
-untouched. The independent `inputtest` gate corroborates: its takeoff fell from
-**+34.98 m to +11.30 m**.
+Every one of the seven substance failures was that baseline divided into a ratio:
+berries wanted 0.66 and measured 0.91, which is 0.66 × 1/0.7. The game was fine.
 
-**3. TWO NEW GATES.**
-- `tools/feeltest.gd` (`--probe --feeltest`) — 22 controller metrics, 13
-  asserted against windows argued out in `docs/FEEL_TARGETS.md`. Every window
-  cites something this repo already wrote down. Eleven of the twelve are
-  bit-stable across consecutive runs.
-- `tools/substancetest.gd` (`--probe --substancetest`) — doses all sixteen
-  substances and measures the bird. `selftest.gd` enforced the "never only a
-  number that goes up" rule **by reading the `.tres`**, which cannot tell you
-  the mutation reaches the goose; the input-lag bug is the precedent, with
-  eleven of sixteen unplayable while every `.tres` was correct. **117 checks**,
-  including the cats: `aggro_cats` is catnip's whole reason to exist and no
-  measurement of the *bird* can see it, so that one measures the cats.
+**This is lesson 1 at the top of `probe_common.gd`, wearing a new hat, inside the
+function written to prevent it.** Fixed by `_drop()`: every probe now settles on
+a condition, the ring has eight spokes instead of four, a ring point the bird
+cannot floor is rejected rather than assumed dry, and the pad is re-proven with
+the bird standing on its own centre. D-014.
 
-**4. BOTH NEW GATES SPENT MOST OF THEIR FIRST RUNS ACCUSING A HEALTHY GAME**,
-and that is the part worth remembering. Leg 1 is the retention pond and the
-goose spawns in it, so the "ground" metrics were measuring `_tick_water()`. Sink
-rate sampled at terminal velocity compared `max_fall` to itself and reported
-that the dive button does nothing. The substance fingerprint took 12.2 s of game
-time against a nitrous that lasts 7.0, so it measured the bird after the
-substance had ended. Drift was measured as a wobble when over a short window it
-is a bias. The climb was predicted without the brain chemistry that scales it.
-**Every one of those first presented as the game being broken.** Both files now
-carry a measured noise floor — sober twice, and refuse to report if the two
-disagree — and contamination guards that fail LOUDLY as *harness* faults, saying
-in as many words: do not tune the game from these numbers.
+### 2. The reproducibility guard is blind to a *consistently* wrong baseline
 
-**5. LEG 7 IS 230 s**, which `docs/BOSS_DESIGN.md` §2.2.2 has always asked for.
-The comment in `main.gd::ROUTE` forbidding it described a constraint that
-`zone_truckstop.gd::_clock_scale()` had already removed, and nobody noticed
-because **a comment cannot run**. It is now
-`tools/selftest.gd::_the_rig_schedule()` — the same constraint as an assertion,
-checked on every clock the leg can legally be dealt. BIG DOWN needed no change:
-`DOCK_OPENS_WITH` puts the truck-stop phase at t=112, which is the 110 s §2.2.2
-specifies, to within two seconds.
+Canary: force the pad to the pond centre. **The noise check passes** — both sober
+runs agree, being equally underwater — and the substance ratios come out right
+too, because both sides are scaled by the same 0.7. `substancetest.gd` now counts
+frames spent in water during a ground channel and calls it a HARNESS FAULT in as
+many words. It fired 18 times on that canary.
 
-**5b. THE PROJECT REMEMBERS THINGS NOW, AND SOME OF IT IS ENFORCED.** Three
-docs were added and one habit was made checkable:
+`tools/feeltest.gd` has done exactly this since it was written — `_watch_dry()`,
+`_wet_ticks`, and a comment saying the omission *"happened, and it turned
+verify.ps1 red."* **Two harnesses over one controller and only one was watching.**
 
-- `docs/DECISIONS.md` — ADR-lite (Michael Nygard's "supersede, don't edit"),
-  seeded with all thirteen decisions from this session. **It is the only place
-  that distinguishes settled from open**, and three entries are `Open (human)`.
-- `docs/SESSION_PROTOCOL.md` — the read order, the start and finish checklists,
-  and the traps that cost real time here (`sed -i` eating CRLF, a reused local
-  name hanging the parser with no output, harnesses accusing a healthy game).
-- `CLAUDE.md` opens with a **numbered read order and a conflict rule**, and its
-  own banner now carries the reason it was rewritten: it told every session the
-  game "has never had a human playing it" for a full session after that stopped
-  being the useful framing. Rules age; state and decisions are dated.
-- `selftest.gd::_the_docs()` makes two of those claims **fail the build** when
-  they rot: every gate flag the engine dispatches must be documented, and
-  HANDOFF's script count must be the real one. It found `--rolltest` — the
-  credit-roll gate — documented nowhere, on its first run.
+### 3. The fastest substance outruns the pad
 
-The invariant count is deliberately NOT asserted: it is self-referential, and a
-check that fights its own author gets deleted rather than obeyed.
+With the pad honest, one check still flaked. `PAD_RADIUS` is 9 m and its
+docstring sizes it for `feeltest`'s *"1.2 s of held forward at waddle_speed …
+about 5 m."* The substance fingerprint holds forward for **2.0 s and not at
+waddle_speed**: `math` measures 9.75 m/s = **18.5 m**, `fly_agaric` 11.8,
+`double_double` 11.4. The pad sits 21.5 m from an 11 m pond — 10.5 m of grass,
+subtending 31° either side — so it was a coin toss, and it landed wrong in
+**three runs of five**. The walk is now leashed to 6 m, velocity intact; nothing
+it measures reads position. D-015.
 
-**6. The render probe could not write a file on Windows and said it had.**
-`Image.save_png()` *returns* an error rather than raising one, and all twelve
-call sites printed `[probe] wrote /tmp/gg_x.png` unconditionally. The project's
-entire visual verification loop was a step that could not fail. It now takes
-`--out:`, checks the return, and exits non-zero. It also gained `--secs:`
-(wall-clock, because `--frames:` was calibrated for a 2 fps software renderer and
-photographs the wrong moment entirely on a machine with a GPU), `--look:` (frame
-something other than the goose — an encounter that arrives from behind was
-literally unphotographable), and `--goto:`.
+The new water counter named it directly the first time it fired, which is the
+whole point of asserting a precondition instead of inferring one:
 
-**7. LEG 5 IS A BESPOKE ZONE.** `zone_stopover.gd` — a National Wildlife Refuge
-impoundment at dawn: drowned marsh, cattails, dead standing timber, a dyke road,
-an observation tower, a birdwatcher whose scope tracks you, and forty geese
-standing around doing nothing. All sixteen substances are present and the zone
-says nothing about it. Two of its four primaries are about **looking at your own
-flock**, which is true nowhere else in the game. The route has no placeholders
-left.
+```
+[subs] FAIL — 2 of 135 checks:
+[subs]   HARNESS FAULT — the double_double fingerprint spent 55 of its 170
+         ground frames in State.WATER. […] Fix the pad, not the substances.
+[subs]   double_double declares turn_mult 1.50, so its peak turn rate should be
+         1.50x sober, but measured 1.03x -- 29.04 rad/s against 28.27.
+```
 
-**8. BIG DOWN IS BUILT.** `boss_big_down.gd` + `prop_models_bigdown.gd` — the
-back half of leg 7. The dock opens with no announcement, the warehouse is racked
-with white down bales that burst into the same feather particle the game has
-spent on faceplants for six legs, the honk finally shatters glass, and the leg
-ends on a roof in the rain looking back across the interstate at the truck stop
-where your flock is. Nobody says a word about any of it.
+`double_double` is one of the three substances the arithmetic predicted could
+reach the water. **Since the leash: seven consecutive passes across two batches,
+on the same pad every time** — (-19.1, 0.3, -1.1), where the pad used to change
+run to run because the old 16-frame candidate probe could not land on level
+ground and skipped candidates by accident.
 
-**9. Every zone has its own air.** Seven procedurally generated ambience beds,
-chosen by zone id in `_load_zone()`. Every leg used to play `amb_parking_lot`.
-The truck stop's "rain" turned out to be a 0.700 s goose hiss that never looped —
-`Sfx` only forces looping on keys ending in `_loop` — so the wettest zone in the
-game opened with seven tenths of a second of hissing and then three minutes of
-silence, under a visible downpour.
+> One run in that batch is worth keeping: it caught the working tree mid-edit,
+> with `LEASH` used a few lines before its `const` existed. It did not hang. The
+> failsafe quit it at 600 s with its explanatory line, exactly as designed —
+> incidental proof that the invisible-process machinery works.
 
-**10. The Almanac reaches the ending.** The credit roll ends with one slab per
-substance the player discovered, naming what it actually was. No counter, no
-percentage — a completion score at the end of a forty-five minute run is an
-invitation to farm the rest. Separately: **the credit roll never moved.** Writing
-`linear_velocity` does not suspend contact friction, so a 8 m/s² ramp lost to
-μ·g ≈ 9.8 and the whole roll settled at 0.31 m/s and piled into a wall 40 m short
-of the camera. Nobody had seen it because the ending had only ever been probed at
-twelve seconds.
+### 4. A blown noise floor no longer accuses the substances
 
-**11. The flight was flown by planks.** `migration.gd` hardcoded the classic
-visual and never called `animate()`, so every goose in every crossing held its
-wings rigid. Obstacles also had no once-only flag: a wire or turbine re-fired
-every frame for the 20–40 frames it sat in the trigger window, removing a
-*different* goose each time.
+The file printed *"nothing it reports about a substance can be trusted"* and then
+ran every ratio check anyway. The two channels that divide by sober now go quiet
+when sober is not reproducible; everything that stands on its own keeps running.
+Canary: **1 failure of 109 instead of 8**, and the one is true. D-016.
 
-**12. The clock lie, a third time.** Leg 1 — the only leg that never passes
-through `_on_migration_done()` — had been running 180 s against a route that says
-240 for the entire life of the project. `main.gd` gained the public
-`leg_seconds()` accessor `docs/CLOCK_AND_CAMERA_NOTES.md` asked for by name.
+---
 
-**13. `ROUTE.name` was read by nothing at all.** Leg 1 announced itself as the
-strip mall lot and leg 5 as cottage country, while the route, the campaign spec
-and the ending's own credit roll called them the retention pond and the stopover.
-The two reused zones were the only ones that could not know which leg they were
-standing in, and they were exactly the two that got it wrong.
+**WITH THE INSTRUMENTS HONEST, A SIX-DIMENSION ADVERSARIAL AUDIT RAN OVER THE
+WHOLE CODEBASE** — one finder per subsystem, each finding then handed to a
+separate agent told to *refute* it and to default to refuted when unsure.
+**37 findings survived, 4 were refuted.** The ones fixed:
 
-**14. A long tail, found by an adversarial panel.** 32 findings, each fix
-re-checked by an agent that did not write it. The panel caught three fixes that
-did not work — including one that moved `ChaosProp`'s cooldown into
-`_physics_process` and silently broke `CreditSlab`, which overrides it without
-calling `super()`. Also fixed: `is_on_floor()` read before `move_and_slide()`; a
-fall that did not begin with a takeoff never landing at all; `Juice.pop()`
-scaling an NPC's collision capsule and a pickup's trigger volume; a blackout
-coroutine that outlived its leg; framerate-dependent flight banking; hitstop
-leaking into the camera FOV; hallucinations hard-coded to `y = 0` and therefore
-spawning underwater in the one zone whose ground is at 6.6 m; four substances
-with no HUD icon; a third independent toad.
+### 5. Running into a shopping cart had never scored
 
-**15. A second pass over the audit backlog**, all verified headlessly because the
-machine was in use:
+`_resolve_collisions()` read `velocity.length()` — and it runs **after**
+`move_and_slide()`, which has already slid the velocity along every contact
+normal. The harder the hit, the smaller the number. Measured in Godot 4.7.1 with
+this exact capsule and drive: head-on at full `waddle_speed` gives pre-slide
+**4.226** and post-slide **0.000**. `chaos_prop.gd` opens with
+`if force < 2.5: return`.
 
-- **The credit roll had never actually been fixed, and the reason was an API
-  choice rather than a number.** Writing `linear_velocity` from
-  `_physics_process` on a RigidBody3D lands BEFORE the physics step, and the
-  solver then applies gravity, friction and contact resolution on top of it —
-  so raising the acceleration constant from 8 to 24 just meant losing a bigger
-  number every tick. The drive is now in `_integrate_forces()`, which runs
-  inside the step and is authoritative, and driving slabs get `can_sleep = false`
-  because a sleeping body receives no integrate callback at all. There is a new
-  gate for it: **`--rolltest` measures the speed headlessly**, because the
-  symptom took four to six minutes of watching the ending to notice. Measured
-  1.96 m/s against a designed 2.15; the old drive measures **0.00**.
-- **BIG DOWN's guaranteed spectacle pointed the wrong way.** §2.2.7 promises that
-  if the player never breaks the last wall, "he backs into it, panicking". He was
-  told to retreat along his own `basis.z`, but his last waypoint is the lit
-  window — inboard of the north face — so he arrives *facing* the glass and his
-  back walked him south, away from the storey that was exploding. He is now
-  handed the wall's position.
-- **The encounter's clocks were in scaled seconds and the leg's in real ones.**
-  HARD_CAP "90 seconds" was 225 real seconds on nitrous, and substances only ever
-  push `time_scale` down. On a punished leg 7 the player could still be inside
-  the building when the leg ended.
-- **`glazier` counted scoring calls, not panes** (see §4), and **the Stopover's
-  honk reactions listened to the KEY rather than the honk** — `do_honk()` returns
-  early inside its 0.22 s cooldown, so mashing H paid out an eight-goose primary
-  in about a second with fewer than half the presses making a sound. `honk.gd`
-  now has a `honked` signal.
-- Geometry, all arithmetic: the observation tower's legs and landing posts
-  carried a spare `-0.125` on their centres with no matching half-height, so
-  every one hung 70 mm short of the plate it was meant to carry; the weir's
-  splash was built entirely beneath the waterline; a girt band ran across all
-  four open dock doorways in mid-air; and five aisle lights hung 1.1 m below the
-  roof steel in an 11 m dark room, lit.
+So the most frequent scoring event in the game produced no score, no crash sound,
+no shake, no pop, and could never reach `break_force`. A 45° glance measured
+2.970 and scored — which is why nobody saw it: props *did* break, just never when
+you hit them properly. A dive onto a prop was the same bug twice over, since the
+floor normal zeroes `velocity.y` before that line, so `_do_land()` graded a
+34 m/s impact while the prop underneath was told the force was nothing. Now
+sampled as `_last_speed`, beside `_last_y_speed`, on the same
+line-before-the-slide principle.
 
-**16. The new code was then audited by agents that did not write it**, with a
-three-vote refutation panel per finding, because every fix batch this session
-contained at least one fix that did not work. It found, among others:
+### 6. Pausing never stopped the leg clock
 
-- **The Stopover's `name_a_driver` primary could never complete.** The flock pen
-  names a driver, sobers the bird, vests it, plays two sounds and throws
-  DESIGNATED DRIVER into the air — and never scored the label the objective waits
-  on. A required primary, unwinnable. `tools/selftest.gd` now fails the build if
-  any `LBL_*` in a defs file is referenced from nowhere else; CLAUDE.md records
-  this bug class costing two objectives in Suburbia, so that was its second run.
-- **A repeatable revive.** Landing short does not advance the leg, so failing
-  flight 5 re-entered leg 5 and fired `rest()` again — including the Stopover
-  top-up, which `CAMPAIGN_SPEC.md` §4.5 calls the only place in the game a goose
-  is ever gained. Bailing on one crossing was a free resurrection, repeatable.
-- **The rig departure schedule was absolute against 180 s**, while leg 7 can be
-  handed 120 s after a bad leg 6 — so a third of the trucks never left, and the
-  player who most needed the emptying-lot beat was the only one who never got it.
-- **It was raining indoors** — and, underneath that, the truck stop's rain had
-  always fallen straight through the fuel canopy, the travel-centre roof and the
-  diner awning, the three places the zone offers as shelter.
-- **Two bugs introduced by this session's own fixes**: the new GROUND-state
-  landing check was sized with real-world gravity rather than the controller's
-  28 m/s² (a 0.64 m trigger, not the 1.8 m its comment claimed) and could not
-  tell a fall from a launch, so every trampoline bounce in Suburbia became a
-  faceplant with a hitstop.
-- **A stuck audio loop**: walking out of a pickup's range mid-charge left the
-  dose charge loop rising in your ears until the leg ended, because
-  `clear_eat_target()` zeroes the charge in the same statement that clears the
-  target, so the guard that would have stopped the sound was already false.
+`Game` is `PROCESS_MODE_ALWAYS` and `_process` drained `zone_time_left` in real
+seconds with no pause guard. **Ninety seconds in Settings cost ninety seconds of
+a 240 s leg**, and the Almanac — which the game actively encourages you to read —
+was the most expensive thing in it.
 
-The verifier prompt defaults to `refuted = true` when unsure. That is the setting
-that matters: a panel that wants to agree finds nothing.
+The second-order failure is worse. If the menu is still open when the clock runs
+out, `set_phase(MIGRATION)` fires from behind it: the results card opens at layer
+28 **under** the pause menu at 30, `results_screen._input` swallows the
+dismissing keypress with `set_input_as_handled()`, and `_dismiss()` then writes
+`get_tree().paused = false` unconditionally — so the leg teardown and the flight
+briefing run underneath a pause menu that still thinks it is open.
+`main.gd::_brief_zone()` already documented this exact mechanism and hand-patched
+it for the briefings only.
+
+### 7. Holding the eat key on Special K flew the bird out of the level
+
+`resolve()` scales `gravity_mult` and `turn_mult` by `bad`, which is unbounded on
+an overdose — `quality = 1.0 + (dose - sweet_max) * 1.5`, then `× 1.6`. Both
+fields are declared **below** 1.0 by most of the shelf, so
+`1.0 + (v - 1.0) * bad` crosses zero. `_tick_eat` saturates `_eat_charge` at
+exactly 1.0, so a maximum dose is not an edge case — it is what happens when you
+do not let go.
+
+| substance | field | at dose 1.0 |
+|---|---|---|
+| special_k | `gravity_mult` | **-0.066** |
+| math | `turn_mult` | **-0.658** |
+| special_k | `turn_mult` | **-0.563** |
+| toad_slime | `turn_mult` | **-0.256** |
+| robo | `turn_mult` | **-0.160** |
+| percs | `turn_mult` | **-0.043** |
+
+Negative gravity makes `_tick_ground` accelerate the bird **upward** at 1.84 m/s²
+and makes both glide and dive gravity negative too — there is no input that
+brings it down. It rises ~150 m over the dose's scaled 15.6 s and returns through
+a `_tick_ground` fall, which has no `max_fall`, at 90–115 m/s. A negative
+`turn_mult` is an exact no-op, because `_face()` clamps its step to `[0, 1]`: the
+heading freezes for the whole duration while the bird keeps sliding, and the
+Almanac prints "Turning x0.34" for a multiplier delivered as zero.
+
+Floored at 0.05 and 0.08. **No gate in this project had ever resolved a substance
+above dose 0.6**, so the entire overdose branch was unmeasured;
+`selftest.gd::_the_overdose()` now resolves all sixteen at 1.0. Canary-proven —
+removing the floors reproduces every number in the table above.
+
+### 8. Mouse look was dead on entering every zone after a lossy flight
+
+`_show_roster_if_lost()` releases the cursor so the player can read who died, and
+nothing on the zone-entry path recaptured it: `_brief_zone()`'s only
+`_capture_mouse(true)` is gated on `briefing.show_once()`, which returns false for
+every leg after the first. So from leg 2 onward, **every flight that lost a goose
+handed the next zone a dead camera** — recoverable only by happening to left-click
+the window.
+
+### 9. `glazier` counted n + 1 panes per shatter
+
+Last session batched the score and added a per-pane `Mission.note(&"pane_broken")`
+so the count would be honest. The old whole-event note underneath it was never
+deleted, so every shatter emitted **n + 1**. The 10-pane objective completed on
+five single-pane fly-throughs and paid its 240 × 1.6 = 384 for half the work — and
+nobody saw the row tick, because `mission_hud.gd` caps BONUS rows at two and
+glazier sits behind the truck stop's five. Wrong *and* invisible.
+
+### 10. `stamina_restore` was a dial connected to nothing
+
+Exported on `Substance`, set non-zero by **six** substances — bars 0.20, darts
+0.20, double_double 0.40, grass 0.25, math 0.50, molly 0.30 — not a key in
+`resolve()`, and named by no file under `scripts/`. Six substances promising a
+refund the game has never once given.
+
+Wired rather than deleted, and the distinction matters: `float_height` was deleted
+because it *could not honestly be connected* — there was no water surface to
+connect it to. This one connects in one statement at the site the dose lands.
+**It is a balance change and nothing measures it**; `flap_cost` is 0.058, so
+math's 0.50 is about 8.6 extra flaps. D-018, revertible by deleting one `if`.
+
+### 11. FOUR CHECKS THAT COULD NOT FAIL — the failure mode this project rates worst
+
+> *"A check nobody has watched fail is worse than no check, because it launders a
+> guess into a claim."* — `CLAUDE.md`
+
+- **`selftest::_the_time_scale()`** read `Engine.time_scale` on the statement
+  *after* `Subs.reset_for_new_leg()`, whose body contains an unconditional
+  `Engine.time_scale = 1.0`. No await, no frame boundary. The tripwire for a
+  third clock writer passed for every possible state of the game — including the
+  0.106× stranded-hitstop case its own comment cites, and including the four
+  places `main.gd` writes the clock. It now resets both owners, lets the tree run
+  **20 frames**, and asserts on the worst value seen. `run()` became a coroutine
+  for it; `main.gd` awaits it. Canary: a temporary `Engine.time_scale = 0.5` in
+  `Juice._process` trips it — and did not trip the old form.
+- **The leg-1 clock invariant** captured the real boot clock into `before`, then
+  called `start_zone(main.leg_seconds(1))` — *writing the correct answer* — and
+  asserted on that. It was testing a one-line setter. `main.gd` reverting to a
+  bare `Game.new_run()` would run leg 1 sixty seconds short and `--selftest`
+  would still print PASS. That is the exact bug the check is named for.
+- **The shelf-vs-folder count** was guarded on `subs.has_method("all")`, with a
+  comment about `Subs` exposing its table "under different names across
+  versions". There is one version and there is no `all()`. The guard always fell
+  through to `ids.size() > 0`, which sixteen files make trivially true.
+  Defensive coding against a variant that does not exist is how a live assertion
+  becomes a dead one.
+- **`gate.gd`'s `EXPECTED_FAILURES`** and `_is_abstract_ok()` were both dead — an
+  escape hatch documented in a docstring and consulted by nothing. Deleted on the
+  strength of that docstring's own argument: *an entry would have been a hole in
+  the gate, not a fix.*
+
+### 12. Two new invariants, both watched failing before they were trusted
+
+- **`_the_substance_fields()`** — every export on `Substance` must be a key in
+  `resolve()`'s dictionary **or** named by some file under `scripts/`. No
+  allowlist, deliberately: it is a floor, so it cannot false-fail, only
+  false-pass. Caught `stamina_restore`.
+- **`_the_overdose()`** — resolves all sixteen substances at dose 1.0 and asserts
+  the four multipliers stay in a range the controller survives.
+
+Invariants: **541 → 619.** Substance checks: **117 → 135.**
 
 ---
 
 ## ⟳ 3. What to do next
 
-**Nothing here is waiting on you any more.** This list opened with **"Play it"**
-for two sessions running, which meant everything behind it was blocked on one
-person having a free evening, and so nothing behind it moved. That was a
-process bug, and it has been fixed at the root rather than by deleting the line:
-`tools/feeltest.gd` (step 4 of `verify.ps1`) now measures 22 controller metrics,
-13 of them asserted against windows argued out in `docs/FEEL_TARGETS.md`. Tuning
-is work an agent can do and show receipts for. See `CLAUDE.md`, *"Taste is the
-human's. Everything measurable is yours."*
+**Nothing here is waiting on you.** See `CLAUDE.md`, *"Taste is the human's.
+Everything measurable is yours."* Play it whenever you want to; it is not a
+dependency.
 
-**Play it whenever you want to.** It is your game. It is not a dependency.
+This list is now **ranked by evidence rather than by ambition**, and every entry
+below the human ones came out of a six-dimension adversarial audit that ran this
+session. 37 findings survived refutation; 10 were fixed (§2); the rest are the
+backlog, and §4 carries the ones that are known-and-unfixed with their arithmetic
+intact.
 
-In order:
+### The three that are genuinely yours
 
-1. **Three questions that are genuinely yours** — tracked as `Open (human)` in
-   `docs/DECISIONS.md`, which is now the one place that distinguishes settled
-   from open. **An agent must not close these.** D-006 the glide ratio, D-005
-   the hard-landing threshold, D-007 the truck stop's closing beat. The first
-   two are argued at length in `docs/FEEL_TARGETS.md` §5; none is a bug, and
-   each is a one-line change that alters traversal or pacing everywhere.
-   * The glide is **0.85–0.87 : 1** — a metre forward per metre down, which is a
-     controlled fall. `GEEKED_GEESE_DESIGN.md:130` promises *"chain it into a
-     safe glide and you're fine"*, and at 1:1 there is not much glide to chain.
-   * Any 20 m glide arrives at **20.9 m/s** against a `hard_landing_speed` of
-     13.0. Sober that is a 15-point "ROUGH LANDING" and a reward; on a substance
-     with `ragdoll_landings` it is an unavoidable faceplant every descent.
-2. ~~**Leg 7's clock.**~~ **Done this session.** Leg 7 is 230 s, which is what
-   `docs/BOSS_DESIGN.md` §2.2.2 asks for, and BIG DOWN's `DOCK_OPENS_WITH`
-   (118 s left) puts the truck-stop phase at t=112 — the 110 s §2.2.2 specifies,
-   to within two seconds. **No code changed except the number.** The comment in
-   `main.gd::ROUTE` forbidding it described a constraint that
-   `zone_truckstop.gd::_clock_scale()` had already removed, and nobody noticed
-   because a comment cannot run. It is now
-   `tools/selftest.gd::_the_rig_schedule()`, which reproduces the scaling and
-   checks the last rig still departs with the zone's closing beat intact on
-   every clock the leg can legally be dealt.
-   * **One open taste question, recorded rather than decided.** That closing
-     beat is *proportional* — the schedule leaves exactly 6.0% of the leg empty
-     at every clock, so 13.8 s at 230 s and 6.6 s at Mission's 110 s floor. A
-     readable moment is arguably absolute, not proportional: a human needs
-     roughly ten seconds to notice an empty lot whatever the clock says. Making
-     it absolute is a one-line change to `_clock_scale()`. Not made, because
-     nothing specifies it and it is pacing.
-3. **The Ranger's leg 6 exam** — the corn field it was written for now exists.
-4. **Convert a zone to a real `.tscn`.** Still the accepted debt, still the wrong
-   way to do level design, and now eight zones deep.
-5. **The two encounters have been photographed but never played.** BIG DOWN's
-   75-second cap, the shutter telegraph and whether a honk-shattered curtain
-   wall reads as the payoff it is designed to be are all unknown; so are the
-   Ranger's `ACQUIRE` (22 m), `PURSUE_SPEED` (9.5 m/s) and six-second `HAZED`.
-   **This is recorded as a known gap, not as a request.** An encounter's pacing
-   is taste. If it wants measuring, the pattern to copy is `tools/feeltest.gd`:
-   find the part of it that is a number, argue a window for that number in
-   `docs/FEEL_TARGETS.md`, and leave the rest alone.
+Tracked as `Open (human)` in `docs/DECISIONS.md`. **An agent must not close
+these.** D-006 the glide ratio, D-005 the hard-landing threshold, D-007 the truck
+stop's closing beat. None is a bug; each is a one-line change that alters
+traversal or pacing everywhere.
+
+Two of them can be given a *number* without being closed, and that is the highest
+form of help an agent can offer here — see items 3 and 4 below.
+
+### Ranked, for an agent
+
+1. **The design promises a different game from leg 1 to leg 2 and the code
+   builds the same one.** `CAMPAIGN_SPEC.md` §2.1 gives leg 1 **three**
+   substances (fermented berries, double-double, grass); §2.2 gives leg 2 "all
+   sixteen — this is where the lid comes off." `zone_strip_mall.gd::_sources()`
+   builds all sixteen unconditionally and the file has no leg branch anywhere, so
+   **legs 1 and 2 are 420 s of the same place with the same shelf** — the first
+   rise of the whole intensity curve, unbuilt. One `if` in one function, and
+   `selftest` can assert the group sizes (3 and 16) directly. This is the
+   cheapest large improvement in the project.
+
+2. **`migration.gd` never reads the leg.** `TARGET_DISTANCE := 2000.0` is the
+   only termination test, so at integrity 1.0 every crossing runs ~85 s and
+   spawns ~33 obstacles. `ROUTE_DATA.md` §1.3 ships the per-flight table already:
+   flight 1 wants 45 s and ~4 obstacles and `lethal: false`; flight 7 wants 130 s
+   and a dense sky. **Half the game is flights and all seven are the same
+   flight.** `migtest.gd` already drives a real crossing headless, so the
+   assertion is a loop over legs 1–7.
+   * **Flight 1 is lethal today**, and `CAMPAIGN_SPEC.md` §2.1 calls
+     non-lethality "not a nicety, it is the tutorial." That is a one-line flag
+     and a `migtest` assertion.
+
+3. **Give D-006 its cost, without closing it.** The argument against widening the
+   glide is that it "would silently invalidate every *the goose cannot reach
+   that* assumption in eight zone builders" — a cost nobody has counted. Walk
+   each built zone, enumerate every walkable surface above ground, and mark it
+   reachable/not from the nearest lower surface at today's 0.86 : 1 and at a
+   candidate ratio. The deliverable is a **diff of two reachability sets**, which
+   is exactly the number the decision is missing.
+
+4. **Give D-005 its number.** `impact = absf(_last_y_speed)` against
+   `hard_landing_speed` 13.0 with `glide_gravity` 11.0 makes the threshold a
+   descent of **v²/2g = 7.68 m** — and **7 of the 16 substances set
+   `ragdoll_landings`** (berries, fly_agaric, gravy, math, nitrous, special_k,
+   toad_slime). Write the closed form into `FEEL_TARGETS.md` §5.2 and count how
+   many surfaces in each zone sit more than 7.68 m above their neighbour.
+
+5. **`tools/geomtest.gd` — finish the abandoned FOOTPRINTS checker, from the
+   built zone rather than from `build(kind, {})`.** §4 records the attempt and
+   the wall it hit: the builders want params an empty dictionary does not supply.
+   The way past it is to stop constructing props and start **measuring the ones
+   the zones already built** — every node in the `chaos_prop` group carries both
+   its declared box and its real mesh AABB. `FOOTPRINTS` is load-bearing
+   (`build()` sizes with `want / footprint(kind)`), `down_bale` is already
+   suspected 8–12% small, and nothing has ever compared the two.
+
+6. **`tools/audiotest.gd` — assert what the WAVs *are*, since nobody can hear
+   them.** `selftest::_the_assets()` checks only that a file exists. The bug it
+   could not see is in the record: the truck stop's "rain" was a **0.700 s goose
+   hiss that never looped**, because `Sfx` only forces looping on keys ending
+   `_loop`. Duration bands per family, `loop_mode` on every `amb_*`, non-silence,
+   no clipping. It must not claim anything *sounds* good.
+
+7. **The Ranger's leg 6 exam** — `BOSS_DESIGN.md` §2.1.4, and D-013 records the
+   real blocker as the propane cannon's bang rather than the corn field, which
+   now exists. Everything else it needs is built, including
+   `honk.gd::_pressure_wave()`.
+
+8. **Cut two things.** `scripts/ui/objectives.gd` (169 lines) is instantiated
+   nowhere — `mission_hud.gd` replaced it and `zone_suburbia.gd:1257` records
+   deleting its own consumer for that reason — while `zone_strip_mall.gd:630`
+   still returns a six-entry `objectives()` that disagrees with `mission_defs.gd`
+   about the cart target. A second, disagreeing objective list for the first zone
+   the player sees. `CAMPAIGN_SPEC.md` §2.2's change list already opens with
+   "delete the dead `objectives()` function."
+
+9. **Convert a zone to a real `.tscn`.** Still accepted debt, still the wrong way
+   to do level design, now eight zones deep — and a candidate for being **retired
+   as a decision rather than carried as a task**, since everything the conversion
+   buys needs a human in the editor.
+
+### Recorded, decided without measuring, and revertible
+
+`stamina_restore` now pays out (D-018) — a balance change nothing measures. If
+the extra ~8.6 flaps from a full Math dose reads as too generous, delete one `if`
+in `goose_controller.gd::_tick_eat`.
 
 ---
 
 ## ⟳ 4. Known issues and honest gaps
+
+### NEW THIS SESSION — survived an adversarial refutation panel, NOT fixed
+
+Twenty-seven of the audit's 37 survivors were left alone, deliberately: the ten
+that were fixed are in §2, and the ones below are recorded with their arithmetic
+so the next session can act without re-deriving anything. **Each was checked by
+an agent that did not find it, told to refute it and to default to refuted when
+unsure.** Ranked.
+
+**Tolerance shrinks PENALTIES toward neutral, which is the inverse of the
+documented economy.** `docs/ARCHITECTURE.md` §3 and `substance.gd`'s own comment
+both say it: *"Tolerance scales the good parts and never the bad ones. That
+asymmetry is the entire economy."* `resolve()` picks `good` or `bad` **per
+field**, but every one of the four multipliers is a benefit on one side of 1.0
+and a penalty on the other, so each is right for only half its range. Measured
+across the shelf at tolerance 3 (`tol = 1/(1+0.35·3) = 0.488`):
+
+| | |
+|---|---|
+| Penalties **softened** by tolerance (8 substances) | percs' flap 0.80 → 0.90 and speed 0.70 → 0.85; grass 0.88 → 0.94 / 0.78 → 0.89; also bars, berries, gravy, robo, special_k, toad_slime |
+| Benefits **immune** to tolerance (8 substances) | double_double's turn stays 1.50 at every tolerance, molly's 1.20, darts' 1.05; special_k's gravity stays 0.55, toad_slime's 0.70, and four more |
+
+So **the fourth percocet impairs you less than the first**, and the tenth
+double-double turns exactly as sharply as the first. The doc's own worked
+example — *"the fourth double-double gives you less speed and the same jitter"* —
+is one of the cases that is correct; nobody wrote an example for the four that
+are not. **The fix is to select the scale by the DIRECTION of the value rather
+than by the field name**, which is a handful of lines. Not done here because it
+makes six substances materially more punishing at tolerance and no instrument in
+this project can evaluate that. Note also that `gravity_mult` below 1.0 is
+genuinely ambiguous — floatier is a traversal *benefit* and a control
+*impairment* — so that one is a design call, not arithmetic.
+
+**`substancetest`'s `DOSE = 0.6` is an OVERDOSE for acid and percs**, which
+contradicts the constant's own comment (*"inside the sweet band of every
+substance in the shelf, so `resolve()` returns quality 1.0"*). Acid's `sweet_max`
+is 0.55, percs' is lower still. So two of the sixteen have been measured on the
+`overdosed` branch with `bad = 1.6` the whole time, and the printout has never
+said so. `[0.45, 0.55]` is in band for all sixteen (highest `sweet_min` is
+nitrous at 0.45, lowest `sweet_max` is acid at 0.55), or dose each substance at
+`clampf(0.6, sweet_min, sweet_max)`.
+
+**`gg_share` pays 75 chaos and a combo link on every key press**, with no
+cooldown and no cost once the flock is saturated. The honk has a 0.22 s cooldown
+for exactly this reason; the share has none, and does not check whether it moved
+anything.
+
+**Six authored objectives are gated behind `from_leg` values their zone never
+reaches**, including the game's only chain-length primary (`sustained_campaign`).
+`no_brakes` and both `variety_pack` rows are the cheap ones — lower `from_leg` to
+the zone's real leg. `sustained_campaign` needs a home in a zone that runs at
+leg 5+.
+
+**The results card's short-landing clock is derived from the NEXT leg's base**,
+but landing short replays the CURRENT leg. Add a `short_zone_base` beside
+`next_zone_base` in `evaluate_leg()`'s result.
+
+**The results card's CHAOS note quotes un-multiplied objective rewards** while
+claiming they are the amounts inside the multiplied chaos figure.
+
+**`juice.gd`'s non-negotiable rule "HITSTOP HAS EXACTLY FIVE CALL SITES" is
+false — there are eight.** The honest fix here is not a corrected comment but the
+project's own idiom: an invariant that greps `scripts/` for `Juice.hitstop(` and
+asserts both the count and each site's `(seconds, strength)` against a table
+declared in `juice.gd`. A rule in prose is the failure mode `CLAUDE.md`'s banner
+is about.
+
+**`no_early_exit` travels the whole pipeline and is read by one thing:
+`almanac.gd`, which prints a line about it.** There is no early-exit verb in the
+game, so the Almanac states a rule about the player's options that is not true.
+It is also in `selftest`'s `CONTROL_KEYS`, which means a substance could satisfy
+the design rule with a field that mutates nothing.
+
+**Placement arithmetic, each with both numbers:** leg 6's double-double pickup
+sits **inside the grain truck's cab** because the placement ignores the truck's
+0.14 rad yaw; Suburbia's island lamp collider is centred **0.6 m too high**, so
+it floats and overhangs its own luminaire; about **a quarter of leg 1's lawn
+signs spawn in the retention pond**; the recycling bin's chevron badge floats
+**8.6 cm** in front of the tub; and `LowPolyBuilder.wedge()` closes **only one of
+its two ridge ends**, leaving a hole in every model that uses it.
+
+**Cosmetic but real:** `_flap_anim` is decayed only inside `_tick_fly`, so one
+standing hop leaves the wings flapping at full rate for the rest of the leg; the
+lowpoly goose's webbed feet sit 5–10 cm **below** the collider and are underground
+whenever the bird stands; `Prefs` never flushes on quit, so a settings change made
+inside the 0.4 s debounce is lost; and `almanac.layer = 20` in `_build_overlays()`
+is overwritten by the Almanac's own `_ready()`.
+
+**Gaps in the gates themselves, named honestly:**
+
+- **`input_lag` has no behavioural coverage in any of the eight gates.** It is
+  the field that caused this project's most expensive bug — eleven of sixteen
+  substances unplayable — and `substancetest` counts it as satisfying the design
+  rule while asserting nothing about it. Same for `grid_snap`.
+- **Nothing exercises the eating verb through the path the player uses.** Every
+  harness reaches into `Subs.take()` directly, so `_tick_eat`'s charge arc, the
+  sweet-spot band, the abort, the pickup's `consumed()` and the SWEET SPOT /
+  OVERDOSE / BARELY ANYTHING scoring have never been driven by a key. That is
+  why `stamina_restore` could be dead with every gate green, and it is why its
+  wiring is asserted **statically** rather than behaviourally.
+- **`migtest`'s `lateral.half_cross` cannot fail unless `full_cross` fails too** —
+  it is derived from the same drive rather than measured independently.
+- **`verify.ps1` checks for `SCRIPT ERROR` on one of its eight steps.** Step 7
+  does it; the other seven do not.
+- **The failsafe is armed after the first zone has already been built.**
+  `_arm_failsafe()` runs partway through `_ready()`, so a crash or stall before
+  that point is still an invisible process.
+
+---
+### Carried forward from previous sessions
+
 
 **THE GLIDE IS 0.85–0.87 : 1 AND NOBODY HAS DECIDED WHETHER THAT IS RIGHT.** A
 metre forward per metre down is a controlled fall, and
@@ -487,6 +648,11 @@ player who took out two storeys with a single honk watched the row sit at 1 of
 10. The encounter now also emits one `pane_broken` note per pane and the
 objective counts that event — the score stays batched, the count is honest.
 **Not re-rendered; the arithmetic is in the comment at both sites.**
+> **And that fix shipped with a leftover.** The old whole-event note was never
+> deleted, so from then until this session every shatter emitted **n + 1** and
+> `glazier` completed on roughly half the panes. Fixed; see §2.9. The pattern is
+> worth naming: *a counting bug fixed by adding a second emitter is not fixed
+> until the first emitter is gone.*
 
 **BIG DOWN's two bonus objectives never reach the HUD, and the fix is a design
 call somebody has to make.** `mission_hud.gd` draws at most two BONUS rows and
