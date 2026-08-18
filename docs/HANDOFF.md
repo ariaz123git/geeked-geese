@@ -480,9 +480,20 @@ all needing either a render or a judgement I would not make blind.**
 - **A whippet honk from outside can trigger the weather early.** One honk clears
   more glass than the encounter budgets for, and three of six top-storey panes is
   the trigger.
-- **`collider_boxes(&"racking")` promises a clear full-width deck at every beam
-  level and the mesh fills it**, which breaks the "a goose climbs the racking one
-  level per flap" argument the 1.70 m beam pitch exists for.
+- ~~**`collider_boxes(&"racking")` promises a clear full-width deck at every beam
+  level and the mesh fills it.**~~ **Measured, rendered and fixed.** The numbers,
+  from the constants: the deck collider is `RACK_DEPTH × 0.92` = **1.012 m** deep
+  and full bay width; the bales are half-depth 0.435 at z = 0 and half-width 0.56
+  at `cx ± 0.62` on a 2.70 bay. That leaves a clear strip of **0.07 m at the aisle
+  face and 0.17 m at the bay edges** — and **the goose capsule is 0.68 m wide and
+  1.10 m long.** There was nowhere on any level it could stand: it landed on the
+  promised collider and was inside the bales, which is precisely what breaks the
+  "one level per flap" argument the 1.70 m pitch exists for.
+  **Confirmed by the first render ever taken inside the warehouse**
+  (`--probe --leg:7 --goto:-2,5.5,-70`), and fixed by leaving one stock slot in
+  four empty, chosen off the seeded wobble the stock already uses so the gaps are
+  deterministic. Re-rendered: the gaps are visible and the place still reads as
+  the white cliff it is supposed to.
 - Smaller, all evidenced: the `fill_power_sign`'s second line is buried inside
   its own emissive panel and its hazard chevrons float; the bale stencil's first
   line is 20% wider than the label it sits on; `shutter_set_closed` hides half a

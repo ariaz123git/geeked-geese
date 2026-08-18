@@ -860,6 +860,29 @@ static func _racking(b: RefCounted, e: RefCounted, _g: RefCounted, params: Dicti
 					beam.lightened(0.22))
 			if stock:
 				for s in 2:
+					# A GAP IS A LANDING PAD, AND WITHOUT ONE THE COLLIDER LIES.
+					#
+					# `collider_boxes(&"racking")` promises "one thin deck per
+					# beam level, full width" so that a goose which flaps up to a
+					# level does not fall through it — and the beam pitch of 1.70
+					# is chosen so one flap reaches the next level. Then this loop
+					# filled every deck: two bales per bay, half-depth 0.435 on a
+					# deck 1.012 deep and half-width 0.56 at +/-0.62 on a 2.70 bay.
+					#
+					# MEASURED, from those constants: the clear deck is 0.07 m at
+					# the aisle face and 0.17 m at the bay edges. THE GOOSE
+					# CAPSULE IS 0.68 m WIDE AND 1.10 m LONG. There was nowhere on
+					# any level it could stand — it landed on the promised collider
+					# and was inside the bales. Confirmed by the first render ever
+					# taken inside the warehouse.
+					#
+					# One slot in four is left empty, chosen off the same seeded
+					# wobble the stock already uses, so it is deterministic and the
+					# gaps do not move between runs. From the floor this is still
+					# "a white cliff, which is the point" — a warehouse with every
+					# single slot full is the less believable of the two anyway.
+					if absf(_wobble(lv * 13 + bay * 3, s, seed_v)) > 0.55:
+						continue
 					var sx := cx + (-0.62 + float(s) * 1.24)
 					var wob := 1.0 + 0.03 * _wobble(lv * 7 + bay, s, seed_v)
 					# A pallet, then the bale block on top of it. Both pale —
