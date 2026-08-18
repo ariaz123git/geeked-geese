@@ -17,7 +17,6 @@ extends Node3D
 
 signal finished(distance: float, target: float)
 
-const TARGET_DISTANCE := 2000.0
 const BASE_SPEED := 34.0
 const CORRIDOR_X := 13.0
 const Y_MIN := 5.0
@@ -44,6 +43,100 @@ const FLIGHT_PLACES := [
 	"I-95",                 # 7 -> 8  THE INTERSTATE
 ]
 
+## Metres of `distance` per second of flight at integrity 1.0.
+##
+## `speed = BASE_SPEED * lerpf(0.55, 1.15, integrity)` and `distance += speed *
+## delta * 0.6`, so a whole bird flying a clean V covers 34 × 1.15 × 0.6 =
+## 23.46 m of `distance` per second. `docs/ROUTE_DATA.md` §1.2 converts its
+## per-flight `seconds` with exactly this expression; this is the only place in
+## the code the conversion exists, so the two cannot drift apart silently.
+##
+## A ragged formation flies SHORTER, not slower in wall-clock: integrity 0.55
+## gives 12.6 m/s, so the same crossing takes 1.86× the seconds. That is the
+## attrition mechanic and it is why `seconds` is a floor rather than a duration.
+const DISTANCE_PER_SECOND := BASE_SPEED * 1.15 * 0.6
+
+## ═══════════════════════════════════════════════════════════════════════════
+## THE SEVEN FLIGHTS. Indexed by the leg you are flying OUT of.
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## HALF THIS GAME IS FLIGHTS AND ALL SEVEN WERE THE SAME FLIGHT. A single
+## `TARGET_DISTANCE := 2000.0` was the only termination test in the file, so
+## every crossing in the campaign ran 2000 / 23.46 = **85.3 seconds** at full
+## integrity and spawned the same hazards at the same rate out of the same
+## uniform `randi() % 3`. The tutorial crossing and the Interstate were the same
+## eighty-five seconds. `docs/ROUTE_DATA.md` §1.3 has shipped the per-flight
+## table since it was written and nothing read it.
+##
+## THE SHAPE OF THE TABLE IS THE POINT, and it is not a ramp. Read the
+## `seconds` column: 45 · 70 · 80 · 110 · 75 · 95 · 130. Flight 4 (THE LONG
+## HAUL) is a local peak, flight 5 (DOWN THE SUSQUEHANNA, out of the Stopover)
+## drops back to 75, and flight 7 is the summit. That dip is deliberate — it is
+## the same rest-then-escalate contour `docs/CAMPAIGN_SPEC.md` builds the zones
+## on, and a monotonic ramp would flatten the only recovery beat in the back
+## half of the run.
+##
+## `lethal: false` ON FLIGHT 1 IS NOT A NICETY. `CAMPAIGN_SPEC.md` §2.1: *"the
+## flight is a completely different control scheme, and flight 1 is the only
+## place in a 45-minute run where you can teach it with nothing at stake.
+## `lethal: false` on flight 1 is not a nicety, it is the tutorial."* A wire
+## strike there costs stamina, formation and altitude — everything a strike
+## normally costs — and never a bird.
+##
+## FIELDS
+##   seconds      duration at integrity 1.0; target_distance = seconds × 23.46
+##   lethal       false = a flock bird is scarred where it would be lost
+##   first_spawn  seconds of empty sky before the first spawn attempt
+##   interval     [min, max] seconds between spawn attempts after that
+##   obstacle_p   chance a spawn is a hazard; the remainder is a thermal
+##   mix          hazard weights, wires/turbine/wind — must sum to 1.0
+##
+## `sky`, `ground`, `km` and `put_down` from ROUTE_DATA §1.2 are deliberately
+## NOT here: nothing in this file reads them yet, and a field with no consumer
+## is the `stamina_restore` bug waiting to happen (D-017/D-018). They go in when
+## the code that uses them does.
+const FLIGHTS := [
+	# 1 → 2  THE 401. One span of wires and nothing else, thermals frequent.
+	{"seconds": 45.0, "lethal": false, "first_spawn": 6.0,
+		"interval": Vector2(2.8, 4.2), "obstacle_p": 0.35,
+		"mix": {"wires": 1.00, "turbine": 0.00, "wind": 0.00}},
+	# 2 → 3  OVER THE QEW. Turbines arrive; the first flight that can cost you.
+	{"seconds": 70.0, "lethal": true, "first_spawn": 4.0,
+		"interval": Vector2(2.0, 3.2), "obstacle_p": 0.50,
+		"mix": {"wires": 0.70, "turbine": 0.30, "wind": 0.00}},
+	# 3 → 4  THE WRONG WAY. Headwind bands arrive. North, on purpose.
+	{"seconds": 80.0, "lethal": true, "first_spawn": 3.0,
+		"interval": Vector2(1.6, 2.6), "obstacle_p": 0.58,
+		"mix": {"wires": 0.50, "turbine": 0.30, "wind": 0.20}},
+	# 4 → 5  THE LONG HAUL. Night, all three hazards, the first peak.
+	{"seconds": 110.0, "lethal": true, "first_spawn": 3.0,
+		"interval": Vector2(1.2, 2.0), "obstacle_p": 0.66,
+		"mix": {"wires": 0.45, "turbine": 0.30, "wind": 0.25}},
+	# 5 → 6  DOWN THE SUSQUEHANNA. The dip. The Stopover's whole reason to exist
+	# is recovery, and it would mean nothing followed by the hardest crossing yet.
+	{"seconds": 75.0, "lethal": true, "first_spawn": 5.0,
+		"interval": Vector2(2.4, 3.6), "obstacle_p": 0.40,
+		"mix": {"wires": 0.60, "turbine": 0.20, "wind": 0.20}},
+	# 6 → 7  THE FALL LINE.
+	{"seconds": 95.0, "lethal": true, "first_spawn": 3.0,
+		"interval": Vector2(1.2, 2.0), "obstacle_p": 0.68,
+		"mix": {"wires": 0.40, "turbine": 0.35, "wind": 0.25}},
+	# 7 → 8  THE INTERSTATE. The climax of the run. Twenty seconds of empty sky
+	# first — the longest quiet in the game, and then the densest hazard clock in
+	# it. `tools/migtest.gd` sizes every manoeuvre window against this 0.9–1.6 s.
+	{"seconds": 130.0, "lethal": true, "first_spawn": 20.0,
+		"interval": Vector2(0.9, 1.6), "obstacle_p": 0.80,
+		"mix": {"wires": 0.55, "turbine": 0.10, "wind": 0.35}},
+]
+
+
+## The flight flown OUT of `leg`. Static so `tools/migtest.gd` can ask without
+## building a migration, and so the harness checks the expression `_ready()`
+## obeys rather than a second copy of it.
+static func flight_for_leg(leg: int) -> Dictionary:
+	return FLIGHTS[clampi(leg - 1, 0, FLIGHTS.size() - 1)]
+
+
 ## Anything at or under this at the buzzer flew the last of it on empty, which
 ## is a near-death by any honest reading and is the exhaustion scar the campaign
 ## spec asks for (§4.8: "a bird survives a flight at < 0.1 stamina").
@@ -55,7 +148,11 @@ var lead_index := -1               ## which Flock.birds index holds the point
 var player_leads := true
 
 var distance := 0.0
-var target_distance := TARGET_DISTANCE
+## Written in `_ready()` from this leg's FLIGHTS entry. Zero before that, which
+## is why every read of it goes through `maxf(target_distance, 1.0)`.
+var target_distance := 0.0
+## This leg's FLIGHTS entry. Read every frame by _tick_world and _check_obstacle.
+var _flight: Dictionary = {}
 var speed := BASE_SPEED
 var integrity := 1.0
 var player_pos := Vector3(0, 18, 0)
@@ -95,6 +192,13 @@ var _distress_t := 0.0
 
 
 func _ready() -> void:
+	# BEFORE anything that reads it. `_tick_world` reads `_flight` on the first
+	# frame, and `_spawn_t` used to start at 0.0, which meant the very first
+	# frame of every flight rolled a spawn — the tutorial crossing opened with a
+	# hazard already on screen.
+	_flight = flight_for_leg(Flock.leg)
+	target_distance = float(_flight.seconds) * DISTANCE_PER_SECOND
+	_spawn_t = float(_flight.first_spawn)
 	var sfx := get_node_or_null("/root/Sfx")
 	if sfx:
 		sfx.loop(&"wind_loop", &"wind", -12.0)
@@ -385,7 +489,7 @@ func _process(delta: float) -> void:
 		# terminal, or the next handler that awaits will rediscover this.
 		if not _emitted and Input.is_action_just_pressed("gg_skip"):
 			_emitted = true
-			finished.emit(distance, TARGET_DISTANCE)
+			finished.emit(distance, target_distance)
 		return
 
 	_honk_cd = maxf(0.0, _honk_cd - delta)
@@ -411,7 +515,7 @@ func _process(delta: float) -> void:
 	speed = BASE_SPEED * lerpf(0.55, 1.15, integrity)
 	distance += speed * delta * 0.6
 
-	if distance >= TARGET_DISTANCE:
+	if distance >= target_distance:
 		_finish()
 	elif _flock_exhausted():
 		_say("THE FLOCK IS DONE. PUTTING DOWN.", 2.0)
@@ -667,8 +771,12 @@ func _flock_exhausted() -> bool:
 func _tick_world(delta: float) -> void:
 	_spawn_t -= delta
 	if _spawn_t <= 0.0:
-		_spawn_t = randf_range(1.1, 2.1)
-		if randf() < 0.62:
+		# Was a hard-coded randf_range(1.1, 2.1) and randf() < 0.62 on every one
+		# of the seven crossings. Leg 1 now waits 2.8–4.2 s and rolls a hazard
+		# 35% of the time; leg 7 waits 0.9–1.6 s and rolls one 80% of the time.
+		var iv: Vector2 = _flight.interval
+		_spawn_t = randf_range(iv.x, iv.y)
+		if randf() < float(_flight.obstacle_p):
 			_spawn_obstacle()
 		else:
 			_spawn_thermal()
@@ -718,8 +826,23 @@ func _tick_world(delta: float) -> void:
 		_check_thermal(th)
 
 
+## Which hazard, weighted by this flight's `mix`. Was `randi() % 3` — a flat
+## third each on every crossing in the game, which is why flight 1 could open
+## with a wind turbine before the player had been shown a wire.
+func _pick_hazard() -> int:
+	var mix: Dictionary = _flight.mix
+	var roll := randf()
+	var acc: float = float(mix.wires)
+	if roll < acc:
+		return 0
+	acc += float(mix.turbine)
+	if roll < acc:
+		return 1
+	return 2
+
+
 func _spawn_obstacle() -> void:
-	var kind := randi() % 3
+	var kind := _pick_hazard()
 	var n := Node3D.new()
 	add_child(n)
 	var mat := StandardMaterial3D.new()
@@ -938,6 +1061,34 @@ func _check_obstacle(o: Dictionary) -> void:
 					Color(1.0, 0.52, 0.34))
 				if sfx:
 					sfx.play(&"crash_light", -2.0)
+			elif not bool(_flight.lethal):
+				# FLIGHT 1 IS THE TUTORIAL AND IT MAY NOT TAKE A BIRD.
+				# CAMPAIGN_SPEC §2.1: "the flight is a completely different
+				# control scheme, and flight 1 is the only place in a 45-minute
+				# run where you can teach it with nothing at stake. `lethal:
+				# false` on flight 1 is not a nicety, it is the tutorial."
+				#
+				# Everything a strike costs EXCEPT the bird: stamina off the
+				# goose that took it, integrity off the formation, the shake,
+				# the feathers, the sound and a permanent scar with the place
+				# name on it. The player still learns that wires hurt; they
+				# learn it on a flock that arrives whole.
+				#
+				# Integrity 0.18 rather than the player's 0.25: the player
+				# clipping it is the formation's own lead making the mistake.
+				var near: String = Flock.birds[b.idx].name
+				Flock.birds[b.idx].stamina = maxf(0.0, Flock.birds[b.idx].stamina - 0.22)
+				integrity = maxf(0.05, integrity - 0.18)
+				Flock.scar_bird(b.idx, "%s over %s" % [
+					"was clipped by a turbine" if o.kind == "turbine" else "was clipped by a wire",
+					_where()])
+				_say("%s CLIPPED IT — THEY'RE OK" % near.to_upper(), 1.8)
+				Juice.shake(0.45)
+				Juice.burst(where, Color(0.94, 0.94, 0.92), 15, &"feathers")
+				Juice.floating_text(where + Vector3.UP * 1.2, "CLIPPED IT",
+					Color(1.0, 0.52, 0.34))
+				if sfx:
+					sfx.play(&"crash_light", -2.0)
 			else:
 				var nm: String = Flock.birds[b.idx].name
 				var lost_idx: int = b.idx
@@ -1059,10 +1210,10 @@ func _finish() -> void:
 	var sfx := get_node_or_null("/root/Sfx")
 	if sfx:
 		sfx.stop_loop(&"wind")
-	var pct := clampf(distance / TARGET_DISTANCE, 0.0, 1.0)
+	var pct := clampf(distance / maxf(target_distance, 1.0), 0.0, 1.0)
 	var verdict := "MADE IT" if pct >= 0.999 else "LANDED SHORT"
 	_lbl_mid.text = "%s\n%d / %d km\n%s\n\n[ENTER]" % [
-		verdict, int(distance), int(TARGET_DISTANCE), Flock.condition_summary()]
+		verdict, int(distance), int(target_distance), Flock.condition_summary()]
 	_lbl_top.text = ""
 
 

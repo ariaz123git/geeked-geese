@@ -112,6 +112,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	await _lateral(tree, mig, corridor)
 	await _vertical(tree, mig, y_min, y_max)
 	await _rally(tree, mig)
+	_the_seven_flights(main, mig)
 
 	for r in _rows:
 		var n: String = r.name
@@ -135,6 +136,168 @@ static func run(tree: SceneTree, main: Node) -> void:
 	for f in _fails:
 		print("[mig]   %s" % f)
 	tree.quit(1)
+
+
+## ═══════════════════════════════════════════════════════════════════════════
+## SEVEN FLIGHTS, SEVEN SHAPES — and every one of them built and read back.
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## `migration.gd` had one `TARGET_DISTANCE := 2000.0` and never read the leg, so
+## every crossing in the campaign ran 85.3 s at full integrity and rolled the
+## same hazards out of the same `randi() % 3`. Half the game was one flight
+## served seven times, and no gate could see it: this file measured the flight's
+## CONTROLS beautifully and never once asked which flight it was.
+##
+## Three kinds of check, and the third is the one that would have caught it.
+##
+##   1. THE TABLE IS WELL FORMED — seven entries, mixes that sum to 1, ordered
+##      intervals, durations that are actually different from each other.
+##   2. THE TABLE HAS THE SHAPE THE DESIGN ARGUES FOR — flight 1 the quietest
+##      and non-lethal, flight 7 the densest, and flight 5 a genuine dip rather
+##      than a monotonic ramp.
+##   3. EACH LEG'S MIGRATION IS BUILT AND READ BACK. `_ready()` resolves
+##      `target_distance` and `_spawn_t` from `Flock.leg`; a build that read the
+##      leg at the wrong moment, or ignored it, would pass every check above
+##      with the table perfectly correct. So this constructs one migration per
+##      leg, reads the two fields the flight's length and opening depend on, and
+##      frees it.
+##
+## Synchronous on purpose: `_ready()` runs inside `add_child()`, and the two
+## fields are written there. Nothing here needs a frame, and letting seven
+## migrations `_process` concurrently would put seven Camera3Ds in the tree.
+static func _the_seven_flights(main: Node, live: Node) -> void:
+	var mig_script := load("res://scripts/migration/migration.gd")
+	if mig_script == null:
+		_fails.append("migration.gd did not load — the flight table could not be read")
+		return
+	var consts: Dictionary = mig_script.get_script_constant_map()
+	var flights: Array = consts.get("FLIGHTS", [])
+	var per_sec: float = float(consts.get("DISTANCE_PER_SECOND", 0.0))
+
+	if flights.size() != 7:
+		_fails.append("migration.FLIGHTS has %d entries. The route flies seven." % flights.size())
+		return
+	if per_sec <= 0.0:
+		_fails.append("migration.DISTANCE_PER_SECOND is %.3f" % per_sec)
+		return
+
+	# ── 1. the table is well formed ──────────────────────────────────────────
+	var seconds_seen := {}
+	for i in flights.size():
+		var f: Dictionary = flights[i]
+		var leg_no := i + 1
+		var secs: float = float(f.seconds)
+		var mix: Dictionary = f.mix
+		var total: float = float(mix.wires) + float(mix.turbine) + float(mix.wind)
+		var iv: Vector2 = f.interval
+		var p: float = float(f.obstacle_p)
+		seconds_seen[secs] = true
+		if secs <= 0.0:
+			_fails.append("flight %d has seconds %.1f" % [leg_no, secs])
+		if absf(total - 1.0) > 0.001:
+			_fails.append("flight %d's hazard mix sums to %.3f, not 1.0 — the remainder is a hazard that never spawns." % [leg_no, total])
+		if iv.x <= 0.0 or iv.y < iv.x:
+			_fails.append("flight %d's spawn interval is [%.2f, %.2f]" % [leg_no, iv.x, iv.y])
+		if p <= 0.0 or p > 1.0:
+			_fails.append("flight %d's obstacle_p is %.2f" % [leg_no, p])
+		if float(f.first_spawn) < 0.0 or float(f.first_spawn) >= secs:
+			_fails.append("flight %d opens with %.1f s of empty sky against a %.1f s crossing." % [leg_no, float(f.first_spawn), secs])
+	if seconds_seen.size() < 6:
+		_fails.append("the seven flights use only %d distinct durations. All seven being the same flight is the bug this check exists for." % seconds_seen.size())
+
+	# ── 2. the table has the shape the design argues for ─────────────────────
+	#
+	# Expected hazards per crossing at integrity 1.0. Spawns are attempted every
+	# `interval` seconds after `first_spawn`, and `obstacle_p` of them are
+	# hazards rather than thermals:
+	#
+	#     (seconds - first_spawn) / mean(interval) * obstacle_p
+	#
+	# This formula reproduces the OLD uniform flight exactly — 85.3 s, [1.1,2.1],
+	# 0.62 gives 33.1, and docs/HANDOFF.md §3 recorded "~33 obstacles" for it,
+	# which is the corroboration that the arithmetic is right rather than
+	# convenient.
+	var hazards: Array[float] = []
+	for i in flights.size():
+		var f2: Dictionary = flights[i]
+		var iv2: Vector2 = f2.interval
+		var mean_iv: float = (iv2.x + iv2.y) * 0.5
+		hazards.append((float(f2.seconds) - float(f2.first_spawn)) / mean_iv * float(f2.obstacle_p))
+	print("[mig] hazards per crossing, by flight: %s" % [
+		"  ".join(PackedStringArray(hazards.map(func(h: float) -> String: return "%.1f" % h)))])
+
+	if bool(flights[0].lethal):
+		_fails.append("flight 1 is LETHAL. CAMPAIGN_SPEC §2.1: \"lethal: false on flight 1 is not a nicety, it is the tutorial.\"")
+	for i in range(1, flights.size()):
+		if not bool(flights[i].lethal):
+			_fails.append("flight %d is non-lethal. Only the tutorial crossing may be." % (i + 1))
+
+	_assert_window("route.hazards_flight1", hazards[0], "n", 2.0, 7.0,
+		"ROUTE_DATA §1.3 gives flight 1 one span of wires and frequent thermals — about four hazards in 45 s. More than seven is not a tutorial.")
+	_assert_window("route.hazards_flight7", hazards[6], "n", 40.0, 110.0,
+		"the Interstate is the climax: 0.9-1.6 s between attempts at 80% hazard over 110 s of live sky.")
+	_assert_window("route.escalation", hazards[6] / maxf(hazards[0], 0.01), "x", 8.0, 40.0,
+		"how much denser the last crossing is than the first. All seven flights being identical reads as exactly 1.0x here.")
+	# The Stopover's dip. `zone_stopover.gd` exists so the back half has one
+	# recovery beat; a crossing out of it that is harder than the one into it
+	# would spend the beat and give nothing back.
+	_assert_window("route.stopover_dip", hazards[4] / maxf(hazards[3], 0.01), "x", 0.20, 0.85,
+		"flight 5 leaves the Stopover and must be EASIER than flight 4 into it, or the only rest in the back half is decorative.")
+	# NO TWO CONSECUTIVE CROSSINGS MAY SIT IN THE SAME DENSITY BAND.
+	#
+	# This is the cheapest possible regression guard against "all seven are the
+	# same flight" coming back, and it is a stronger statement than the ramp
+	# checks above: a table could rise smoothly and still put two neighbouring
+	# flights close enough together that a player cannot tell them apart. Lomas
+	# et al. (n≈70,000) found engagement tracks NOVELTY and frequency of change
+	# rather than raw difficulty, and Valve's intensity-curve practice asks for
+	# rising troughs as well as rising peaks. Measured today, the smallest
+	# consecutive change is 1.68x (flight 2 -> 3) and the largest is 4.20x
+	# (flight 5 -> 6, out of the Stopover dip).
+	var tightest := 999.0
+	var tightest_at := 0
+	for i in range(1, hazards.size()):
+		var ratio: float = hazards[i] / maxf(hazards[i - 1], 0.01)
+		var change: float = maxf(ratio, 1.0 / maxf(ratio, 0.01))
+		if change < tightest:
+			tightest = change
+			tightest_at = i
+	_assert_window("route.tightest_step", tightest, "x", 1.25, 8.00,
+		"the smallest density change between consecutive flights (here at flight %d -> %d). Under 1.25x the two crossings are the same crossing; over 8x the run lurches." % [tightest_at, tightest_at + 1])
+
+	if hazards[6] < hazards.max():
+		_fails.append("flight 7 is not the densest crossing in the run (%.1f against a peak of %.1f)." % [hazards[6], hazards.max()])
+	if hazards[0] > hazards.min():
+		_fails.append("flight 1 is not the quietest crossing in the run (%.1f against a floor of %.1f)." % [hazards[0], hazards.min()])
+
+	# ── 3. build each leg's flight and read it back ──────────────────────────
+	var was_leg: int = Flock.leg
+	var built: PackedStringArray = []
+	for leg in range(1, 8):
+		Flock.leg = leg
+		var m: Node = mig_script.new()
+		m.name = "MigProbe%d" % leg
+		main.add_child(m)
+		var td: float = float(m.get("target_distance"))
+		var st: float = float(m.get("_spawn_t"))
+		main.remove_child(m)
+		m.free()
+		var want_f: Dictionary = flights[leg - 1]
+		var want_td: float = float(want_f.seconds) * per_sec
+		built.append("%.0f" % td)
+		if absf(td - want_td) > 0.5:
+			_fails.append("the migration built at leg %d has target_distance %.1f, and its FLIGHTS entry asks for %.1f (%.0f s x %.2f m/s). _ready() is not resolving the leg." % [leg, td, want_td, float(want_f.seconds), per_sec])
+		if absf(st - float(want_f.first_spawn)) > 0.01:
+			_fails.append("the migration built at leg %d opens its spawn clock at %.2f s, not the %.2f its FLIGHTS entry asks for." % [leg, st, float(want_f.first_spawn)])
+	Flock.leg = was_leg
+	print("[mig] target_distance by leg, off the built node: %s" % [" ".join(built)])
+
+	# And the flight the harness actually flew, which is the one thing above
+	# that was not constructed by this file.
+	var live_td: float = float(live.get("target_distance"))
+	var live_want: float = float(flights[clampi(was_leg - 1, 0, 6)].seconds) * per_sec
+	if absf(live_td - live_want) > 0.5:
+		_fails.append("the LIVE flight (leg %d, built by main) has target_distance %.1f against the %.1f its leg asks for." % [was_leg, live_td, live_want])
 
 
 static func _assert_window(name: String, value: float, unit: String, lo: float, hi: float, why: String) -> void:

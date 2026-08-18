@@ -115,8 +115,41 @@ static func run(tree: SceneTree, main: Node) -> void:
 	# THE NOISE FLOOR, MEASURED, NOT ASSUMED. Sober twice. Every threshold below
 	# has to clear the difference between two runs of the same thing, or the
 	# gate is reporting its own jitter as a substance effect.
+	#
+	# AND IT IS RETAKEN WHEN THE ZONE INTERFERES, WHICH IS NOT THE SAME AS
+	# WIDENING IT. Leg 1 builds seven cats that wander at 2.6 m/s and a lot of
+	# loose shopping carts, and none of them stop for a measurement. A cat that
+	# reaches the pad mid-walk pushes the bird off the commanded bearing, and
+	# `offaxis` — the angle between where the stick points and where the bird
+	# actually goes — is the channel that sees it: a shove measured 1.099 rad
+	# against a floor of 0.05, and turnrate and climb agreed to 0.000 in the
+	# same pair. One disturbed walk out of two, and the whole report suppressed.
+	#
+	# `tools/feeltest.gd` has retaken a disturbed walk since it was written and
+	# says why in its header; this file never did. THE CRITERION IS UNCHANGED —
+	# two consecutive runs of the same thing must still agree to the same
+	# thresholds — it simply gets up to three attempts before it calls the
+	# harness broken, and it says how many it took. Widening the floor would be
+	# weakening the assertion; taking another sample is not.
+	#
+	# What made this visible: narrowing leg 1's shelf to three substances
+	# removed thirteen `SubstancePickup` constructions from the zone build, and
+	# every one of those consumed `randf()`. `main._ready()` calls `randomize()`,
+	# so the cats' spawn positions come off the same stream — the world was
+	# re-rolled by a change that had nothing to do with cats. Any edit to a zone
+	# builder can do this to any harness that measures in that zone.
+	const SOBER_RETAKES := 2
 	var sober := await _fingerprint(tree, goose, subs)
 	var sober2 := await _fingerprint(tree, goose, subs)
+	var retakes := 0
+	while not _noise_ok(_noise_between(sober, sober2)) and retakes < SOBER_RETAKES:
+		retakes += 1
+		print("[subs] sober baseline disturbed (offaxis %.3f) — retake %d of %d"
+			% [absf(float(sober2.offaxis) - float(sober.offaxis)), retakes, SOBER_RETAKES])
+		# Rolling pair, not a fresh pair: the criterion is that two CONSECUTIVE
+		# runs agree, and the run that was disturbed is the one being dropped.
+		sober = sober2
+		sober2 = await _fingerprint(tree, goose, subs)
 	# THE PRECONDITION, ASSERTED DIRECTLY. `_fingerprint()` counts the frames the
 	# bird spent in State.WATER during the two ground channels; the ground model
 	# is the only thing those channels are allowed to be measuring.
@@ -126,19 +159,14 @@ static func run(tree: SceneTree, main: Node) -> void:
 		% [sober.speed, sober.offaxis, sober.turnrate, sober.climb])
 	print("[subs] repeat  speed %.2f m/s  offaxis %.3f rad  turnrate %.2f rad/s  climb %.2f m"
 		% [sober2.speed, sober2.offaxis, sober2.turnrate, sober2.climb])
-	var noise := {
-		"speed": absf(sober2.speed - sober.speed),
-		"offaxis": absf(sober2.offaxis - sober.offaxis),
-		"turnrate": absf(sober2.turnrate - sober.turnrate),
-		"climb": absf(sober2.climb - sober.climb),
-	}
-	print("[subs] noise   speed %.3f m/s  offaxis %.3f rad  turnrate %.3f rad/s  climb %.3f m"
-		% [noise.speed, noise.offaxis, noise.turnrate, noise.climb])
+	var noise := _noise_between(sober, sober2)
+	print("[subs] noise   speed %.3f m/s  offaxis %.3f rad  turnrate %.3f rad/s  climb %.3f m%s"
+		% [noise.speed, noise.offaxis, noise.turnrate, noise.climb,
+			"" if retakes == 0 else "  (after %d retake%s)" % [retakes, "" if retakes == 1 else "s"]])
 	# A NOISE FLOOR IS ONLY USEFUL IF SOMETHING CHECKS IT. Every threshold below
 	# is built from these; if the harness itself is jittering, the thresholds it
 	# derives are meaningless and it must say so rather than quietly widening.
-	noise["ok"] = (float(noise.offaxis) < 0.05 and float(noise.turnrate) < 1.5
-		and float(noise.climb) < 0.05)
+	noise["ok"] = _noise_ok(noise)
 	_ok(bool(noise.ok),
 		("the harness does not agree with itself between two SOBER runs (offaxis %.3f, turnrate "
 		+ "%.3f, climb %.3f). Every threshold below is derived from this floor, so nothing it "
@@ -659,6 +687,25 @@ static func _fingerprint(tree: SceneTree, goose: CharacterBody3D, subs: Node) ->
 			break
 
 	return out
+
+
+## The run-to-run difference between two fingerprints of the same thing.
+static func _noise_between(a: Dictionary, b: Dictionary) -> Dictionary:
+	return {
+		"speed": absf(float(b.speed) - float(a.speed)),
+		"offaxis": absf(float(b.offaxis) - float(a.offaxis)),
+		"turnrate": absf(float(b.turnrate) - float(a.turnrate)),
+		"climb": absf(float(b.climb) - float(a.climb)),
+	}
+
+
+## THE THRESHOLDS THE WHOLE FILE STANDS ON, in one place so the retake loop and
+## the assertion cannot drift apart. `speed` is deliberately not in here — it is
+## a diagnostic column that asserts nothing, and a shove shows up in it without
+## invalidating the channels that do assert.
+static func _noise_ok(n: Dictionary) -> bool:
+	return (float(n.offaxis) < 0.05 and float(n.turnrate) < 1.5
+		and float(n.climb) < 0.05)
 
 
 ## Back to the dry pad, on the ground, still — WITHOUT clearing the substance.

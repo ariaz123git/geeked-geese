@@ -810,6 +810,46 @@ static func _the_shelf(main: Node) -> void:
 	_ok(reachable >= 1,
 		"no named combo in Subs.COMBOS can be mixed from the tutorial shelf, so leg 1 can teach that mixing exists but never that it pays.")
 
+	# LEG 1 IS WHERE THE CONTROLS ARE LEARNED, SO ONE OF THEM HAS TO BE CLEAN.
+	#
+	# `input_lag` is added on top of the controller's sober latency, which
+	# `feeltest.gd` measures at 1.00 tick. Liu and Claypool measured LOCAL
+	# latency at roughly twice the performance impact of the same network
+	# latency, and this project's most expensive bug of all time was an input
+	# lag that made eleven of the sixteen substances unplayable. Measured across
+	# the shelf: toad_slime 0.28 is the worst, percs 0.24, berries 0.22, and six
+	# substances are at 0.00.
+	#
+	# TWO OF THE THREE TUTORIAL SUBSTANCES ADD LAG — berries 0.22 and grass
+	# 0.10 — and that is deliberate rather than an oversight: fermented berries
+	# ARE the drunk one, and CAMPAIGN_SPEC §2.1 names it. So the rule is not
+	# "no lag on leg 1". It is the two things that would actually break the
+	# lesson:
+	#
+	#   * at least one option with NO added lag, so the player has a baseline to
+	#     learn the controls against and something to compare the others to;
+	#   * never the worst control in the game as a first lesson.
+	#
+	# See docs/DECISIONS.md D-021.
+	var worst_shelf := 0.0
+	for lib_id in subs.library.keys():
+		var lib_res: Resource = subs.library[lib_id]
+		worst_shelf = maxf(worst_shelf, float(lib_res.get("input_lag")))
+	var worst_tut := 0.0
+	var clean_tut := 0
+	for lag_id in tutorial:
+		var lag_res: Resource = subs.get_substance(lag_id)
+		if lag_res == null:
+			continue
+		var lag: float = float(lag_res.get("input_lag"))
+		worst_tut = maxf(worst_tut, lag)
+		if lag <= 0.0:
+			clean_tut += 1
+	_ok(clean_tut >= 1,
+		"every substance on the tutorial shelf adds input lag (worst %.2f s). Leg 1 is where the controls are learned and the player needs one option that does not delay the stick." % worst_tut)
+	_ok(worst_tut < worst_shelf,
+		"the tutorial shelf carries the worst input lag in the game (%.2f s, and the shelf maximum is %.2f). The first lesson may not be the least responsive control in it." % [worst_tut, worst_shelf])
+
 	var declared_1: Dictionary = zs.shelf_for_leg(1)
 	var declared_2: Dictionary = zs.shelf_for_leg(from_leg)
 	_ok(declared_1.size() == tutorial.size(),
