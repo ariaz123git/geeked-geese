@@ -23,14 +23,14 @@ handles.**
 | | |
 |---|---|
 | Engine | Godot 4.7.1, GL Compatibility renderer |
-| Code | 67 GDScript files (read the live count off `[gate] PASS — N scripts`) |
+| Code | 69 GDScript files (read the live count off `[gate] PASS — N scripts`) |
 | Zones built | 8 — retention pond / strip mall lot (one zone, two legs), suburbia, cottage country, **the stopover**, cut corn, truck stop, the 18th green |
 | Route legs | 7 flown + the arrival. **No leg reuses another leg's zone any more.** Leg 7 is now the 230 s `BOSS_DESIGN.md` §2.2.2 asks for. |
 | Substances | 16, all with models, control mutations, true codex facts and — as of this session — a HUD icon |
 | Bosses | **2 built.** The Ranger (leg 3) and **BIG DOWN** (the back half of leg 7) |
 | Assets | 39 textures (23 + 16 substance icons), 46 sounds (39 SFX + 7 zone ambience beds), 22 music stems — **all procedurally generated** |
 | Autoloads | 10 (see `docs/ARCHITECTURE.md` §2 for the order and why it matters) |
-| Gates | **8**: compile, invariants (432), controller, **feel (22 metrics, 13 asserted)**, **substances (117 over 16)**, **flight (9 measurements)**, credit roll, full campaign. `.\verify.ps1`, about 4 minutes |
+| Gates | **8**: compile, invariants (529), controller, **feel (22 metrics, 13 asserted)**, **substances (117 over 16)**, **flight (9 measurements)**, credit roll, full campaign. `.\verify.ps1`, about 4 minutes |
 | Version control | **A git repo, as of this session.** There was none before, despite `VIBECODING_BRIEFING.md` making "commit before every task" one of its six headline rules. |
 
 ### What works

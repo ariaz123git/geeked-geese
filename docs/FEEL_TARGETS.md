@@ -164,14 +164,26 @@ Two things fixed it, and the second matters more than the first:
    actually in water, and a non-zero count fails the run with a message saying
    **HARNESS fault, do not tune the controller from these numbers.** A wrong
    answer now announces itself instead of being reported as a verdict.
-3. **The walk is retaken if the zone disturbs it.** Leg 1 builds seven cats that
-   wander at 2.6 m/s and a lot of loose shopping carts, and none of them stop
-   because something is being measured. One run reported a top speed of
-   **7.37 m/s** — faster than `waddle_speed` (4.2) *and* faster than
-   `swim_speed` (5.4), because the bird had been shoved — and failed the build
-   on a healthy controller. A speed above `waddle_speed × 1.25` is a collision,
-   not a controller result, so that attempt is discarded and retaken, three
-   times, before the run gives up and reports a harness fault.
+3. **All three ground measurements are retaken if the zone disturbs them.**
+   Leg 1 builds seven cats that wander at 2.6 m/s and a lot of loose shopping
+   carts, and none of them stop because something is being measured. Each
+   measurement needed its own precondition, and each one failed a build before
+   it got one:
+
+   | measurement | how a shove showed up | the guard |
+   |---|---|---|
+   | `top_speed` | **7.37 m/s** — faster than walking *and* swimming | reject any tick above `waddle_speed × 1.06` |
+   | `turn_180` | **1.42 s** against a normal 0.30 — `_face()` steers toward the direction of TRAVEL, so knocking the bird sideways moves the target it is turning toward | same excess-speed signal |
+   | `stop_distance` | **0.00 m** — a goose pinned against a cart releases at 0 m/s, and a coast measurement is meaningless without a coast | require the release speed to be near top speed |
+
+   The cap started at `× 1.25` and let a 21% disturbance through unretried;
+   sober top speed is deterministic at exactly `waddle_speed`, so 6% is room for
+   numerical noise and nothing else. **Ten consecutive runs green after all
+   three guards were in**, against roughly one failure in four before.
+
+   The disturbance signal is deliberately metric-independent — *the bird
+   exceeding `waddle_speed` is the world touching it, whichever measurement is
+   running* — so the next metric added inherits it.
 
 ### The glide rows were promoted, and what it took
 

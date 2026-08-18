@@ -42,10 +42,10 @@ project. Source and rationale: `tools/gate.gd`.
 input-lag bug that made *eleven of the sixteen substances unplayable* — the bird
 obeying four-second-old input — passed the compile gate, passed the whole
 headless campaign run, and would have passed any review that did not press a
-key. There are now seven gates, and one script that runs all of them:
+key. There are now eight gates, and one script that runs all of them:
 
 ```
-.\verify.ps1                                       # all seven. -Quick skips the slow three
+.\verify.ps1                                       # all eight. -Quick skips the slow three
 godot --headless --path . -- --gate                # it compiles
 godot --headless --path . -- --selftest            # it agrees with itself
 godot --headless --path . -- --probe --inputtest   # the bird obeys
@@ -72,7 +72,19 @@ reading the `.tres`. The input-lag bug is the precedent: eleven of the sixteen
 were unplayable while every `.tres` involved was correct. Data and behaviour
 have to be compared, not each checked alone.
 
-**Every assertion in all four is a bug that already got through once.** When you fix
+`tools/migtest.gd` is the first thing ever to measure a MIGRATION — half this
+game is flights, and the only thing any check knew about one was that the
+campaign reached `COMPLETE`.
+
+**Before writing a fifth harness, read the header of `tools/probe_common.gd`.**
+Every one of the four written in one session spent its first runs accusing a
+healthy game, and every one of those was the instrument, not the game: the goose
+spawns in a pond, the zone's cats shove it, the tree pauses behind your back,
+the substance ends before the measurement does, and half these drivers are
+sine-phased or rotating so a short sample or a net-displacement metric reads
+zero. That file carries the list and the shared setup.
+
+**Every assertion in all five is a bug that already got through once.** When you fix
 something a gate could not see, add the assertion that would have seen it — and
 then break it on purpose and watch it fail. A check nobody has watched fail is
 worse than no check, because it launders a guess into a claim. That single

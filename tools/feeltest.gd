@@ -169,7 +169,12 @@ static func _ground_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
 	var top := 0.0
 	var samples: Array[float] = []
 	var attempts := 0
-	var cap: float = float(goose.get("waddle_speed")) * 1.25
+	# 1.06, not 1.25. Sober top speed is DETERMINISTIC — `waddle_speed` exactly,
+	# 4.20 — so any excess at all is the world pushing the bird, and a generous
+	# cap just lets small shoves through unretried: one run reported 5.10 m/s,
+	# a 21% disturbance, and passed because the window is [3, 6]. 6% is room for
+	# numerical noise and nothing else.
+	var cap: float = float(goose.get("waddle_speed")) * 1.06
 
 	while attempts < 3:
 		attempts += 1
@@ -220,38 +225,79 @@ static func _ground_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
 		"under 0.10 s the bird has no weight at all; over 0.40 s it feels like pushing a fridge")
 
 	# --- stop distance: let go at speed and see how far it coasts ---
-	await _settle(tree, goose)
-	Input.action_press("gg_forward")
-	for _i in 60:
-		await tree.physics_frame
-	Input.action_release("gg_forward")
-	var p0 := goose.global_position
-	for _i in 90:
-		await tree.physics_frame
-		_watch_dry(goose)
-		if _flat_speed(goose) < 0.05:
+	#
+	# RETRIED, AND THE PRECONDITION IS THE POINT: this measures a COAST, so it is
+	# meaningless unless the bird was actually at speed when the key came up. A
+	# goose pinned against a shopping cart releases at 0 m/s and coasts 0.00 m,
+	# which the window reads as a controller that stops dead. That failed a build.
+	var slide_len := 0.0
+	var slide_try := 0
+	while slide_try < 3:
+		slide_try += 1
+		await _settle(tree, goose)
+		Input.action_press("gg_forward")
+		for _i in 60:
+			await tree.physics_frame
+		var release_speed := _flat_speed(goose)
+		Input.action_release("gg_forward")
+		var p0 := goose.global_position
+		for _i in 90:
+			await tree.physics_frame
+			_watch_dry(goose)
+			if _flat_speed(goose) < 0.05:
+				break
+		var slide := goose.global_position - p0
+		slide.y = 0.0
+		slide_len = slide.length()
+		# Released at very near top speed, and not shoved past it on the way.
+		if release_speed > cap * 0.80 and release_speed <= cap:
 			break
-	var slide := goose.global_position - p0
-	slide.y = 0.0
-	_assert_window("ground.stop_distance", slide.length(), "m", 0.05, 0.80,
+		print("[feel] stop attempt %d released at %.2f m/s (want %.2f–%.2f) — retaking"
+			% [slide_try, release_speed, cap * 0.80, cap])
+
+	_assert_window("ground.stop_distance", slide_len, "m", 0.05, 0.80,
 		"the goose capsule is about 0.7 m; coasting more than a body length past the key reads as ice")
 
 	# --- 180 degrees: how long to turn round ---
-	await _settle(tree, goose)
-	Input.action_press("gg_forward")
-	for _i in 60:
-		await tree.physics_frame
-	var h0: float = float(goose.get("heading"))
-	Input.action_release("gg_forward")
-	Input.action_press("gg_back")
+	#
+	# RETRIED ON THE SAME SIGNAL AS THE WALK. A shove does not only change speed;
+	# `_face()` steers toward the direction of TRAVEL, so a cat that knocks the
+	# bird sideways moves the target it is turning toward and the turn never
+	# converges. One run in five measured 1.42 s against a normal 0.30 and failed
+	# the build.
+	#
+	# The disturbance signal is deliberately metric-independent: the bird
+	# exceeding `waddle_speed` at any point is the world touching it, whichever
+	# measurement happens to be running. That generalises to the next one added.
 	var turn_t := 0.0
-	for i in 180:
-		await tree.physics_frame
-		var h: float = float(goose.get("heading"))
-		if absf(angle_diff(h, h0)) > PI - deg_to_rad(10.0):
-			turn_t = float(i + 1) * TICK
+	var turn_try := 0
+	while turn_try < 3:
+		turn_try += 1
+		await _settle(tree, goose)
+		var shoved := false
+		Input.action_press("gg_forward")
+		for _i in 60:
+			await tree.physics_frame
+			if _flat_speed(goose) > cap:
+				shoved = true
+		var h0: float = float(goose.get("heading"))
+		Input.action_release("gg_forward")
+		Input.action_press("gg_back")
+		turn_t = 0.0
+		for i in 180:
+			await tree.physics_frame
+			if _flat_speed(goose) > cap:
+				shoved = true
+			var h: float = float(goose.get("heading"))
+			if absf(angle_diff(h, h0)) > PI - deg_to_rad(10.0):
+				turn_t = float(i + 1) * TICK
+				break
+		Input.action_release("gg_back")
+		if not shoved and turn_t > 0.0:
 			break
-	Input.action_release("gg_back")
+		print("[feel] turn attempt %d disturbed (%.2f s, shoved=%s) — retaking"
+			% [turn_try, turn_t, str(shoved)])
+
 	_assert_window("ground.turn_180", turn_t, "s", 0.15, 0.80,
 		"chasing a rolling cart is the core comedy verb; over 0.8 s to turn round makes it misery")
 
