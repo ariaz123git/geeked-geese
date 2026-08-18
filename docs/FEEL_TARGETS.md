@@ -280,30 +280,45 @@ can be set against measured ones — and that is exactly where it got interestin
 | Dive, 34 → 5 m | 1.46 s | **1.47 s** |
 | Passive sink | 1.60 m/s | **1.60 m/s** |
 | Honk rally | ×0.15 | **×0.11** |
-| **Full corridor crossing** | **1.53 s** | **4.50 s** |
+| Full corridor crossing | 1.53 s | **1.53 s** |
+| Half crossing | 0.76 s | **0.77 s** |
 
-Four of five agree to a hundredth. **The fifth does not, and I could not find
-out why.** `_tick_player()` moves the bird at 17.0 m/s across a 26 m corridor;
-the measured effective speed is **5.78 m/s**. Ruled out, each by direct
-measurement rather than reasoning:
+**All of them agree.** Every channel is asserted; nothing here is unexplained.
 
-- the input vector is exactly `(1.0000, 0.0000)`, raw strength 1.00, deadzone 0.20
-- `Engine.time_scale` is 1.000 on every frame of the run
-- physics-frame time and wall-clock agree to 2 ms across 4.5 s
-- nothing else in `migration.gd` writes `player_pos.x`
-- the vertical channels are measured the same way, in the same run, and are right
+### The one that was, and what it turned out to be
 
-The one relation that does hold: 26 m at 17 m/s needs 1.53 s of *summed
-`_process` delta*, and 1.53 / 4.50 ≈ ⅓ — so the deltas `_tick_player` receives
-sum to about a third of real time while the engine reports 145 fps and a
-time_scale of 1.
+For one commit the corridor crossing measured **4.50 s** against the predicted
+1.53 — an effective 5.78 m/s where `_tick_player()` plainly says 17.0 — and it
+was written up in this file and in `HANDOFF.md` as *the top open question in the
+project*. Everything checked out: the input vector was exactly
+`(1.0000, 0.0000)`, `Engine.time_scale` was 1.000 on every frame, physics time
+and wall clock agreed to 2 ms, nothing else wrote `player_pos.x`, and the
+vertical channels measured the same way in the same run were right to a
+hundredth.
 
-**Both remaining possibilities matter.** Either the flight is three times less
-responsive than its own constant claims — and lateral movement is the entire
-dodge — or the harness is wrong in a way the vertical channels do not expose.
-The two lateral rows are therefore **OBSERVED**, not asserted: a build-failing
-window here would either wire in a permanent red or bless a number nobody
-understands. **This is the top open question in the file.**
+**The tree was paused.** `migration.gd`'s `process_mode` is INHERIT, so a paused
+tree stops its `_process` and with it all of `_tick_player`. The harness
+unpaused once on entry and a card paused it again behind its back. Holding right
+for a full second from the centre of the corridor moved the bird **0.000 m**,
+and the position series read `0.00 0.00 0.00 0.00 0.00 0.00`. The 4.50 s was
+about three seconds of frozen game plus the 1.53 s the arithmetic always
+predicted — and the gate now reports **178 paused frames**, which is 2.97 s,
+against a discrepancy of 4.50 − 1.53 = **2.97 s**.
+
+Two things worth keeping from that:
+
+1. **The bug was in the instrument, for the fourth time this session.** The
+   count is now: the pond, the terminal-velocity sample, the substance that
+   outlasted its own measurement, a cat, and this. Every one first presented as
+   the game being broken.
+2. **"Unexplained" was the right thing to ship for one commit.** The alternative
+   was a window that either failed the build forever or blessed 5.78 m/s as
+   correct. Being wrong in public for one commit cost nothing; asserting a
+   number nobody understood would have cost the next person a day.
+
+The lesson is not "unpause harder". It is that **a measurement has to know
+whether the thing it is measuring was running** — so `_tick()` un-pauses,
+counts the frames it had to, and does not bill them to the game.
 
 `_tick_player()` integrates position directly rather than running physics, so
 the predicted response times fall straight out:

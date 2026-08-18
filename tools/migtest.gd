@@ -29,6 +29,40 @@ extends RefCounted
 
 const TICK := 1.0 / 60.0
 
+## Physics frames spent with the tree PAUSED while a measurement was running.
+static var _paused_ticks := 0
+
+
+## Advance one measured tick. Returns false if the tree was paused for it, in
+## which case the flight did not move and the tick must not be counted.
+##
+## THE BUG THIS EXISTS BECAUSE OF, and it is the best one of the session.
+##
+## `migtest` reported a corridor crossing of 4.50 s against a predicted 1.53,
+## an effective 5.78 m/s where `_tick_player()` plainly says 17.0. Everything
+## checked out: the input vector was exactly (1.0000, 0.0000), Engine.time_scale
+## was 1.000 on every frame, physics time and wall clock agreed to 2 ms, and the
+## vertical channels measured the same way in the same run were correct to a
+## hundredth. It went into HANDOFF as "the top open question in the project".
+##
+## **The tree was PAUSED.** `_enter_flight()` unpauses once, and a card pauses it
+## again behind the harness's back; `migration.gd`'s process_mode is INHERIT, so
+## its `_process` — and therefore all of `_tick_player` — simply stops. Holding
+## right for a full second from the centre of the corridor moved the bird
+## 0.000 m, and the position series read `0.00 0.00 0.00 0.00 0.00 0.00`. The
+## 4.50 s was about three seconds of frozen game plus the 1.53 s the arithmetic
+## always predicted. 4.50 - 1.53 = 2.97.
+##
+## The lesson is not "unpause harder", it is that **a measurement must know
+## whether the thing it is measuring was running.** So this un-pauses, counts
+## the frames it had to, and does not bill them to the game.
+static func _tick(tree: SceneTree) -> bool:
+	if tree.paused:
+		tree.paused = false
+		_paused_ticks += 1
+		return false
+	return true
+
 static var _rows: Array[Dictionary] = []
 static var _fails: Array[String] = []
 
@@ -36,6 +70,7 @@ static var _fails: Array[String] = []
 static func run(tree: SceneTree, main: Node) -> void:
 	_rows.clear()
 	_fails.clear()
+	_paused_ticks = 0
 
 	var mig: Node = await _enter_flight(tree, main)
 	if mig == null:
@@ -90,6 +125,8 @@ static func run(tree: SceneTree, main: Node) -> void:
 		else:
 			print("[mig] %-22s %7.2f %-4s (observed)     %s" % [n, v, u, r.why])
 
+	if _paused_ticks > 0:
+		print("[mig] %d physics frames were spent PAUSED and were not billed to the flight" % _paused_ticks)
 	if _fails.is_empty():
 		print("[mig] PASS — %d flight measurements" % _rows.size())
 		tree.quit(0)
@@ -129,25 +166,25 @@ static func _lateral(tree: SceneTree, mig: Node, corridor: float) -> void:
 		await tree.physics_frame
 
 	var t := 0.0
-	var wall0 := Time.get_ticks_msec()
-	var frames := 0
 	var x0: float = float((mig.get("player_pos") as Vector3).x)
 	Input.action_press("gg_right")
 	for _i in 400:
 		await tree.physics_frame
-		t += TICK
-		frames += 1
+		if _tick(tree):
+			t += TICK
 		var now: Vector3 = mig.get("player_pos")
 		if now.x >= corridor - 0.05:
 			break
 	Input.action_release("gg_right")
-	var wall := float(Time.get_ticks_msec() - wall0) * 0.001
 	var x1: float = float((mig.get("player_pos") as Vector3).x)
-	var measured: float = (x1 - x0) / maxf(wall, 0.001)
-	print("[mig] lateral: %d frames, %.2f s wall, %.2f m -> %.2f m/s (the code says 17.0)"
-		% [frames, wall, x1 - x0, measured])
+	print("[mig] lateral: %.2f m in %.2f s -> %.2f m/s (the code says 17.0)"
+		% [x1 - x0, t, (x1 - x0) / maxf(t, 0.001)])
 
-	# OBSERVED, NOT ASSERTED, AND THE REASON IS THE POINT.
+	# ASSERTED. These were OBSERVED for exactly one commit, while the 4.50 s
+	# crossing was unexplained; the cause turned out to be the tree pausing
+	# mid-measurement (see _tick()), and with the paused frames no longer billed
+	# to the game the measurement lands on the 1.53 s the constants predict.
+	# WHAT FOLLOWS IS THE ARGUMENT FOR THE WINDOWS, WHICH IS UNCHANGED.
 	#
 	# `_tick_player()` moves the bird at 17.0 m/s across a 26 m corridor, which
 	# is 1.53 s. THIS MEASURES 4.5 s — an effective 5.78 m/s, about a third of
@@ -173,10 +210,10 @@ static func _lateral(tree: SceneTree, mig: Node, corridor: float) -> void:
 	# neither is worth a build-failing window until one of them is established.**
 	# Asserting here would either wire in a red build or bless a number I do not
 	# understand. See docs/FEEL_TARGETS.md §6.
-	_observe("lateral.full_cross", t, "s",
-		"edge to edge; the constants predict 1.53 s and this is not that — UNEXPLAINED, see the comment")
-	_observe("lateral.half_cross", t * 0.5, "s",
-		"centre to edge, the manoeuvre that must fit inside leg 7's 0.9 s hazard gap")
+	_assert_window("lateral.full_cross", t, "s", 1.1, 2.4,
+		"edge to edge of the corridor. Under 1.1 s the whole lane is dodgeable inside one hazard gap and the corridor stops being a commitment; over 2.4 s even a half crossing misses leg 7's tightest gap")
+	_assert_window("lateral.half_cross", t * 0.5, "s", 0.45, 1.2,
+		"centre to edge — the manoeuvre that MUST fit inside leg 7's tightest 0.9 s hazard gap, and the one the flight is actually played with")
 
 
 # ---------------------------------------------------------------- vertical
@@ -194,7 +231,8 @@ static func _vertical(tree: SceneTree, mig: Node, y_min: float, y_max: float) ->
 	Input.action_press("gg_flap")
 	for _i in 600:
 		await tree.physics_frame
-		t_up += TICK
+		if _tick(tree):
+			t_up += TICK
 		var now: Vector3 = mig.get("player_pos")
 		if now.y >= y_max - 0.05:
 			break
@@ -207,7 +245,8 @@ static func _vertical(tree: SceneTree, mig: Node, y_min: float, y_max: float) ->
 	Input.action_press("gg_dive")
 	for _i in 600:
 		await tree.physics_frame
-		t_down += TICK
+		if _tick(tree):
+			t_down += TICK
 		var now2: Vector3 = mig.get("player_pos")
 		if now2.y <= y_min + 0.05:
 			break
@@ -218,14 +257,41 @@ static func _vertical(tree: SceneTree, mig: Node, y_min: float, y_max: float) ->
 		"the dive has its own button; going down must be meaningfully quicker than going up or the two controls are one control")
 
 	# --- and letting go must not be neutral: the bird sinks ---
-	var p2: Vector3 = mig.get("player_pos")
-	p2.y = (y_min + y_max) * 0.5
-	mig.set("player_pos", p2)
-	var y0: float = p2.y
-	for _i in 60:
-		await tree.physics_frame
-	var y1: float = float((mig.get("player_pos") as Vector3).y)
-	_assert_window("vertical.idle_sink", (y0 - y1), "m/s", 0.4, 4.0,
+	#
+	# RETAKEN IF A WIRE HITS IT. The flight runs its real hazard logic while this
+	# measures, and `_check_obstacle()` answers a wire strike with
+	# `player_pos.y -= 3.0` in a single frame. One run read a sink of 4.60 m/s,
+	# which is the honest 1.60 plus exactly that 3.00 — the bird clipped a wire
+	# mid-measurement and the gate billed it as a controller property.
+	#
+	# A strike is a step, not a slope: gravity moves the bird 1.6/60 = 0.027 m in
+	# a frame and a wire moves it 3.0. Anything past half a metre in one frame is
+	# the world, not the sink, so that attempt is thrown away and retaken.
+	_release_all()
+	var sink := 0.0
+	var sink_attempts := 0
+	while sink_attempts < 4:
+		sink_attempts += 1
+		var p2: Vector3 = mig.get("player_pos")
+		p2.y = (y_min + y_max) * 0.5
+		mig.set("player_pos", p2)
+		var y0: float = p2.y
+		var prev_y := y0
+		var struck := false
+		for _i in 60:
+			await tree.physics_frame
+			var yn: float = float((mig.get("player_pos") as Vector3).y)
+			if absf(yn - prev_y) > 0.5:
+				struck = true
+			prev_y = yn
+			if not _tick(tree):
+				struck = true
+		sink = y0 - prev_y
+		if not struck:
+			break
+		print("[mig] idle-sink attempt %d hit something (sank %.2f m) — retaking" % [sink_attempts, sink])
+
+	_assert_window("vertical.idle_sink", sink, "m/s", 0.4, 4.0,
 		"altitude lost per second with NO input. Zero means holding station is free and the stamina economy has nothing to charge for; above 4 m/s the band drains faster than a climb can refill it")
 
 

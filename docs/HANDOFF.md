@@ -391,30 +391,21 @@ Observed across this session's runs:
 If a future gate needs a quiet zone, the lever is pausing the actors — but note
 that a measurement taken in a dead world is measuring a different game.
 
-**THE FLIGHT'S LATERAL SPEED DOES NOT MATCH ITS OWN CONSTANT, AND I COULD NOT
-FIND OUT WHY. This is the top open question in the project.** `migtest.gd`
-(step 5b) is new and measures migration for the first time. Four of its five
-predictions land to a hundredth of a second — climb 2.55 against 2.54 predicted,
-dive 1.47 against 1.46, sink 1.60 against 1.60, the honk rally ×0.11 against the
-×0.15 the code applies. **The fifth is out by a factor of three:**
-`_tick_player()` moves the bird at 17.0 m/s across a 26 m corridor, and the
-measured effective speed is **5.78 m/s** — a full crossing taking 4.50 s where
-the arithmetic says 1.53 s.
+**MIGRATION IS MEASURED NOW, AND EVERY CHANNEL MATCHES ITS PREDICTION.**
+`migtest.gd` (step 5b) drives a real flight headless: the corridor crossing is
+**1.53 s** against a predicted 1.53, the half crossing 0.77 against 0.76, climb
+2.55 against 2.54, dive 1.48 against 1.46, sink 1.60 against 1.60, and the honk
+rally pulls the worst drifter in to ×0.11 of its drift against the ×0.15 the
+code applies. All six asserted channels hold.
 
-Ruled out by direct measurement, not by reasoning: the input vector is exactly
-`(1.0000, 0.0000)` at raw strength 1.00 with deadzone 0.20; `Engine.time_scale`
-is 1.000 on every frame; physics-frame time and wall-clock agree to 2 ms over
-4.5 s; nothing else in `migration.gd` writes `player_pos.x`; and the vertical
-channels are measured the same way in the same run and are correct. The one
-relation that holds is that the deltas `_tick_player` receives sum to about a
-third of real time while the engine reports 145 fps.
-
-**Either the flight is three times less responsive than it claims — and lateral
-movement is the entire dodge, against a leg 7 hazard every 0.9–1.6 s — or the
-harness is wrong in a way the vertical channels do not expose.** Both matter.
-The lateral rows are OBSERVED rather than asserted for exactly that reason: a
-window here would either ship a permanent red build or bless a number nobody
-understands. `docs/FEEL_TARGETS.md` §6.
+It did not start there. For one commit the crossing measured **4.50 s** and this
+section called it *the top open question in the project* — **the tree was
+paused.** `migration.gd`'s `process_mode` is INHERIT, so a paused tree stops its
+`_process` and all of `_tick_player` with it; the harness unpaused once on entry
+and a card re-paused it. The gate now reports 178 paused frames = 2.97 s against
+a discrepancy of 4.50 − 1.53 = 2.97 s. `_tick()` un-pauses, counts, and does not
+bill those frames to the game. `docs/FEEL_TARGETS.md` §6 keeps the full
+post-mortem, because the shape of it is worth more than the fix.
 
 **Leg 1's world-space labels collide.** In `shots/gg_zone1_0.png` the flock pen
 prompt and the goose name tags overprint each other near the pond — the visible
