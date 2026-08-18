@@ -370,6 +370,27 @@ no `contact_monitor` set true without `max_contacts_reported`, no
 resource ids, no invented `uid://`. The two mechanical ones are now invariants
 (`selftest.gd::_the_files()`) so they stay clean.
 
+**THE ZONE IS ALIVE WHILE ANYTHING IS BEING MEASURED, and all three
+input-driving gates are exposed to it.** Leg 1 builds seven cats that wander at
+2.6 m/s and a lot of loose shopping carts; none of them stop for a measurement.
+Observed across this session's runs:
+
+- `feeltest` read a top speed of **7.37 m/s** once — faster than `waddle_speed`
+  (4.2) *and* `swim_speed` (5.4) — and failed the build on a healthy
+  controller. **Fixed:** the walk is now retaken up to three times when the
+  measured speed exceeds `waddle_speed × 1.25`, and reports a harness fault if
+  all three are disturbed.
+- `inputtest` read `sober walk: 2.40 m` on the final run of the session against
+  its usual 3.79, and **passed anyway** — its thresholds are deliberately loose
+  (`sober > 1.0`), which is exactly what its header says they are for. Not a
+  bug, but it means its numbers are not comparable run to run.
+- `substancetest`'s `speed` column is a diagnostic and asserted on nothing, so a
+  shove shows up in the printout and fails nothing. Its asserted channels
+  (drift vector, turn rate, climb) were bit-stable throughout.
+
+If a future gate needs a quiet zone, the lever is pausing the actors — but note
+that a measurement taken in a dead world is measuring a different game.
+
 **MIGRATION HAS NO FEEL INSTRUMENT AT ALL, and one derived number is worth a
 look.** Seven flights against seven zones and nothing measures any of them
 beyond "the campaign completed". `_tick_player()` integrates position directly,

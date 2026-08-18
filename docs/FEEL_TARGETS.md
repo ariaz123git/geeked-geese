@@ -164,6 +164,14 @@ Two things fixed it, and the second matters more than the first:
    actually in water, and a non-zero count fails the run with a message saying
    **HARNESS fault, do not tune the controller from these numbers.** A wrong
    answer now announces itself instead of being reported as a verdict.
+3. **The walk is retaken if the zone disturbs it.** Leg 1 builds seven cats that
+   wander at 2.6 m/s and a lot of loose shopping carts, and none of them stop
+   because something is being measured. One run reported a top speed of
+   **7.37 m/s** — faster than `waddle_speed` (4.2) *and* faster than
+   `swim_speed` (5.4), because the bird had been shoved — and failed the build
+   on a healthy controller. A speed above `waddle_speed × 1.25` is a collision,
+   not a controller result, so that attempt is discarded and retaken, three
+   times, before the run gives up and reports a harness fault.
 
 ### The glide rows were promoted, and what it took
 

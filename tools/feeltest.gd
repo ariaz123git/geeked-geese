@@ -116,6 +116,13 @@ static func _assert_window(name: String, value: float, unit: String, lo: float, 
 		_fails.append("%s = %.2f %s, want [%.2f..%.2f] — %s" % [name, value, unit, lo, hi, why])
 
 
+## A hard pass/fail that is not a measurement — used for harness faults, where
+## the honest report is "this run could not be trusted", not a number.
+static func _ok(cond: bool, msg: String) -> void:
+	if not cond:
+		_fails.append(msg)
+
+
 ## A metric with no window yet. Printed, never fails. See the header.
 static func _observe(name: String, value: float, unit: String, note: String) -> void:
 	_rows.append({
@@ -143,23 +150,56 @@ static func _report() -> void:
 
 static func _ground_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
 	# --- top speed, time to reach it, and the latency before anything happens ---
-	await _settle(tree, goose)
+	#
+	# RETRIED, BECAUSE THE ZONE IS ALIVE WHILE THIS RUNS.
+	#
+	# Leg 1 builds seven cats that wander at 2.6 m/s and a lot of loose shopping
+	# carts, and none of them stop just because something is being measured. One
+	# run of this reported a top speed of 7.37 m/s -- faster than waddle_speed
+	# (4.2) AND faster than swim_speed (5.4), because the bird had been shoved --
+	# and failed the build on a controller that was fine.
+	#
+	# A speed above waddle_speed by more than a small margin is not a controller
+	# result, it is a collision, so the measurement is thrown away and retaken.
+	# Three attempts, and if all three are disturbed it says so as a HARNESS
+	# fault rather than reporting the shove as a feel verdict.
 	var latency := -1
 	var top := 0.0
 	var samples: Array[float] = []
-	Input.action_press("gg_forward")
-	# 90 ticks, not 120. At waddle_speed this covers about 6.3 m, which has to
-	# stay inside PAD_RADIUS; top speed arrives at 0.2 s so the extra half second
-	# was only ever buying travel.
-	for i in 90:
-		await tree.physics_frame
-		_watch_dry(goose)
-		var s := _flat_speed(goose)
-		samples.append(s)
-		if latency < 0 and s > 0.01:
-			latency = i + 1
-		top = maxf(top, s)
-	Input.action_release("gg_forward")
+	var attempts := 0
+	var cap: float = float(goose.get("waddle_speed")) * 1.25
+
+	while attempts < 3:
+		attempts += 1
+		await _settle(tree, goose)
+		latency = -1
+		top = 0.0
+		samples.clear()
+		var wet_before := _wet_ticks
+		Input.action_press("gg_forward")
+		# 90 ticks. At waddle_speed that covers about 6.3 m, which has to stay
+		# inside PAD_RADIUS; top speed arrives at 0.2 s so more only buys travel.
+		for i in 90:
+			await tree.physics_frame
+			_watch_dry(goose)
+			var s := _flat_speed(goose)
+			samples.append(s)
+			if latency < 0 and s > 0.01:
+				latency = i + 1
+			top = maxf(top, s)
+		Input.action_release("gg_forward")
+
+		if top <= cap and _wet_ticks == wet_before:
+			break
+		print("[feel] walk attempt %d disturbed (top %.2f m/s against a %.2f cap) — retaking"
+			% [attempts, top, cap])
+		# The retry must not inherit the discarded attempt's wet ticks either.
+		_wet_ticks = wet_before
+
+	_ok(top <= cap,
+		("the walk was disturbed on all %d attempts (top %.2f m/s against a %.2f cap). Something "
+		+ "in the zone is pushing the bird — cats wander and carts roll. This is a HARNESS fault; "
+		+ "do not read the ground rows below as a controller verdict.") % [attempts, top, cap])
 
 	var t_to_top := 0.0
 	for i in samples.size():
