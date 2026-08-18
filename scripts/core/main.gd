@@ -1169,11 +1169,42 @@ func _probe_if_headless() -> void:
 		Game.zone_time_left = 2.0
 		var ticks := 0
 		var last_leg := 0
+		# THE SHELF CENSUS. leg -> how many distinct substances that leg's zone
+		# actually spawned, counted off the node tree of the zone THE DIRECTOR
+		# BUILT rather than off any table.
+		#
+		# `zone_strip_mall.gd` serves legs 1 and 2 from one file and used to
+		# build all sixteen substances on both, so the campaign's first
+		# escalation — CAMPAIGN_SPEC §2.1's three against §2.2's "all sixteen,
+		# this is where the lid comes off" — did not exist. `selftest.gd`
+		# checks the declaration; nothing could check the build, because the
+		# only place a zone is built by the game itself is right here.
+		#
+		# Keyed on the zone INSTANCE, not on the leg: landing short replays a
+		# leg, and a census that re-counted the same leg would silently
+		# overwrite the first reading with the second.
+		var shelf_census := {}
+		var censused_ids := {}
 		while ticks < 4200:
 			ticks += 1
 			if Flock.leg != last_leg:
 				last_leg = Flock.leg
 				print("[loop] leg ", Flock.leg, " geese=", Flock.alive_birds().size())
+			if current and is_instance_valid(current) and current.has_method("mission_zone_id"):
+				var cid := current.get_instance_id()
+				if not censused_ids.has(cid):
+					censused_ids[cid] = true
+					var seen := {}
+					for ch in current.get_children():
+						# `.get()` on a node without the property returns null,
+						# which is the cheapest way to ask "is this a pickup"
+						# without a class_name reference. Walks children rather
+						# than a group, because a source that forgot to join
+						# the group is exactly what this is looking for.
+						var sres = ch.get("substance")
+						if sres != null:
+							seen[sres.get("id")] = true
+					shelf_census[Flock.leg] = seen.size()
 			if ticks % 400 == 0:
 				print("[loop] t=", ticks, " phase=", Game.phase, " current=",
 					current.name if (current and is_instance_valid(current)) else "<none>",
@@ -1225,6 +1256,35 @@ func _probe_if_headless() -> void:
 				var ev := InputEventAction.new(); ev.action = "ui_accept"; ev.pressed = true
 				Input.parse_input_event(ev)
 		print("[loop] END phase=", Game.phase, " leg=", Flock.leg, " time_scale=", Engine.time_scale)
+
+		# ── the shelf, as built ─────────────────────────────────────────────
+		var census_legs := shelf_census.keys()
+		census_legs.sort()
+		var census_line := ""
+		for cl in census_legs:
+			census_line += " leg%d=%d" % [cl, int(shelf_census[cl])]
+		print("[loop] shelf census:", census_line)
+
+		var shelf_fails: Array[String] = []
+		var full_shelf: int = Subs.library.size()
+		var tutorial_size: int = int(load("res://scripts/world/zone_strip_mall.gd")
+			.get_script_constant_map().get("TUTORIAL_SHELF", []).size())
+		for want_leg in [1, 2]:
+			if not shelf_census.has(want_leg):
+				shelf_fails.append("leg %d was never censused — the run did not build it, so this gate proved nothing about it" % want_leg)
+		if shelf_census.has(1) and int(shelf_census[1]) != tutorial_size:
+			shelf_fails.append("leg 1 built %d distinct substances against a TUTORIAL_SHELF of %d. CAMPAIGN_SPEC §2.1 gives the retention pond three." % [int(shelf_census[1]), tutorial_size])
+		if shelf_census.has(2) and int(shelf_census[2]) != full_shelf:
+			shelf_fails.append("leg 2 built %d distinct substances against a shelf of %d. §2.2 is \"all sixteen — this is where the lid comes off\"." % [int(shelf_census[2]), full_shelf])
+		if shelf_census.has(1) and shelf_census.has(2) and int(shelf_census[1]) >= int(shelf_census[2]):
+			shelf_fails.append("legs 1 and 2 build the same shelf (%d vs %d). They are the same PLACE on purpose and were the same GAME by accident; that is the bug this census exists for." % [int(shelf_census[1]), int(shelf_census[2])])
+		if not shelf_fails.is_empty():
+			print("[loop] FAIL — the shelf census:")
+			for sf in shelf_fails:
+				print("[loop]   ", sf)
+			get_tree().quit(1)
+			return
+
 		get_tree().quit()
 		return
 

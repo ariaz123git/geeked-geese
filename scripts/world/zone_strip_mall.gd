@@ -58,8 +58,55 @@ const PICKUP_LIFT := 0.15
 ## asphalt whose top is y = 0.0. Anything standing in the grass anchors here.
 const VERGE_Y := 0.01
 
+## ───────────────────────────────────────────────────────────────────────────
+## THE SHELF, AND WHY LEG 1 IS NOT LEG 2
+## ───────────────────────────────────────────────────────────────────────────
+## Legs 1 and 2 are the same place, which is the joke. They were also the same
+## GAME, which is not: `_sources()` built all sixteen unconditionally and this
+## file had no leg branch anywhere, so the first 420 seconds of the campaign
+## were one zone served twice at the same intensity.
+##
+## `docs/CAMPAIGN_SPEC.md` §2.1 gives leg 1 **three** substances; §2.2 gives
+## leg 2 "all sixteen — this is where the lid comes off", and the spec's own
+## intensity column goes 2 → 4 across that boundary. The contrast IS the first
+## rise of the campaign's escalation curve, and it had never been built.
+##
+## Three, and specifically these three, because the set is a tutorial rather
+## than a sample:
+##
+##   * `berries` is the plain one — slower, floatier, `ragdoll_landings`. It
+##     teaches that a substance is a control mutation and not a score bonus.
+##   * `double_double` is the one that makes you FASTER and turn harder, which
+##     is the reason aiming for the sweet spot is worth the risk.
+##   * `grass` is `infinite`, so the dose ARC — charge, release, overdose —
+##     can be practised as many times as it takes without spending a pickup.
+##
+## And the set is closed under the game's own mixing rule rather than being
+## three arbitrary picks: `Subs.MAX_STACK` is 2, `mission_defs.gd`'s leg-1
+## primary `double_parked` requires two substances at once, and
+## `berries|double_double` is THE WOBBLER — so the tutorial shelf contains
+## exactly one discoverable named combo, and it is the flagship one.
+##
+## **Bread is missing and that is deliberate, not an oversight.** §2.1 asks for
+## it here as the fourth item ("the obvious food is the trap"). It needs a new
+## `.tres`, a generated icon, an Almanac entry and a new control mutation in
+## `_tick_eat`, which is a substance-shelf change that ripples through every
+## gate that counts sixteen. Logged in `docs/DECISIONS.md` D-020, not smuggled
+## in here.
+const TUTORIAL_SHELF: Array[StringName] = [&"berries", &"double_double", &"grass"]
+
+## The leg the lid comes off at. Every leg from here up gets the whole shelf;
+## only leg 1 is narrowed. A named constant rather than a bare `> 1` so
+## `tools/selftest.gd` checks the same number this file obeys.
+const FULL_SHELF_FROM_LEG := 2
+
 var goose: Goose
 var camera_rig: Node3D
+
+## Substance ids this build of the zone will spawn, as a Dictionary used as a
+## set. Written once in `_ready()` BEFORE `_sources()` runs, and read by the one
+## function in this file that can create a pickup.
+var _shelf: Dictionary = {}
 
 var _berries: Substance
 var _coffee: Substance
@@ -72,6 +119,9 @@ func _ready() -> void:
 	_berries = Subs.get_substance(&"berries")
 	_coffee = Subs.get_substance(&"double_double")
 	_nitrous = Subs.get_substance(&"nitrous")
+	# Before _sources(). Nothing else in the file may create a pickup, so this
+	# one line is the whole leg branch.
+	_shelf = shelf_for_leg(Flock.leg)
 
 	_environment()
 	_ground()
@@ -207,12 +257,39 @@ func _model_at(kind: StringName, pos: Vector3, rot_y := 0.0, params := {},
 	return n
 
 
-func _source(pos: Vector3, res: Substance, size := 0.5) -> void:
+## The set of substance ids a given leg of this zone spawns.
+##
+## Static, and called by `tools/selftest.gd` as well as by `_ready()`, so the
+## invariant is checked against the expression `_sources()` actually obeys
+## rather than against a second copy of the rule. `CLAUDE.md` — "prefer
+## duplication over premature abstraction" — does not extend to duplicating the
+## thing a gate is asserting; that is how a check ends up passing while the game
+## is wrong.
+static func shelf_for_leg(leg: int) -> Dictionary:
+	var offered := {}
+	if leg >= FULL_SHELF_FROM_LEG:
+		for full_id in Subs.library.keys():
+			offered[full_id] = true
+		return offered
+	for tut_id in TUTORIAL_SHELF:
+		offered[tut_id] = true
+	return offered
+
+
+## THE ONLY PLACE IN THIS FILE THAT MAY CREATE A PICKUP. The grass patches used
+## to build their own `SubstancePickup` inline because they needed `infinite`;
+## that second construction path is now the `endless` argument, because a leg
+## filter is only as good as its narrowest choke point and two of them is one
+## too many.
+func _source(pos: Vector3, res: Substance, size := 0.5, endless := false) -> void:
 	if res == null:
+		return
+	if not _shelf.has(res.id):
 		return
 	var s := SubstancePickup.new()
 	add_child(s)
 	s.setup(res, size)
+	s.infinite = endless
 	s.global_position = pos
 
 
@@ -455,11 +532,7 @@ func _sources() -> void:
 	# which is the single funniest fact in the whole design.
 	var grass := Subs.get_substance(&"grass")
 	for p in [Vector3(-20, 0.4, -14), Vector3(-30, 0.4, -26), Vector3(-14, 0.4, -24)]:
-		var s := SubstancePickup.new()
-		add_child(s)
-		s.setup(grass, 0.42)
-		s.infinite = true
-		s.global_position = p
+		_source(p, grass, 0.42, true)
 
 	# A page of grade 9 long division, blowing across the lot.
 	_source(Vector3(12, 0.5, -20.0), Subs.get_substance(&"math"), 0.42)

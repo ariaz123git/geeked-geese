@@ -65,6 +65,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_clock(main)
 	_the_titles(main)
 	_the_substances(main)
+	_the_shelf(main)
 	_the_substance_fields()
 	_the_overdose()
 	_the_objectives(main)
@@ -733,6 +734,89 @@ static func _the_titles(main: Node) -> void:
 
 
 # ─────────────────────────────────────────────────────── the substance data
+
+## ────────────────────────────────────────────────────────── the leg-1 shelf
+
+## LEG 1 AND LEG 2 ARE THE SAME PLACE, AND THEY WERE THE SAME GAME.
+##
+## `zone_strip_mall.gd::_sources()` built all sixteen substances unconditionally
+## and the file had no leg branch anywhere, so the first 420 seconds of the
+## campaign were one zone served twice at identical intensity — while
+## `docs/CAMPAIGN_SPEC.md` §2.1 gives leg 1 three substances and §2.2 gives leg 2
+## "all sixteen … this is where the lid comes off". The first rise of the whole
+## escalation curve was specced, documented, and not built.
+##
+## THIS HALF ONLY READS THE DECLARATION, AND THAT IS NOT ENOUGH ON ITS OWN.
+## A shelf can be filtered correctly by a function that no pickup site calls —
+## the `stamina_restore` shape (D-017/D-018), where the data was right and
+## nothing read it. **The behavioural half lives in the campaign gate**
+## (`main.gd`, `--loop-test`), which counts the pickups in the zone THE
+## DIRECTOR BUILT, on every one of the seven legs, and fails the run if leg 1
+## is not narrow or leg 2 is not whole. Both halves are needed and neither is
+## in the other's file, so this comment is the link.
+##
+## IT USED TO BUILD THE ZONES HERE AND THAT WAS WRONG TWICE OVER. `run()` is
+## called from `main._ready()`, so the scene root is still "busy setting up
+## children" and `add_child()` fails — silently, returning a zone with nothing
+## in it, so the first version accused a correct filter of spawning zero
+## pickups on both legs. Awaiting a frame fixed that and exposed the second
+## problem: letting the tree run further inside `--selftest` left audio streams
+## referenced at exit (`ERROR: 17 resources still in use`), which is a red
+## build by this project's own rule. The campaign gate already builds all seven
+## legs through the real path and tears down cleanly. Do not move it back.
+static func _the_shelf(main: Node) -> void:
+	var zs := load("res://scripts/world/zone_strip_mall.gd")
+	if zs == null:
+		_ok(false, "zone_strip_mall.gd did not load")
+		return
+	var subs := main.get_node_or_null("/root/Subs")
+	if subs == null:
+		_ok(false, "Subs autoload missing — the shelf cannot be counted")
+		return
+
+	var consts: Dictionary = zs.get_script_constant_map()
+	var tutorial: Array = consts.get("TUTORIAL_SHELF", [])
+	var from_leg: int = int(consts.get("FULL_SHELF_FROM_LEG", 0))
+	var full: int = int(subs.library.size())
+
+	_ok(from_leg == 2,
+		"zone_strip_mall.FULL_SHELF_FROM_LEG is %d. Leg 1 is the only narrowed leg in the campaign; anything but 2 either widens leg 1 or narrows leg 2." % from_leg)
+	_ok(tutorial.size() == 3,
+		"CAMPAIGN_SPEC §2.1 gives leg 1 THREE substances; TUTORIAL_SHELF declares %d." % tutorial.size())
+	for want in [&"berries", &"double_double", &"grass"]:
+		_ok(tutorial.has(want),
+			"TUTORIAL_SHELF is missing %s, which CAMPAIGN_SPEC §2.1 names by hand." % want)
+	for tut_id in tutorial:
+		_ok(subs.get_substance(tut_id) != null,
+			"TUTORIAL_SHELF names \"%s\" and no such substance is in the shelf." % tut_id)
+
+	# The set has to be closed under the game's own mixing rule, not merely
+	# small. `mission_defs.gd`'s leg-1 primary `double_parked` requires two
+	# substances at once, so a tutorial shelf that cannot make a pair makes one
+	# of leg 1's four primaries impossible — and a named combo is the reward
+	# that teaches mixing is worth doing.
+	_ok(tutorial.size() >= 2,
+		"leg 1's `double_parked` primary needs two substances at once and the tutorial shelf offers %d." % tutorial.size())
+	var combos: Dictionary = subs.get_script().get_script_constant_map().get("COMBOS", {})
+	var reachable := 0
+	for key in combos.keys():
+		var pair: PackedStringArray = str(key).split("|")
+		var both := true
+		for half in pair:
+			if not tutorial.has(StringName(half)):
+				both = false
+		if both:
+			reachable += 1
+	_ok(reachable >= 1,
+		"no named combo in Subs.COMBOS can be mixed from the tutorial shelf, so leg 1 can teach that mixing exists but never that it pays.")
+
+	var declared_1: Dictionary = zs.shelf_for_leg(1)
+	var declared_2: Dictionary = zs.shelf_for_leg(from_leg)
+	_ok(declared_1.size() == tutorial.size(),
+		"shelf_for_leg(1) offers %d ids against a TUTORIAL_SHELF of %d." % [declared_1.size(), tutorial.size()])
+	_ok(declared_2.size() == full,
+		"shelf_for_leg(%d) offers %d of the shelf's %d substances. Leg 2 is where the lid comes off; it gets all of them." % [from_leg, declared_2.size(), full])
+
 
 static func _the_substances(main: Node) -> void:
 	var subs := main.get_node_or_null("/root/Subs")
