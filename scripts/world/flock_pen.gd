@@ -232,7 +232,20 @@ func _build() -> void:
 		root.add_child(name_lbl)
 		var state_lbl := _label("", 0.0050, 1.19, 14)
 		root.add_child(state_lbl)
-		var prompt_lbl := _label("", 0.0052, 1.03, 14)
+		# ABOVE THE GAGGLE, NOT UNDER ITS CHINS.
+		#
+		# This sat at 1.03, below the name tag at 1.34 and below head height on a
+		# bird that stands about 1.3 m tall. Six geese cluster around the pen, so
+		# the prompt for the one you are next to was drawn BEHIND the necks of
+		# the ones in front of it: a render of leg 1 caught it as
+		# `[G] …AKE GOR… THE DD`, with a goose neck through the middle of it.
+		#
+		# `no_depth_test` is not the answer and stays off — a label that shines
+		# through the strip mall wall tells the player their flock is inside the
+		# building, which is the reason given at `_label()` and it is a good one.
+		# Lifting the prompt clear of the flock's own geometry fixes the same
+		# problem without lying about where anything is.
+		var prompt_lbl := _label("", 0.0052, 1.66, 14, 4)
 		prompt_lbl.visible = false
 		root.add_child(prompt_lbl)
 
@@ -262,7 +275,7 @@ func _build() -> void:
 ## Billboarded name/state tags. `no_depth_test` is deliberately OFF — a label
 ## that shines through the strip mall wall tells the player their flock is
 ## inside the building.
-func _label(txt: String, px: float, height: float, outline: int) -> Label3D:
+func _label(txt: String, px: float, height: float, outline: int, priority: int = 1) -> Label3D:
 	var l := Label3D.new()
 	l.text = txt
 	l.pixel_size = px
@@ -276,7 +289,18 @@ func _label(txt: String, px: float, height: float, outline: int) -> Label3D:
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	# Keeps the tag readable across the whole lot without becoming a billboard
 	# the size of a minivan when you stand on top of it.
-	l.render_priority = 1
+	#
+	# `priority` orders these labels AGAINST EACH OTHER, and only against each
+	# other — `no_depth_test` stays off, so none of them shines through the strip
+	# mall wall. Six birds stand in a gaggle with three tags each, and at 1 they
+	# all sorted equally: a render of leg 1 caught the interaction prompt
+	# crossed by two other birds' name tags into an unreadable smear reading
+	# `[G] …AKE GOR… THE DD`.
+	#
+	# A PROMPT IS NOT DECORATION. The names and conditions are things you may
+	# read; the prompt is the only one that tells you a button does something
+	# right now, so it wins ties against them.
+	l.render_priority = priority
 	return l
 
 
@@ -723,7 +747,7 @@ func _tick_bird(bird: Dictionary, dt: float, intox: float, stamina: float,
 		# Pulses, because a prompt that appears without moving is a label.
 		var puls: float = 0.72 + 0.28 * (0.5 + 0.5 * sin(_t * 6.0))
 		prompt_lbl.modulate = Color(C_DD.r, C_DD.g, C_DD.b, puls)
-		prompt_lbl.position.y = 1.03 - slump
+		prompt_lbl.position.y = 1.66 - slump
 
 
 ## Nearest bird inside DESIGNATE_RANGE, or -1. Nearest rather than "first found"

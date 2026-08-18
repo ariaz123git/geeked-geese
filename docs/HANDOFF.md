@@ -407,15 +407,23 @@ a discrepancy of 4.50 − 1.53 = 2.97 s. `_tick()` un-pauses, counts, and does n
 bill those frames to the game. `docs/FEEL_TARGETS.md` §6 keeps the full
 post-mortem, because the shape of it is worth more than the fix.
 
-**Leg 1's world-space labels collide.** In `shots/gg_zone1_0.png` the flock pen
-prompt and the goose name tags overprint each other near the pond — the visible
-result is a smear reading `[G] …AKE GOR… THE DD`. Six geese with names, a
-`[G] TAKE <name>` prompt and a `THE DD` tag all draw in the same square of
-screen with no z-ordering or de-overlap between them. Pre-existing, cosmetic,
-and a layout judgement rather than a bug, so it is recorded rather than guessed
-at. Everything else in the twelve renders read correctly: leg 7's HUD clock now
-says **3:49** for its new 230 s, leg 5's dawn marsh is intact, and the Almanac
-shows 16/16.
+~~**Leg 1's world-space labels collide.**~~ **Fixed and re-rendered.** The flock
+pen's prompt read `[G] …AKE GOR… THE DD` — an unreadable smear. Two causes, and
+only the second one mattered: every label shared `render_priority = 1`, so the
+prompt sorted equally against six birds' decorative name tags; and it sat at
+y = 1.03, **below head height on a 1.3 m bird**, so the geese standing in front
+drew their necks straight through it.
+
+`no_depth_test` was NOT the answer and stays off — `_label()` gives the reason
+and it is a good one: a label that shines through the strip mall wall tells the
+player their flock is inside the building. Instead the prompt now sits at 1.66,
+clear of the flock's own geometry, with `render_priority = 4` so it wins ties
+against the tags. It reads `[G]  MAKE TERRY THE DD`, whole, in
+`shots/gg_zone1_0.png`.
+
+Everything else in the twelve renders read correctly: leg 7's HUD clock says
+**3:49** for its new 230 s, leg 5's dawn marsh is intact, and the Almanac shows
+16/16.
 
 **Nobody has heard any of the ambience beds, including the agent that generated
 them.** There is no audio probe and no way to listen headless. What *has* been
