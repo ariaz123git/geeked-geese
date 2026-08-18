@@ -353,6 +353,16 @@ measurements — `darts` (drift 0.03, turn 1.05) is the extreme case. Every
 substance skipped that way is asserted on another channel, but the coverage is
 not total and the printout says so on every run rather than hiding it.
 
+**Leg 1's world-space labels collide.** In `shots/gg_zone1_0.png` the flock pen
+prompt and the goose name tags overprint each other near the pond — the visible
+result is a smear reading `[G] …AKE GOR… THE DD`. Six geese with names, a
+`[G] TAKE <name>` prompt and a `THE DD` tag all draw in the same square of
+screen with no z-ordering or de-overlap between them. Pre-existing, cosmetic,
+and a layout judgement rather than a bug, so it is recorded rather than guessed
+at. Everything else in the twelve renders read correctly: leg 7's HUD clock now
+says **3:49** for its new 230 s, leg 5's dawn marsh is intact, and the Almanac
+shows 16/16.
+
 **Nobody has heard any of the ambience beds, including the agent that generated
 them.** There is no audio probe and no way to listen headless. What *has* been
 measured, outside the engine: all seven loop with zero discontinuity at the wrap,
@@ -597,6 +607,35 @@ notice. Physics runs headless, so measure it:
 godot --headless --path . -- --probe --rolltest 2>&1 | grep '^\[roll\]'
 ```
 Canary-proven: with the old `_physics_process` drive it measures **0.00 m/s**.
+
+**4b. Feel, measured** — new this session, and the first gate with an opinion.
+22 controller metrics, 13 asserted against windows argued out one by one in
+`docs/FEEL_TARGETS.md`:
+```
+godot --headless --path . -- --probe --feeltest 2>&1 | grep '^\[feel\]'
+```
+It caught a flap that COMPOUNDED — 7.36 m of climb in the first second of
+holding the button and 23.66 m in the third — on a build where all five older
+gates passed. Canary-proven: reverting `_flap()` to `maxf(velocity.y, 0.0) +
+power` puts `climb_convergence` at 3.22x against a window of [0.55, 1.40].
+
+**4c. The substances, doses measured** — new this session. The design rule at the
+top of `scripts/core/substance.gd` was enforced only by reading the `.tres`; this
+doses all sixteen and measures the bird:
+```
+godot --headless --path . -- --probe --substancetest 2>&1 | grep '^\[subs\]'
+```
+102 checks. Canary-proven by breaking the PATH from data to controller rather
+than the data itself — dropping `drift` in `_aggregate()`, `turn_mult` in
+`_tick_ground()` and `flap_mult` in `_flap()` all fire, as does shortening a
+substance below the length of its own measurement.
+
+**BOTH NEW GATES SPENT THEIR FIRST RUNS ACCUSING A HEALTHY GAME.** Leg 1 is the
+retention pond and the goose spawns in it, so "ground" metrics measured
+`_tick_water()`. Sink rate sampled at terminal velocity compares `max_fall` to
+itself. The substance fingerprint outlasted a 7 s nitrous. Read the comments
+before believing a failure: both files carry a measured noise floor and
+contamination guards that name themselves as harness faults.
 
 **5. The whole campaign, headless, in about twenty seconds:**
 ```
