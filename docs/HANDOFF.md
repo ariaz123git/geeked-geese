@@ -129,10 +129,13 @@ whole point of asserting a precondition instead of inferring one:
 ```
 
 `double_double` is one of the three substances the arithmetic predicted could
-reach the water. **Since the leash: seven consecutive passes across two batches,
-on the same pad every time** — (-19.1, 0.3, -1.1), where the pad used to change
-run to run because the old 16-frame candidate probe could not land on level
-ground and skipped candidates by accident.
+reach the water. **Before: three failures in five runs. After: twelve
+consecutive passes across two batches, on the same pad every time** —
+(-19.1, 0.3, -1.1), where the pad used to change run to run because the old
+16-frame candidate probe could not land on level ground from a 2 m drop and so
+skipped candidates by accident. The pad being *stable* is the second result and
+it matters as much as the passes: a harness that picks a different place to stand
+on every run cannot be compared with itself.
 
 > One run in that batch is worth keeping: it caught the working tree mid-edit,
 > with `LEASH` used a few lines before its `const` existed. It did not hang. The
