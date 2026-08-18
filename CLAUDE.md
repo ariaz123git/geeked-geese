@@ -42,14 +42,15 @@ project. Source and rationale: `tools/gate.gd`.
 input-lag bug that made *eleven of the sixteen substances unplayable* — the bird
 obeying four-second-old input — passed the compile gate, passed the whole
 headless campaign run, and would have passed any review that did not press a
-key. There are now five gates, and one script that runs all of them:
+key. There are now six gates, and one script that runs all of them:
 
 ```
-.\verify.ps1                                       # all five. -Quick skips the campaign
+.\verify.ps1                                       # all six. -Quick skips the slow two
 godot --headless --path . -- --gate                # it compiles
 godot --headless --path . -- --selftest            # it agrees with itself
 godot --headless --path . -- --probe --inputtest   # the bird obeys
 godot --headless --path . -- --probe --feeltest    # the bird obeys WELL
+godot --headless --path . -- --probe --substancetest  # all 16 substances bite
 godot --headless --path . -- --probe --loop-test   # seven legs and the ending
 ```
 
@@ -63,7 +64,14 @@ that COMPOUNDED — 7.36 m of climb in the first second of holding the button an
 23.66 m in the third, with a `max_fall` in the controller and no `max_rise`
 anywhere — on a build where all four of the other gates passed.
 
-**Every assertion in all three is a bug that already got through once.** When you fix
+`tools/substancetest.gd` doses all sixteen substances and measures the bird for
+each one, because the design rule at the top of `scripts/core/substance.gd` —
+*a substance must never be only a number that goes up* — was enforced only by
+reading the `.tres`. The input-lag bug is the precedent: eleven of the sixteen
+were unplayable while every `.tres` involved was correct. Data and behaviour
+have to be compared, not each checked alone.
+
+**Every assertion in all four is a bug that already got through once.** When you fix
 something a gate could not see, add the assertion that would have seen it — and
 then break it on purpose and watch it fail. A check nobody has watched fail is
 worse than no check, because it launders a guess into a claim. That single

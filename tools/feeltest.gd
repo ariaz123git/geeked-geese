@@ -581,6 +581,11 @@ static func _settle(tree: SceneTree, goose: CharacterBody3D) -> void:
 	if subs != null and subs.has_method("reset_for_new_leg"):
 		subs.call("reset_for_new_leg")
 	await _find_dry_ground(tree, goose)
+	# Hand the camera back its auto-follow; _aloft() parks it to pin the stick's
+	# world bearing and every measurement starts here.
+	var cam0: Node3D = goose.get("cam") as Node3D
+	if cam0 != null:
+		cam0.set("_manual_t", 0.0)
 	goose.global_position = _dry
 	goose.set("state", 0)          # State.GROUND
 	goose.set("stamina", 1.0)
@@ -597,6 +602,21 @@ static func _settle(tree: SceneTree, goose: CharacterBody3D) -> void:
 ## horizontal into the number being measured.
 static func _aloft(tree: SceneTree, goose: CharacterBody3D, height: float) -> void:
 	await _settle(tree, goose)
+
+	# FREEZE THE CAMERA YAW FOR THE WHOLE FLIGHT TEST.
+	#
+	# `_raw_input()` rotates the stick by -cam.get_yaw(), and the rig auto-follows
+	# the direction of travel, so the world bearing "forward" means changes while
+	# the bird is flying. That is correct for play and ruinous for measurement:
+	# the horizontal glide rows moved 17.36, 17.40 and 19.54 m across three
+	# identical runs, which is why they were never promoted out of OBSERVED.
+	#
+	# `goose_camera.gd` skips its auto-follow branch while `_manual_t` is warm,
+	# so parking it pins the yaw. Restored by the next _settle().
+	var cam: Node3D = goose.get("cam") as Node3D
+	if cam != null:
+		cam.set("_manual_t", 9999.0)
+
 	goose.global_position += Vector3.UP * height
 	goose.set("state", 2)          # State.FLY
 	goose.velocity = Vector3.ZERO

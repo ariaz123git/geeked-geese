@@ -2,7 +2,7 @@
 <#
   Geeked Geese verification loop.
 
-    .\verify.ps1              # gate, invariants, controller, feel, credit roll, campaign
+    .\verify.ps1              # gate, invariants, controller, feel, substances, credit roll, campaign
     .\verify.ps1 -Shots       # also render every zone and tell you where the PNGs are
     .\verify.ps1 -Quick       # skips the 20 s campaign run
 
@@ -170,7 +170,37 @@ if ($feelCode -ne 0) {
 }
 
 # ---------------------------------------------------------------------------
-# 5. THE CREDIT ROLL, MEASURED. The ending's fifth beat is slabs walking up the
+# 5. THE SUBSTANCE GATE. The design rule at the top of scripts/core/substance.gd
+#    is that "a substance must never be only a number that goes up" - every one
+#    needs a control mutation. selftest.gd enforces that by READING THE .tres,
+#    which cannot tell you the mutation reaches the bird.
+#
+#    The input-lag bug is the precedent and it is exact: eleven of the sixteen
+#    substances were unplayable while every .tres involved was correct. This
+#    step doses each substance and MEASURES the goose - off-axis travel for
+#    drift, peak turn rate for turn_mult, one-flap climb against a prediction
+#    that includes the brain chemistry, plus the clock, the body scale and
+#    whether letting go stops you. tools/substancetest.gd.
+#
+#    Skipped by -Quick: it is about 90 s, because it flies sixteen geese.
+# ---------------------------------------------------------------------------
+if (-not $Quick) {
+    Write-Host "`n=== substances ===" -ForegroundColor Cyan
+    $subOut = & $GODOT --headless --no-header --path $root -- --probe --substancetest --failsafe:600 2>&1 | Out-String
+    $subCode = $LASTEXITCODE
+    $subLines = ($subOut -split "`r?`n") | Where-Object { $_ -match '^\[subs\]' }
+    $subLines | ForEach-Object { Write-Host $_ }
+    if ($subCode -ne 0) {
+        Fail "substances" "exit $subCode"
+    } elseif (-not ($subLines -match 'PASS')) {
+        Fail "substances" "no [subs] PASS line"
+    } else {
+        Pass "substances" ($subLines | Where-Object { $_ -match 'PASS' })
+    }
+}
+
+# ---------------------------------------------------------------------------
+# 6. THE CREDIT ROLL, MEASURED. The ending's fifth beat is slabs walking up the
 #    fairway, and its drive has been wrong twice - both times a speed nobody
 #    could see without watching the ending for four to six minutes. Physics runs
 #    headless, so the speed can just be measured. main.gd::_roll_test().
@@ -189,7 +219,7 @@ if ($rollCode -ne 0) {
 }
 
 # ---------------------------------------------------------------------------
-# 6. THE WHOLE CAMPAIGN, HEADLESS, IN ABOUT TWENTY SECONDS. The strongest check
+# 7. THE WHOLE CAMPAIGN, HEADLESS, IN ABOUT TWENTY SECONDS. The strongest check
 #    in the project and the cheapest: it drives all seven legs, all seven
 #    flights, the results card, the roster and the ending. If it stops early,
 #    read the [loop] t=... phase=... lines - it prints what it is stuck behind.
@@ -212,7 +242,7 @@ if (-not $Quick) {
 }
 
 # ---------------------------------------------------------------------------
-# 7. RENDER AND LOOK. Optional, because it needs a real display and about a
+# 8. RENDER AND LOOK. Optional, because it needs a real display and about a
 #    minute - but it is NOT optional before claiming anything about how the
 #    game looks. Every visual bug in this project's history was found by
 #    reading a PNG and none of them were findable by reading code: an

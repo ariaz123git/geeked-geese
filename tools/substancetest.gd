@@ -1,0 +1,540 @@
+extends RefCounted
+## THE SUBSTANCE GATE — the seventh, and the one that checks the design rule.
+##
+## `scripts/core/substance.gd` opens with the rule the whole game is built on:
+##
+##   > "a substance must never be only a number that goes up. Every entry here
+##   > must include at least one CONTROL MUTATION — something that changes how
+##   > the player's hands work. If you find yourself adding a substance that
+##   > only edits speed_mult, delete it."
+##
+## `tools/selftest.gd` already enforces that rule — **by reading the `.tres`.**
+## It checks that each substance sets at least one key from its `CONTROL_KEYS`
+## list. That is a check on the DATA, and it is worth having, but it cannot tell
+## you that the mutation reaches the bird. A field can be set to the right
+## number and still do nothing: aggregated wrong in `_aggregate()`, read under a
+## different name in the controller, cancelled by a clamp, or scaled to nothing
+## by `resolve()`.
+##
+## THE PRECEDENT IS EXACT AND EXPENSIVE. The input-lag buffer bug made ELEVEN OF
+## THE SIXTEEN substances unplayable — a four-second delay where 0.10 to 0.28
+## was asked for — and every `.tres` involved was correct the whole time. The
+## data said one thing, the bird did another, and no gate in the project
+## compared them. This one does: it doses each substance and MEASURES the bird.
+##
+##     godot --headless --path . -- --probe --substancetest 2>&1 | grep '^\[subs\]'
+##
+## WHAT IT ASSERTS, per substance, and it is deliberately stronger than "the
+## bird moved differently":
+##
+##   1. Every motion-observable mutation the `.tres` declares must show up in
+##      the channel that mutation drives, **in the predicted direction.** Faster
+##      turning must measure as faster turning. A `flap_mult` under 1 must lower
+##      the climb. Wrong-signed and zeroed fields are the bug this catches.
+##   2. A substance whose only control mutations change the WORLD rather than
+##      the hands is exempt, must be named in EXEMPT with a reason, and the
+##      reason is printed on every run so the exemption cannot rot quietly.
+##
+## `speed_mult` IS NOT EVIDENCE and is deliberately not one of the channels a
+## substance can satisfy this gate with. It is one of the two keys
+## `selftest.gd`'s own comment calls "the two the design rule at the top of
+## scripts/core/substance.gd exists to forbid". A thing that only makes you
+## faster is the number that goes up.
+
+const TICK := 1.0 / 60.0
+
+## The dose every measurement uses. Inside the sweet band of every substance in
+## the shelf, so `resolve()` returns quality 1.0 and the numbers below are the
+## substance at its stated strength rather than at some partial dose.
+const DOSE := 0.6
+
+## Smallest change in `turn_mult` the 180-degree measurement can honestly tell
+## from noise. Anything under this is printed and not asserted; see _one().
+const TURN_RESOLUTION := 0.10
+
+## How far the measured one-flap climb ratio may sit from the predicted one.
+## Generous because the brain chemistry is still easing toward its target while
+## the flap fires, so `power` is sampled a frame before it is used.
+const CLIMB_TOL := 0.18
+
+## How far the measured peak-turn-rate ratio may sit from the declared
+## `turn_mult`. Wider than CLIMB_TOL because the peak is a single frame's
+## angular step and input lag moves which frame that is.
+const TURN_TOL := 0.25
+
+## Smallest `drift` the off-axis measurement can honestly resolve.
+##
+## Drift enters as `raw += _drift`, where `_drift` peaks at about 0.825 * drift
+## against a stick of length 1. So drift 0.10 can bend the bearing by at most
+## 4.7 degrees AT THE PEAK OF ITS SINE, and the sine has a period of roughly
+## four seconds -- a two second sample can easily catch it near a zero crossing
+## and see nothing. Below this value the channel cannot tell "the drift is
+## small" from "the drift is missing", so it says so instead of guessing.
+##
+## The substances this leaves unasserted on drift are all covered on another
+## channel: grass, molly, fly_agaric, nitrous, math and Double-Double every one
+## of them declare a flap_mult or gravity_mult and are asserted on climb.
+const DRIFT_RESOLUTION := 0.30
+
+## Substances whose only control mutation changes the WORLD, not the hands, and
+## which therefore cannot be seen by a controller measurement. Each one needs a
+## reason, and the reason is printed on every run.
+##
+## THIS DICTIONARY IS THE DANGEROUS PART OF THIS FILE. It is an allowlist, and
+## an allowlist is how a real failure gets reclassified as an expected one. A
+## substance goes in here only when its mutation is genuinely somewhere else in
+## the game, never because the measurement was inconvenient to write.
+const EXEMPT := {
+	&"catnip":
+		"Its control mutation is `aggro_cats` — the cats in the zone come for "
+		+ "you. That is a mutation of the WORLD, not of the hands, so no "
+		+ "controller measurement can see it. Its `speed_mult` of 1.06 is NOT "
+		+ "what makes it legal under the design rule; a +6% walk is exactly "
+		+ "the number-that-goes-up the rule exists to forbid. If aggro_cats "
+		+ "ever stops working, this gate will not notice. Nothing does.",
+}
+
+static var _fails: Array[String] = []
+static var _checks := 0
+static var _dry := Vector3.ZERO
+static var _dry_ok := false
+
+
+static func run(tree: SceneTree, main: Node) -> void:
+	_fails.clear()
+	_checks = 0
+	_dry_ok = false
+
+	var goose: CharacterBody3D = await _fresh_goose(tree, main)
+	if goose == null:
+		print("[subs] FAIL — no goose in the zone")
+		tree.quit(1)
+		return
+	var subs: Node = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Subs")
+	if subs == null:
+		print("[subs] FAIL — no Subs autoload")
+		tree.quit(1)
+		return
+
+	# THE NOISE FLOOR, MEASURED, NOT ASSUMED. Sober twice. Every threshold below
+	# has to clear the difference between two runs of the same thing, or the
+	# gate is reporting its own jitter as a substance effect.
+	var sober := await _fingerprint(tree, goose, subs)
+	var sober2 := await _fingerprint(tree, goose, subs)
+	print("[subs] sober   speed %.2f m/s  offaxis %.3f rad  turnrate %.2f rad/s  climb %.2f m"
+		% [sober.speed, sober.offaxis, sober.turnrate, sober.climb])
+	print("[subs] repeat  speed %.2f m/s  offaxis %.3f rad  turnrate %.2f rad/s  climb %.2f m"
+		% [sober2.speed, sober2.offaxis, sober2.turnrate, sober2.climb])
+	var noise := {
+		"speed": absf(sober2.speed - sober.speed),
+		"offaxis": absf(sober2.offaxis - sober.offaxis),
+		"turnrate": absf(sober2.turnrate - sober.turnrate),
+		"climb": absf(sober2.climb - sober.climb),
+	}
+	print("[subs] noise   speed %.3f m/s  offaxis %.3f rad  turnrate %.3f rad/s  climb %.3f m"
+		% [noise.speed, noise.offaxis, noise.turnrate, noise.climb])
+	# A NOISE FLOOR IS ONLY USEFUL IF SOMETHING CHECKS IT. Every threshold below
+	# is built from these; if the harness itself is jittering, the thresholds it
+	# derives are meaningless and it must say so rather than quietly widening.
+	_ok(float(noise.offaxis) < 0.05 and float(noise.turnrate) < 1.5 and float(noise.climb) < 0.05,
+		("the harness does not agree with itself between two SOBER runs (offaxis %.3f, turnrate "
+		+ "%.3f, climb %.3f). Every threshold below is derived from this floor, so nothing it "
+		+ "reports about a substance can be trusted. Fix the measurement, not the substances.")
+			% [noise.offaxis, noise.turnrate, noise.climb])
+
+	var ids: Array = subs.library.keys()
+	ids.sort()
+	print("[subs] %d substances in the shelf" % ids.size())
+
+	for id: StringName in ids:
+		var res: Substance = subs.library[id]
+		if res == null:
+			_ok(false, "%s is in the library as null" % id)
+			continue
+		await _one(tree, goose, subs, res, sober, noise)
+
+	if _fails.is_empty():
+		print("[subs] PASS — %d checks across %d substances" % [_checks, ids.size()])
+		tree.quit(0)
+		return
+	print("[subs] FAIL — %d of %d checks:" % [_fails.size(), _checks])
+	for f in _fails:
+		print("[subs]   %s" % f)
+	tree.quit(1)
+
+
+static func _ok(cond: bool, msg: String) -> void:
+	_checks += 1
+	if not cond:
+		_fails.append(msg)
+
+
+# ---------------------------------------------------------------- one substance
+
+static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
+		res: Substance, sober: Dictionary, noise: Dictionary) -> void:
+	var id: StringName = res.id
+
+	# What does this substance CLAIM, once resolve() has scaled it for the dose?
+	# Read the resolved values, not the raw exports: `resolve()` is where dose
+	# quality and tolerance are applied, and it is the resolved dictionary the
+	# aggregator and then the controller actually see.
+	var r: Dictionary = res.resolve(DOSE, 0)
+	var want_wander: bool = float(r.drift) >= DRIFT_RESOLUTION
+	var want_turn: float = float(r.turn_mult)
+	var want_flap: float = float(r.flap_mult)
+	var want_grav: float = float(r.gravity_mult)
+	var want_tscale: float = float(r.time_scale)
+	var want_scale: bool = float(r.scale_amp) > 0.05
+	var want_idle: bool = bool(r.cannot_idle)
+	var needs_climb: bool = not is_equal_approx(want_flap, 1.0) or not is_equal_approx(want_grav, 1.0)
+
+	var observable := (want_wander or not is_equal_approx(want_turn, 1.0) or needs_climb
+		or not is_equal_approx(want_tscale, 1.0) or want_scale or want_idle
+		or float(r.input_lag) > 0.001 or bool(r.grid_snap))
+
+	# 1. THE DESIGN RULE ITSELF.
+	if EXEMPT.has(id):
+		var why: String = EXEMPT[id]
+		print("[subs] %-14s EXEMPT — %s" % [id, why])
+		_ok(not observable,
+			("%s is in EXEMPT but DOES have a motion-observable mutation. The exemption is "
+			+ "stale and is now hiding a real measurement. Remove it from EXEMPT.") % id)
+		return
+	_ok(observable,
+		("%s declares no motion-observable control mutation at all. Either it violates the "
+		+ "design rule at the top of scripts/core/substance.gd (a substance must never be only "
+		+ "a number that goes up), or its mutation is a world mutation and it belongs in EXEMPT "
+		+ "with a written reason.") % id)
+	if not observable:
+		return
+
+	# 2. DOSE IT AND MEASURE THE BIRD.
+	await _sober_up(tree, goose, subs)
+	var took: bool = bool(subs.take(res, DOSE))
+	_ok(took, "%s: Subs.take() refused a %.2f dose on a clean slate" % [id, DOSE])
+	if not took:
+		return
+	for _i in 40:
+		await tree.physics_frame
+	# One substance at a time, or this is measuring a combo. Three at once rolls
+	# the bad table and would black the bird out mid-measurement.
+	var actives: Array = subs.actives
+	_ok(actives.size() == 1,
+		"%s: %d substances active during its measurement — a previous dose leaked" % [id, actives.size()])
+
+	var fp := await _fingerprint(tree, goose, subs)
+
+	print("[subs] %-14s speed %5.2f  offaxis %.3f  turnrate %5.2f  climb %5.2f"
+		% [id, fp.speed, fp.offaxis, fp.turnrate, fp.climb])
+
+	# THE MEASUREMENT IS ONLY VALID IF THE SUBSTANCE WAS STILL ON THE BIRD.
+	#
+	# Nitrous lasts 7.0 s and darts 8.0. An earlier fingerprint took 12.2 s of
+	# game time, so those two expired part way through and the leftovers were
+	# reported as the substance failing -- nitrous "declared time_scale 0.40 but
+	# Engine.time_scale is 1.000", which was Subs correctly restoring a clock
+	# after a substance that had legitimately ended. Never infer from a
+	# measurement taken after the thing being measured stopped existing.
+	_ok(bool(subs.call("is_active", id)),
+		("%s wore off DURING its own measurement (duration %.0f s). Every channel above is "
+		+ "partly or wholly sober. This is a HARNESS fault: shorten _fingerprint() until it "
+		+ "fits inside the shortest substance in the shelf.") % [id, res.duration])
+
+	# 3. EVERY DECLARED MUTATION MUST SHOW UP, IN THE RIGHT DIRECTION.
+
+	if float(r.drift) > 0.001 and not want_wander:
+		print("[subs]   %s drift %.2f is under the %.2f the off-axis measurement resolves; not asserted"
+			% [id, float(r.drift), DRIFT_RESOLUTION])
+	if want_wander:
+		# `drift` is a slow random walk added to the stick. The bird stops going
+		# where it is pointed, so the heading wanders during a straight hold.
+		_ok(fp.offaxis > sober.offaxis + maxf(0.04, float(noise.offaxis) * 3.0),
+			("%s declares drift %.2f but the bird travelled only %.3f rad off the bearing the "
+			+ "stick asked for, against sober's %.3f. The drift is not reaching the stick.")
+				% [id, float(r.drift), fp.offaxis, sober.offaxis])
+
+	# ONLY ASSERT WHAT THE INSTRUMENT CAN RESOLVE.
+	#
+	# Darts declares turn_mult 1.05. That is a 5% change against a turn time of
+	# 0.28 s -- under a single physics frame, and inside the run-to-run noise.
+	# Asserting it would be asserting past the resolution of the measurement,
+	# which produces a check that fails for reasons unrelated to the thing it
+	# names. Darts is covered anyway: its flap_mult of 1.12 puts its climb 68%
+	# above sober, which is enormous.
+	if absf(want_turn - 1.0) > TURN_RESOLUTION:
+		# `_face()` moves the heading by error * turn_rate * turn_mult * delta, so
+		# the peak rate just after the stick reverses scales with turn_mult
+		# directly. Asserted as a ratio against sober rather than as a direction.
+		var got_turn: float = float(fp.turnrate) / maxf(float(sober.turnrate), 0.001)
+		_ok(absf(got_turn - want_turn) <= maxf(TURN_TOL, want_turn * TURN_TOL),
+			("%s declares turn_mult %.2f, so its peak turn rate should be %.2fx sober, but "
+			+ "measured %.2fx -- %.2f rad/s against %.2f.")
+				% [id, want_turn, want_turn, got_turn, fp.turnrate, sober.turnrate])
+	elif not is_equal_approx(want_turn, 1.0):
+		print("[subs]   %s turn_mult %.2f is under the %.0f%% the turn measurement resolves; not asserted"
+			% [id, want_turn, TURN_RESOLUTION * 100.0])
+
+	if needs_climb:
+		# ONE FLAP'S PEAK CLIMB IS power^2 / (2 * glide_gravity * gravity_mult),
+		# and `power` is flap_impulse * flap_mult * (0.75 + 0.5 * adrenaline).
+		# So the predicted ratio against sober is
+		#
+		#     (flap_mult * power_now / power_sober)^2 / gravity_mult
+		#
+		# and it is asserted as a RATIO rather than a direction. That is a much
+		# stronger claim than "it went up": it says the flight model, the
+		# substance data and the brain chemistry all agree to within a tolerance,
+		# and it caught nothing but its own earlier omission -- every one of the
+		# sixteen matches its prediction.
+		var pf: float = float(fp.power) / maxf(float(sober.power), 0.001)
+		var expect: float = (want_flap * pf) * (want_flap * pf) / maxf(want_grav, 0.01)
+		var got: float = float(fp.climb) / maxf(float(sober.climb), 0.001)
+		_ok(absf(got - expect) <= maxf(CLIMB_TOL, expect * CLIMB_TOL),
+			("%s: one flap should climb %.2fx sober (flap_mult %.2f, gravity_mult %.2f, "
+			+ "adrenaline putting flap power at %.2fx) but measured %.2fx -- %.2f m against "
+			+ "%.2f m.") % [id, expect, want_flap, want_grav, pf, got, fp.climb, sober.climb])
+
+	if not is_equal_approx(want_tscale, 1.0):
+		# Subs eases Engine.time_scale toward the target rather than snapping, so
+		# this asserts it has MOVED that way, not that it has arrived.
+		var ts := Engine.time_scale
+		_ok(ts < 0.99,
+			("%s declares time_scale %.2f but Engine.time_scale is %.3f. Either Subs is not "
+			+ "driving the clock or Juice is fighting it — they have a documented contract and "
+			+ "this is what breaks when a third owner appears.") % [id, want_tscale, ts])
+
+	if want_scale:
+		_ok(fp.size > 0.04,
+			("%s declares scale_amp %.2f but the bird's size never moved more than %.3f from 1.0. "
+			+ "The macropsia pulse is not reaching _tick_size().") % [id, float(r.scale_amp), fp.size])
+
+	if want_idle:
+		_ok(fp.idle > 0.25,
+			("%s declares cannot_idle but the bird moved %.2f m in 0.4 s of NO input. Letting go "
+			+ "is supposed to not stop you.") % [id, fp.idle])
+
+	await _sober_up(tree, goose, subs)
+
+
+# ---------------------------------------------------------------- measurement
+
+## THE WHOLE FINGERPRINT MUST FIT INSIDE THE SHORTEST SUBSTANCE.
+##
+## Nitrous lasts 7.0 seconds and darts 8.0. The first version of this function
+## took 12.2 seconds of game time, so those two — and special_k at 12.0 —
+## WORE OFF PART WAY THROUGH THEIR OWN MEASUREMENT, and the leftovers were duly
+## reported as the substance being broken. Nitrous "declared time_scale 0.40 but
+## Engine.time_scale is 1.000": it had expired, and Subs had correctly eased the
+## clock back to normal.
+##
+## Everything below is one continuous sequence with no re-settling between
+## channels, and it is budgeted at about 235 physics frames — 3.9 s of game time
+## at time_scale 1.0, and less than that on anything that slows the clock, since
+## a slower clock spends the duration slower too. `active` is returned so the
+## caller can prove the substance was still on the bird when the last channel
+## was read, rather than assuming it.
+static func _fingerprint(tree: SceneTree, goose: CharacterBody3D, subs: Node) -> Dictionary:
+	var out := {
+		"speed": 0.0, "offaxis": 0.0, "turnrate": 0.0, "climb": 0.0,
+		"size": 0.0, "idle": 0.0, "power": 1.0, "active": true,
+	}
+	var cam: Node3D = goose.get("cam") as Node3D
+
+	await _reset(tree, goose)
+
+	# --- hold forward: peak speed, body scale, and how far off the commanded
+	#     bearing the bird actually travels ---
+	# FREEZE THE CAMERA, OR THE STICK HAS NO FIXED BEARING.
+	#
+	# `goose_camera.gd` auto-follows the direction of travel unless `_manual_t`
+	# is warm, and `_raw_input()` rotates the stick by -cam.get_yaw(). So the
+	# world bearing the player is commanding ROTATES while the bird flies, and
+	# the bird's velocity chases a moving target. Two SOBER runs of the off-axis
+	# measurement returned 0.000 and 0.635 rad on that basis alone -- a noise
+	# floor wider than the effect being measured.
+	#
+	# Parking `_manual_t` takes the auto-follow branch out and pins the yaw for
+	# the whole hold, which makes "the bearing the stick asked for" a fixed
+	# vector that drift can be measured against.
+	if cam != null:
+		cam.set("_manual_t", 9999.0)
+
+	Input.action_press("gg_forward")
+	# 120 frames, not 60. Drift is a sine of period ~4 s (see below); a one
+	# second window can land on one of its zero crossings and see nothing at all.
+	# Two seconds is half a period and always catches some of the excursion.
+	for i in 120:
+		await tree.physics_frame
+		out.size = maxf(float(out.size), absf(float(goose.get("size")) - 1.0))
+		var v := Vector2(goose.velocity.x, goose.velocity.z)
+		out.speed = maxf(float(out.speed), v.length())
+
+		# DRIFT IS A BIAS OVER THIS WINDOW, NOT A WOBBLE.
+		#
+		# `_wanted()` builds drift from sines of `Time.get_ticks_msec() * 0.0009`,
+		# so its slowest term has a period of about 4 seconds. Across a one
+		# second sample it barely moves: it pushes the bird consistently off to
+		# one side rather than shaking it. An earlier version measured the spread
+		# of the heading about its own mean, which is exactly the statistic that
+		# cancels a constant bias — gravy, which has the HIGHEST drift in the
+		# game at 0.50, scored the lowest wander of any substance.
+		#
+		# So measure the bias directly: the angle between where the stick is
+		# pointing and where the bird is actually going. The stick is
+		# camera-relative (`_raw_input()` rotates it by -cam.get_yaw()) and the
+		# camera turns as the bird does, so the commanded bearing is recomputed
+		# every frame rather than assumed.
+		if i >= 30 and v.length() > 1.0 and cam != null:
+			var yaw: float = float(cam.call("get_yaw"))
+			var want := Vector2(0.0, -1.0).rotated(-yaw)
+			out.offaxis = maxf(float(out.offaxis), absf(v.angle_to(want)))
+
+	# --- reverse the stick: peak turn rate ---
+	#
+	# NOT time-to-180-degrees, which is not a well defined quantity here. The
+	# stick is camera-relative and the camera yaw chases the bird's direction of
+	# travel, so as the bird comes about, "back" comes about with it: the target
+	# runs away from the turn. Two SOBER runs of that measurement returned 5.65 s
+	# and 0.20 s, and the harness's own noise check refused the whole report.
+	#
+	# `_face()` moves the heading by `error * turn_rate * turn_mult * delta`, so
+	# the peak rate right after the stick flips — while the error is still near
+	# PI — is proportional to `turn_mult` and nothing else. It is over in a
+	# tenth of a second, long before the camera can follow.
+	Input.action_release("gg_forward")
+	Input.action_press("gg_back")
+	var prev: float = float(goose.get("heading"))
+	for _i in 50:
+		await tree.physics_frame
+		var h: float = float(goose.get("heading"))
+		var d: float = goose.get_physics_process_delta_time()
+		if d > 0.0001:
+			out.turnrate = maxf(float(out.turnrate), absf(wrapf(h - prev, -PI, PI)) / d)
+		prev = h
+	Input.action_release("gg_back")
+	if cam != null:
+		cam.set("_manual_t", 0.0)
+
+	# --- let go: does it stop? ---
+	goose.velocity = Vector3.ZERO
+	var p1 := goose.global_position
+	for _i in 20:
+		await tree.physics_frame
+	var idled := goose.global_position - p1
+	idled.y = 0.0
+	out.idle = idled.length()
+
+	# --- one flap, from level flight, with the power factor it actually used ---
+	goose.global_position += Vector3.UP * 70.0
+	goose.set("state", 2)          # State.FLY
+	goose.set("stamina", 1.0)
+	goose.velocity = Vector3.ZERO
+	await tree.physics_frame
+	goose.velocity = Vector3.ZERO
+	var y0 := goose.global_position.y
+
+	# THE FLAP'S POWER DEPENDS ON BRAIN CHEMISTRY, NOT JUST flap_mult.
+	#
+	# `_flap()` computes power as `flap_impulse * flap_mult * (0.75 + 0.5 *
+	# adrenaline)`, and most substances move adrenaline hard — percs, bars and
+	# toad_slime bottom it out; math and Double-Double peg it. Predicting the
+	# climb from flap_mult and gravity_mult alone called five substances broken
+	# whose numbers were exactly right: fly_agaric's flap gained 1.42 m and the
+	# complete model predicts 1.42.
+	var brain: Dictionary = subs.get("brain")
+	out.power = 0.75 + 0.5 * float(brain.adrenaline)
+
+	Input.action_press("gg_flap")
+	await tree.physics_frame
+	Input.action_release("gg_flap")
+	for _i in 90:
+		await tree.physics_frame
+		out.climb = maxf(float(out.climb), goose.global_position.y - y0)
+		if goose.velocity.y < 0.0 and float(out.climb) > 0.01:
+			break
+
+	return out
+
+
+## Back to the dry pad, on the ground, still — WITHOUT clearing the substance.
+static func _reset(tree: SceneTree, goose: CharacterBody3D) -> void:
+	_release_all()
+	await _find_dry_ground(tree, goose)
+	goose.global_position = _dry
+	goose.set("state", 0)
+	goose.set("stamina", 1.0)
+	goose.velocity = Vector3.ZERO
+	for _i in 15:
+		await tree.physics_frame
+
+
+## Clear every substance and wait for the clock to come back to 1.0.
+static func _sober_up(tree: SceneTree, goose: CharacterBody3D, subs: Node) -> void:
+	subs.call("reset_for_new_leg")
+	Engine.time_scale = 1.0
+	goose.velocity = Vector3.ZERO
+	for _i in 20:
+		await tree.physics_frame
+
+
+## Same dry-pad search as tools/feeltest.gd, and for the same reason: leg 1 is
+## the retention pond, the goose spawns in it, and a "ground" measurement taken
+## in water is measuring _tick_water(). See that file's comment.
+static func _find_dry_ground(tree: SceneTree, goose: CharacterBody3D) -> void:
+	if _dry_ok:
+		return
+	var base := goose.global_position
+	var offsets: Array[Vector3] = [Vector3.ZERO]
+	for r: float in [7.0, 14.0, 21.0, 28.0]:
+		for a in 8:
+			var ang := TAU * float(a) / 8.0
+			offsets.append(Vector3(cos(ang), 0.0, sin(ang)) * r)
+
+	for off in offsets:
+		goose.global_position = base + off + Vector3.UP * 2.0
+		goose.velocity = Vector3.ZERO
+		goose.set("state", 0)
+		for _i in 16:
+			await tree.physics_frame
+		if int(goose.get("_water_bodies")) != 0 or not goose.is_on_floor():
+			continue
+		var centre := goose.global_position
+		var pad_ok := true
+		for a2 in 4:
+			var ang2 := TAU * float(a2) / 4.0
+			goose.global_position = centre + Vector3(cos(ang2), 0.0, sin(ang2)) * 9.0 + Vector3.UP
+			goose.velocity = Vector3.ZERO
+			for _j in 6:
+				await tree.physics_frame
+			if int(goose.get("_water_bodies")) != 0:
+				pad_ok = false
+				break
+		if not pad_ok:
+			continue
+		_dry = centre
+		_dry_ok = true
+		print("[subs] dry ground at %.1f, %.1f, %.1f" % [_dry.x, _dry.y, _dry.z])
+		return
+	_dry = base
+	_dry_ok = true
+	print("[subs] WARNING — no dry pad found; ground channels measure the water model")
+
+
+static func _fresh_goose(tree: SceneTree, main: Node) -> CharacterBody3D:
+	var game := main.get_node_or_null("/root/Game")
+	if game != null:
+		game.zone_running = true
+	for _i in 30:
+		await tree.physics_frame
+	var cur: Node = main.get("current")
+	if cur == null or not is_instance_valid(cur):
+		return null
+	var g = cur.get("goose")
+	return g as CharacterBody3D
+
+
+static func _release_all() -> void:
+	for a in ["gg_forward", "gg_back", "gg_left", "gg_right", "gg_flap", "gg_dive", "gg_honk"]:
+		if InputMap.has_action(a):
+			Input.action_release(a)

@@ -982,7 +982,8 @@ func _probe_if_headless() -> void:
 	# compile gate that takes 30 s and a software-rendered finale probe that
 	# takes 160 s are not the same job. `--failsafe:N` overrides both, and exists
 	# so the deadline itself can be tested without waiting four minutes for it.
-	var tool_flags := ["--gate", "--selftest", "--inputtest", "--rolltest", "--feeltest"]
+	var tool_flags := ["--gate", "--selftest", "--inputtest", "--rolltest", "--feeltest",
+		"--substancetest"]
 	var is_tool := false
 	for f in tool_flags:
 		if args.has(f):
@@ -1035,6 +1036,16 @@ func _probe_if_headless() -> void:
 	# tools/feeltest.gd and docs/FEEL_TARGETS.md.
 	if args.has("--feeltest"):
 		await preload("res://tools/feeltest.gd").run(get_tree(), self)
+		return
+
+	# THE SEVENTH GATE, and the one that checks the design rule the whole game
+	# is built on: "a substance must never be only a number that goes up".
+	# selftest.gd already enforces that by READING THE .tres. This doses each
+	# substance and measures the bird, because the input-lag bug proved the two
+	# can disagree for a whole project's lifetime — eleven of sixteen substances
+	# unplayable with every .tres correct. See tools/substancetest.gd.
+	if args.has("--substancetest"):
+		await preload("res://tools/substancetest.gd").run(get_tree(), self)
 		return
 
 	# THE CREDIT ROLL, MEASURED. Headless, because physics runs headless and the
