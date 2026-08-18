@@ -55,9 +55,18 @@ extends RefCounted
 
 const SKIP_DIRS := [".godot", ".git", "_to_delete", "addons"]
 
-## Files that are *expected* not to load standalone, with the reason. Empty, and
-## it should stay empty — an entry here is a hole in the gate, not a fix.
-const EXPECTED_FAILURES := {}
+## THERE IS NO ESCAPE HATCH IN THIS GATE, AND THERE USED TO APPEAR TO BE ONE.
+##
+## `const EXPECTED_FAILURES := {}` sat here with a docstring describing how an
+## entry would excuse a file — and `run()` never consulted it. So did
+## `_is_abstract_ok()`, called from nowhere. A maintainer who followed the
+## docstring and added an entry would have watched the gate keep failing with no
+## explanation, which is the worst of both worlds: the appearance of a hole and
+## none of the behaviour.
+##
+## Both deleted rather than wired up, on the strength of the docstring's own
+## argument: **an entry would have been a hole in the gate, not a fix.** If a
+## file genuinely cannot load standalone, that is a fact about the file.
 
 
 static func run(tree: SceneTree, verbose: bool = false) -> void:
@@ -129,10 +138,6 @@ static func _strip_class_name(src: String) -> String:
 	var re := RegEx.new()
 	re.compile("(?m)^[ \\t]*class_name[ \\t]+[A-Za-z_][A-Za-z0-9_]*[ \\t]*")
 	return re.sub(src, "", true)
-
-
-static func _is_abstract_ok(_gd: GDScript) -> bool:
-	return true
 
 
 static func _walk(dir_path: String, scripts: Array[String], resources: Array[String]) -> void:

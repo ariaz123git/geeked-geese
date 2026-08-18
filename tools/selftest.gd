@@ -31,6 +31,11 @@ extends RefCounted
 
 const SUBSTANCE_DIR := "res://data/substances"
 
+## Preloaded rather than referenced as `Substance`: CLAUDE.md prefers it, because
+## global class registration only exists after an editor import pass and a bare
+## `class_name` reference breaks in a fresh checkout and in headless CI.
+const SUBSTANCE_SCRIPT := preload("res://scripts/core/substance.gd")
+
 ## The keys in `Substance.resolve()` that are CONTROL MUTATIONS — things that
 ## change how the player's hands work — as opposed to numbers that go up.
 ## `speed_mult` and `chaos_mult` are deliberately NOT in this list: they are the
@@ -60,6 +65,8 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_clock(main)
 	_the_titles(main)
 	_the_substances(main)
+	_the_substance_fields()
+	_the_overdose()
 	_the_objectives(main)
 	_the_overrides(main)
 	_the_defs_are_wired()
@@ -70,7 +77,10 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_dose_window(main)
 	_the_docs()
 	_the_assets()
-	_the_time_scale()
+	# Awaited: it lets the tree run for 20 frames, which is the only way a third
+	# `Engine.time_scale` writer can be seen at all. `run()` is a coroutine
+	# because of this one check, and `main.gd` awaits it.
+	await _the_time_scale(tree)
 
 	if _fails.is_empty():
 		print("[selftest] PASS — %d invariants hold" % _checks)
@@ -148,11 +158,28 @@ static func _the_clock(main: Node) -> void:
 	# 4. LEG 1 IS DEALT ITS ROUTE CLOCK. This is the one leg that never passes
 	#    through _on_migration_done(), which is exactly why it ran 60 s short for
 	#    the whole life of the project without anyone noticing.
+	#
+	#    AND IT HAS TO ASSERT THE VALUE IT CAPTURED. This check used to read the
+	#    boot clock into `before`, then call `start_zone(main.leg_seconds(1))` —
+	#    writing the correct answer — and assert on THAT. It was testing
+	#    `start_zone`'s one-line assignment, not the boot path, so `main.gd`
+	#    reverting to a bare `Game.new_run()` (which defaults to 180 s) would run
+	#    leg 1 sixty seconds short against a ROUTE that says 240 and `--selftest`
+	#    would still print PASS. That is the exact bug this check is named for.
+	#
+	#    `before` is exact here: `run()` is synchronous and dispatched one
+	#    statement after `new_run()`, so no frame has ticked the clock down.
 	var before: float = float(game.zone_time_left)
 	var was_running: bool = bool(game.zone_running)
+	_ok(is_equal_approx(before, main.leg_seconds(1)),
+		("a fresh run starts leg 1 on %.0f s, but the route says %.0f. Leg 1 is the one leg "
+		+ "that never passes through _on_migration_done(), which is why it ran 60 s short for "
+		+ "the whole life of the project.") % [before, main.leg_seconds(1)])
+	# The setter is worth pinning too, but as its own assertion rather than as a
+	# replacement for the one above.
 	game.start_zone(main.leg_seconds(1))
 	_ok(is_equal_approx(float(game.zone_time_left), main.leg_seconds(1)),
-		"a fresh run does not start leg 1 on its route clock (%.0f s)" % main.leg_seconds(1))
+		"Game.start_zone() does not put its argument on the clock")
 	game.zone_time_left = before
 	game.zone_running = was_running
 
@@ -366,6 +393,130 @@ static func _quoted_after(line: String, key: String) -> String:
 ## A double-quote as a named constant, so no string literal in this file has to
 ## contain an escaped one.
 const QUOTE := '"'
+
+
+## THE OVERDOSE BRANCH, WHICH NO GATE HAD EVER LOOKED AT.
+##
+## `tools/substancetest.gd` doses everything at `DOSE = 0.6` and `resolve()`'s
+## whole `overdosed` path — `quality = 1.0 + (dose - sweet_max) * 1.5` and then
+## `bad = quality * 1.6` — was reached by no check in the project. Holding the
+## eat key saturates `_eat_charge` at exactly 1.0, so a maximum dose is not an
+## edge case: it is what happens when the player does not let go.
+##
+## Two shipped bugs lived in there, both sign flips out of an unbounded `bad`:
+##
+##   * **special_k resolved to NEGATIVE gravity** above dose 0.939 — at 1.0,
+##     `gravity_mult` is -0.066, and both `_tick_ground` and `_tick_fly` read it
+##     raw. The bird accelerates upward, no input brings it down, and it leaves
+##     the level for the rest of the dose.
+##   * **math and special_k resolved `turn_mult` to zero or below** at any
+##     overdose (robo above 0.867, toad_slime above 0.787, percs above 0.955).
+##     `_face()` clamps its step to `[0, 1]`, so a negative rate is an exact
+##     no-op: the heading freezes while the bird keeps sliding.
+##
+## So this resolves every substance at the worst dose the game can hand it and
+## asserts the four multipliers stay in a range the controller can survive.
+## Fixed at `substance.gd`'s two `maxf()` floors; this is the check that would
+## have seen it, and it fails if either floor is removed.
+static func _the_overdose() -> void:
+	var d := DirAccess.open(SUBSTANCE_DIR)
+	if d == null:
+		return
+	d.list_dir_begin()
+	var fname := d.get_next()
+	while fname != "":
+		if fname.ends_with(".tres"):
+			var res: Resource = ResourceLoader.load(SUBSTANCE_DIR + "/" + fname, "",
+				ResourceLoader.CACHE_MODE_IGNORE)
+			if res != null:
+				# Dose 1.0 with a clean tolerance is the strongest `bad` the game
+				# can produce, because tolerance only ever shrinks `good`.
+				var r: Dictionary = res.call("resolve", 1.0, 0)
+				var sid := str(res.get("id"))
+				_ok(float(r.gravity_mult) > 0.0,
+					("%s resolves gravity_mult to %.3f at a full dose. Negative gravity makes the "
+					+ "bird fall UPWARD out of the level with no input that brings it back.")
+						% [sid, float(r.gravity_mult)])
+				_ok(float(r.turn_mult) > 0.0,
+					("%s resolves turn_mult to %.3f at a full dose. _face() clamps its step to "
+					+ "[0, 1], so anything <= 0 freezes the heading for the whole duration while "
+					+ "the Almanac still advertises a multiplier.") % [sid, float(r.turn_mult)])
+				_ok(float(r.speed_mult) >= 0.0,
+					"%s resolves speed_mult to %.3f at a full dose — a negative speed walks the bird backwards"
+						% [sid, float(r.speed_mult)])
+				_ok(float(r.flap_mult) >= 0.0,
+					"%s resolves flap_mult to %.3f at a full dose" % [sid, float(r.flap_mult)])
+		fname = d.get_next()
+	d.list_dir_end()
+
+
+## EVERY DIAL ON `Substance` HAS TO BE CONNECTED TO SOMETHING.
+##
+## `stamina_restore` was exported on `Substance`, set to a non-zero value by SIX
+## of the sixteen substances — bars 0.20, darts 0.20, double_double 0.40, grass
+## 0.25, math 0.50, molly 0.30 — and read by **nothing at all**. It is not a key
+## in `resolve()`'s returned Dictionary, so it never reaches `Subs.mods` and
+## never reaches the goose, and no file under `scripts/` so much as names it.
+## Six substances have been promising the player a stamina refund the game has
+## never once given, in a project whose gates already dose all sixteen and
+## measure the bird.
+##
+## `goose_controller.gd` carries the precedent, in the long comment standing
+## where `float_height` used to: *"a dial that cannot be connected to anything is
+## worse than no dial, so it is gone rather than left as furniture."* That one
+## was found by a human reading the file. This one is found by running.
+##
+## THE RULE, AND IT NEEDS NO ALLOWLIST — which is the point, because an
+## allowlist is where a real failure gets reclassified as an expected one. An
+## export on `Substance` is connected if EITHER:
+##
+##   * it is a key in `resolve()`'s returned Dictionary — the path through
+##     `_aggregate()` into `Subs.mods` and out to the goose; or
+##   * some file under `scripts/` names it — the path for a field read straight
+##     off the resource, which is how `charge_time`, `sweet_min`,
+##     `tolerance_gain` and `codex_fact` legitimately work.
+##
+## Neither means furniture. The check is deliberately a FLOOR: naming a field
+## anywhere counts, so it cannot produce a false failure, only a false pass. It
+## catches the field that is mentioned NOWHERE, which is the bug that happened.
+static func _the_substance_fields() -> void:
+	var scripts: Array[String] = []
+	var resources: Array[String] = []
+	_walk_files("res://scripts", scripts, resources)
+	_ok(scripts.size() > 0, "the substance-field sweep found no scripts under res://scripts")
+
+	var bodies: Array[String] = []
+	for path in scripts:
+		# The declaration is not a reader. Excluding the file the exports live in
+		# is the whole reason this check can see anything at all.
+		if path.ends_with("/substance.gd"):
+			continue
+		var fh := FileAccess.open(path, FileAccess.READ)
+		if fh == null:
+			continue
+		bodies.append(fh.get_as_text())
+		fh.close()
+
+	var proto: Resource = SUBSTANCE_SCRIPT.new()
+	var resolved: Dictionary = proto.call("resolve", 0.6, 0)
+	_ok(resolved.size() > 0, "Substance.resolve() returned nothing — this check is blind")
+
+	for p in proto.get_property_list():
+		if int(p.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
+			continue
+		var field := String(p.name)
+		if resolved.has(field):
+			continue
+		var seen := false
+		for body in bodies:
+			if body.contains(field):
+				seen = true
+				break
+		_ok(seen,
+			("Substance.%s is exported, is NOT a key in resolve()'s dictionary, and is named by no "
+			+ "file under scripts/. It is a dial connected to nothing: every .tres that sets it is "
+			+ "promising the player something the game cannot deliver. Wire it, or delete it the "
+			+ "way float_height was deleted from goose_controller.gd.") % field)
 
 
 static func _walk_files(dir_path: String, scripts: Array[String], resources: Array[String]) -> void:
@@ -625,14 +776,23 @@ static func _the_substances(main: Node) -> void:
 
 	# Every file on disk must be a substance the manager actually loaded, or the
 	# folder and the game disagree about what exists.
-	var loaded: Array = subs.all() if subs.has_method("all") else []
-	if loaded.is_empty():
-		# `Subs` exposes its table under different names across versions; fall
-		# back to the count rather than failing on the accessor's name.
-		_ok(ids.size() > 0, "no substances found in %s" % SUBSTANCE_DIR)
-	else:
-		_ok(loaded.size() == ids.size(),
-			"Subs loaded %d substances but %s holds %d files" % [loaded.size(), SUBSTANCE_DIR, ids.size()])
+	#
+	# THE COMPARISON USED TO BE UNREACHABLE. It was guarded on
+	# `subs.has_method("all")` with a comment about `Subs` exposing its table
+	# "under different names across versions" — and `Subs` has no `all()`. There
+	# is one version of this project and one accessor. So the guard always fell
+	# through to `ids.size() > 0`, which sixteen files on disk make trivially
+	# true, and the only check that could see `_load_library()` silently dropping
+	# a substance has never once run. Defensive coding against a variant that does
+	# not exist is how a live assertion becomes a dead one.
+	#
+	# `library` is a plain public var on `substance_manager.gd` and needs no
+	# accessor.
+	var shelf: Dictionary = subs.library
+	_ok(ids.size() > 0, "no substances found in %s" % SUBSTANCE_DIR)
+	_ok(shelf.size() == ids.size(),
+		("Subs loaded %d substances but %s holds %d files — _load_library() dropped one and "
+		+ "nothing else in the project would notice.") % [shelf.size(), SUBSTANCE_DIR, ids.size()])
 
 
 static func _one_substance(res: Resource, path: String, ids: Dictionary) -> void:
@@ -968,16 +1128,39 @@ static func _walk_gd(dir_path: String, out: Array[String]) -> void:
 
 # ─────────────────────────────────────────────────────────── the time scale
 
-static func _the_time_scale() -> void:
+static func _the_time_scale(tree: SceneTree) -> void:
 	# Engine.time_scale has exactly two owners, and a stranded write once left a
 	# run in permanent 0.106x slow motion with no way out. After both owners
 	# have been reset, the clock must be 1.0 — if a third writer ever appears,
 	# this is where it shows up.
+	#
+	# IT COULD NOT SHOW UP HERE, AND FOR THE WHOLE LIFE OF THE CHECK. The
+	# assertion read `Engine.time_scale` on the statement AFTER
+	# `subs.reset_for_new_leg()`, whose body contains an unconditional
+	# `Engine.time_scale = 1.0`. There was no await and no frame boundary between
+	# the write and the read, so this passed for every possible state of the game
+	# — including the exact 0.106x case its own comment cites, and including the
+	# four places `main.gd` itself writes the clock.
+	#
+	# A third writer is by definition something that writes EVERY FRAME, or on a
+	# signal. The only form of this check that can see one is: reset both owners,
+	# then let the tree actually run, then look. Watched fail before it was
+	# trusted — a temporary `Engine.time_scale = 0.5` in an autoload `_process`
+	# trips it; the old form did not notice.
 	var juice := Engine.get_main_loop().root.get_node_or_null("Juice") as Node
 	var subs := Engine.get_main_loop().root.get_node_or_null("Subs") as Node
 	if juice != null and juice.has_method("reset"):
 		juice.reset()
 	if subs != null and subs.has_method("reset_for_new_leg"):
 		subs.reset_for_new_leg()
-	_ok(is_equal_approx(Engine.time_scale, 1.0),
-		"Engine.time_scale is %.3f after Subs and Juice have both reset — a third writer has appeared" % Engine.time_scale)
+	var worst := 1.0
+	for _i in 20:
+		await tree.physics_frame
+		await tree.process_frame
+		if absf(Engine.time_scale - 1.0) > absf(worst - 1.0):
+			worst = Engine.time_scale
+	_ok(is_equal_approx(worst, 1.0),
+		("Engine.time_scale reached %.3f over 20 frames after Subs and Juice had both reset — "
+		+ "a third writer has appeared. They have a documented contract in docs/JUICE_NOTES.md "
+		+ "and a stranded write once left a run in permanent 0.106x slow motion with no way out.")
+			% worst)
