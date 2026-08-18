@@ -213,22 +213,28 @@ that matters: a panel that wants to agree finds nothing.
 
 ## ⟳ 3. What to do next
 
-**Play it.** It was the top item last session and it still is — but the
-inference is no longer several thousand lines deep, because the bird has now been
-measured obeying the stick and the whole route has been photographed. What is
-left is genuinely a question of feel, and only you can answer it.
+**Nothing here is waiting on you any more.** This list opened with **"Play it"**
+for two sessions running, which meant everything behind it was blocked on one
+person having a free evening, and so nothing behind it moved. That was a
+process bug, and it has been fixed at the root rather than by deleting the line:
+`tools/feeltest.gd` (step 4 of `verify.ps1`) now measures 22 controller metrics,
+12 of them asserted against windows argued out in `docs/FEEL_TARGETS.md`. Tuning
+is work an agent can do and show receipts for. See `CLAUDE.md`, *"Taste is the
+human's. Everything measurable is yours."*
 
-The controller numbers in `goose_controller.gd` are all `@export`ed specifically
-so they can be dragged in the inspector while the game runs. That loop has still
-never been run once.
+**Play it whenever you want to.** It is your game. It is not a dependency.
 
-After that, in order:
+In order:
 
-1. **The two encounters have never been played, only photographed.** BIG DOWN's
-   75-second cap, the shutter telegraph and whether a honk-shattered curtain wall
-   reads as the payoff it is designed to be are all unknown. The Ranger's three
-   flagged numbers — `ACQUIRE` (22 m), `PURSUE_SPEED` (9.5 m/s) and the six-second
-   `HAZED` — are still unjudged.
+1. **Two feel questions that are genuinely yours** — `docs/FEEL_TARGETS.md` §5.
+   Neither is a bug; both are one-line changes that alter traversal everywhere,
+   which is why they were left rather than decided.
+   * The glide is **0.87–0.98 : 1** — a metre forward per metre down, which is a
+     controlled fall. `GEEKED_GEESE_DESIGN.md:130` promises *"chain it into a
+     safe glide and you're fine"*, and at 1:1 there is not much glide to chain.
+   * Any 20 m glide arrives at **20.9 m/s** against a `hard_landing_speed` of
+     13.0. Sober that is a 15-point "ROUGH LANDING" and a reward; on a substance
+     with `ragdoll_landings` it is an unavoidable faceplant every descent.
 2. **Leg 7's clock.** BIG DOWN opens the dock on the clock rather than on a fixed
    countdown, so it works at 180 s today. The design wants 230 s (110 truck stop
    → ≤75 tower → 15 roof), which needs `zone_truckstop.gd::DEPART_AT` rescaled
@@ -237,6 +243,14 @@ After that, in order:
 3. **The Ranger's leg 6 exam** — the corn field it was written for now exists.
 4. **Convert a zone to a real `.tscn`.** Still the accepted debt, still the wrong
    way to do level design, and now eight zones deep.
+5. **The two encounters have been photographed but never played.** BIG DOWN's
+   75-second cap, the shutter telegraph and whether a honk-shattered curtain
+   wall reads as the payoff it is designed to be are all unknown; so are the
+   Ranger's `ACQUIRE` (22 m), `PURSUE_SPEED` (9.5 m/s) and six-second `HAZED`.
+   **This is recorded as a known gap, not as a request.** An encounter's pacing
+   is taste. If it wants measuring, the pattern to copy is `tools/feeltest.gd`:
+   find the part of it that is a number, argue a window for that number in
+   `docs/FEEL_TARGETS.md`, and leave the rest alone.
 
 ---
 

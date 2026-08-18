@@ -57,10 +57,16 @@ const TICK := 1.0 / 60.0
 static var _rows: Array[Dictionary] = []
 static var _fails: Array[String] = []
 
+## Ticks during a GROUND measurement on which the bird was actually in water.
+## Must be zero. See _ground_tests().
+static var _wet_ticks := 0
+
 
 static func run(tree: SceneTree, main: Node) -> void:
 	_rows.clear()
 	_fails.clear()
+	_wet_ticks = 0
+	_dry_ok = false
 
 	var goose: CharacterBody3D = await _fresh_goose(tree, main)
 	if goose == null:
@@ -142,8 +148,12 @@ static func _ground_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
 	var top := 0.0
 	var samples: Array[float] = []
 	Input.action_press("gg_forward")
-	for i in 120:
+	# 90 ticks, not 120. At waddle_speed this covers about 6.3 m, which has to
+	# stay inside PAD_RADIUS; top speed arrives at 0.2 s so the extra half second
+	# was only ever buying travel.
+	for i in 90:
 		await tree.physics_frame
+		_watch_dry(goose)
 		var s := _flat_speed(goose)
 		samples.append(s)
 		if latency < 0 and s > 0.01:
@@ -157,8 +167,11 @@ static func _ground_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
 			t_to_top = float(i + 1) * TICK
 			break
 
-	_assert_window("ground.latency", float(maxi(latency, 0)), "tick", 1.0, 3.0,
-		"a press must move the bird on the next physics tick; 3 ticks is 50 ms and already reads as lag")
+	# -1.0, not 0.0, when the bird never moved at all. A bare zero reads as
+	# "responded instantly" and means the exact opposite here; the same trap is
+	# commented on cam.catch_up below.
+	_assert_window("ground.latency", (float(latency) if latency > 0 else -1.0), "tick", 1.0, 3.0,
+		"a press must move the bird on the next physics tick; 3 ticks is 50 ms and already reads as lag. -1 means it never moved")
 	_assert_window("ground.top_speed", top, "m/s", 3.0, 6.0,
 		"below 3 m/s an 80 m zone takes half a minute to cross; above 6 it stops reading as a waddle")
 	_assert_window("ground.time_to_top", t_to_top, "s", 0.10, 0.40,
@@ -173,6 +186,7 @@ static func _ground_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
 	var p0 := goose.global_position
 	for _i in 90:
 		await tree.physics_frame
+		_watch_dry(goose)
 		if _flat_speed(goose) < 0.05:
 			break
 	var slide := goose.global_position - p0
@@ -198,6 +212,23 @@ static func _ground_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
 	Input.action_release("gg_back")
 	_assert_window("ground.turn_180", turn_t, "s", 0.15, 0.80,
 		"chasing a rolling cart is the core comedy verb; over 0.8 s to turn round makes it misery")
+
+	# A CONTAMINATED MEASUREMENT MUST NOT BE REPORTED AS A CONTROLLER VERDICT.
+	#
+	# Every row above describes _tick_ground(). If the bird was in the pond for
+	# any of it, the rows describe _tick_water() instead, and they will accuse a
+	# perfectly healthy controller of being slow and slidey with real numbers
+	# that mean nothing. That happened, and it turned verify.ps1 red.
+	#
+	# The distinction the message has to carry: this is the HARNESS failing to
+	# get a clean read, not the game failing. The fix is in _find_dry_ground(),
+	# never in goose_controller.gd.
+	if _wet_ticks > 0:
+		_fails.append(("ground metrics are CONTAMINATED - the goose was in water for %d "
+			+ "measurement ticks, so the rows above describe _tick_water(), not "
+			+ "_tick_ground(). This is a HARNESS fault: _find_dry_ground() found a pad "
+			+ "too near the pond. Fix the search. Do not tune the controller from these "
+			+ "numbers.") % _wet_ticks)
 
 
 # ---------------------------------------------------------------- flight
@@ -372,8 +403,10 @@ static func _latency_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
 		if lag > 0.001:
 			ticks = i + 1
 			break
-	_assert_window("dose.latency", float(maxi(ticks, 0)), "tick", 1.0, 12.0,
-		"the dose is the game's core verb; more than 12 ticks (0.2 s) between eating and the world changing breaks cause and effect")
+	# -1.0 = the dose never landed at all, which is a different failure from
+	# "landed slowly" and has to read differently in the report.
+	_assert_window("dose.latency", (float(ticks) if ticks > 0 else -1.0), "tick", 1.0, 12.0,
+		"the dose is the game's core verb; more than 12 ticks (0.2 s) between eating and the world changing breaks cause and effect. -1 means it never landed")
 
 	# The camera is the other half of "responsive". Snap the bird sideways and
 	# time the rig catching up. Deliberately OBSERVED: the right answer depends
@@ -441,6 +474,12 @@ static func _flat_speed(goose: CharacterBody3D) -> float:
 	return Vector2(goose.velocity.x, goose.velocity.z).length()
 
 
+## Count a tick on which a GROUND measurement was actually measuring water.
+static func _watch_dry(goose: CharacterBody3D) -> void:
+	if int(goose.get("_water_bodies")) != 0:
+		_wet_ticks += 1
+
+
 static func _fresh_goose(tree: SceneTree, main: Node) -> CharacterBody3D:
 	var game := main.get_node_or_null("/root/Game")
 	if game != null:
@@ -469,6 +508,11 @@ static func _fresh_goose(tree: SceneTree, main: Node) -> CharacterBody3D:
 static var _dry := Vector3.ZERO
 static var _dry_ok := false
 
+## How far the bird may wander from the start pose during a ground measurement.
+## The walk test is the longest of them: held forward at waddle_speed 4.2 covers
+## about 5 m, and stop_distance coasts a little past that.
+const PAD_RADIUS := 9.0
+
 
 static func _find_dry_ground(tree: SceneTree, goose: CharacterBody3D) -> void:
 	if _dry_ok:
@@ -489,12 +533,39 @@ static func _find_dry_ground(tree: SceneTree, goose: CharacterBody3D) -> void:
 		# `_water_bodies` is the goose's own count of overlapping water Area3Ds,
 		# which is the thing that forces State.WATER every physics frame. Asking
 		# it directly beats inferring from the state.
-		if int(goose.get("_water_bodies")) == 0 and goose.is_on_floor():
-			_dry = goose.global_position
-			_dry_ok = true
-			print("[feel] dry ground at %.1f, %.1f, %.1f (%.1f m from spawn)"
-				% [_dry.x, _dry.y, _dry.z, Vector2(off.x, off.z).length()])
-			return
+		if int(goose.get("_water_bodies")) != 0 or not goose.is_on_floor():
+			continue
+		var centre := goose.global_position
+
+		# A DRY POINT IS NOT ENOUGH. IT HAS TO BE A DRY PAD.
+		#
+		# THE FLAKE THIS EXISTS BECAUSE OF, and it turned verify.ps1 red on an
+		# unchanged, healthy controller. An earlier version took the first spot
+		# that was dry and floored WHILE STANDING STILL. On leg 1 that can be
+		# the pond shoreline: the walk test then holds forward for two seconds,
+		# covers 8.4 m at waddle_speed, wades in, and top speed comes back 5.40
+		# — which is swim_speed — against a window written for 4.2.
+		#
+		# The measurement MOVES the bird, so the candidate has to be dry across
+		# the ground the bird will cover, not at the point it starts on.
+		var pad_ok := true
+		for a2 in 4:
+			var ang2 := TAU * float(a2) / 4.0
+			goose.global_position = centre + Vector3(cos(ang2), 0.0, sin(ang2)) * PAD_RADIUS + Vector3.UP
+			goose.velocity = Vector3.ZERO
+			for _j in 6:
+				await tree.physics_frame
+			if int(goose.get("_water_bodies")) != 0:
+				pad_ok = false
+				break
+		if not pad_ok:
+			continue
+
+		_dry = centre
+		_dry_ok = true
+		print("[feel] dry ground at %.1f, %.1f, %.1f (%.1f m from spawn, %.0f m dry pad)"
+			% [_dry.x, _dry.y, _dry.z, Vector2(off.x, off.z).length(), PAD_RADIUS])
+		return
 
 	_dry = base
 	_dry_ok = true

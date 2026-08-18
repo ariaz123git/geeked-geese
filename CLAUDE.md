@@ -42,13 +42,14 @@ project. Source and rationale: `tools/gate.gd`.
 input-lag bug that made *eleven of the sixteen substances unplayable* — the bird
 obeying four-second-old input — passed the compile gate, passed the whole
 headless campaign run, and would have passed any review that did not press a
-key. There are now three gates, and one script that runs all of them:
+key. There are now five gates, and one script that runs all of them:
 
 ```
-.\verify.ps1                                       # all four. -Quick skips the campaign
+.\verify.ps1                                       # all five. -Quick skips the campaign
 godot --headless --path . -- --gate                # it compiles
 godot --headless --path . -- --selftest            # it agrees with itself
 godot --headless --path . -- --probe --inputtest   # the bird obeys
+godot --headless --path . -- --probe --feeltest    # the bird obeys WELL
 godot --headless --path . -- --probe --loop-test   # seven legs and the ending
 ```
 
@@ -56,9 +57,13 @@ godot --headless --path . -- --probe --loop-test   # seven legs and the ending
 both clocks, the leg titles, every substance's data, the objective sets, the
 ambience beds, and every audio and texture key the code asks for.
 `tools/inputtest.gd` holds W, flaps, honks and doses, and measures what the bird
-actually did.
+actually did. `tools/feeltest.gd` measures how WELL it did it — 22 metrics, 12 of
+them asserted against windows argued in `docs/FEEL_TARGETS.md`. It caught a flap
+that COMPOUNDED — 7.36 m of climb in the first second of holding the button and
+23.66 m in the third, with a `max_fall` in the controller and no `max_rise`
+anywhere — on a build where all four of the other gates passed.
 
-**Every assertion in both is a bug that already got through once.** When you fix
+**Every assertion in all three is a bug that already got through once.** When you fix
 something a gate could not see, add the assertion that would have seen it — and
 then break it on purpose and watch it fail. A check nobody has watched fail is
 worse than no check, because it launders a guess into a claim. That single
@@ -150,6 +155,12 @@ Global class registration only exists after an editor import pass, so a
 
 - **Forward slashes only.** `"res://scripts\new.gd"` parses as `res://scripts` +
   newline.
+- **Never `sed -i` a file in this repo.** Most of the tree is CRLF, GNU sed
+  rewrites it LF, and the result is a diff in which every single line changed.
+  It cost `verify.ps1` a 488-line diff for a 30-line edit on 2026-08-17 — a
+  diff nobody can review. Use the Edit tool, or a Python read/replace on
+  `'rb'`/`'wb'` bytes. `git diff --stat` catches it instantly: a changed-line
+  count equal to the file length means the line endings moved, not the code.
 - **snake_case every file and folder.** The exported PCK is case-sensitive even
   on Windows.
 - `class_name` is one flat global namespace shared with every engine class and
@@ -243,8 +254,52 @@ lit from the wrong side on closed ones. This bug shipped once. Do not
   `pickup_models.gd` and `zone_cottage.gd` both built a toad.
 - **The controller has to feel good before anything else matters.**
 
-## What only the human can do
+## Taste is the human's. Everything measurable is yours.
 
-Playtesting, tuning feel, deciding what is funny, and judging whether the game
-is fun. When you hit one of those, say so and stop. **Do not fabricate a
-judgement about how something feels** — you cannot play this game.
+**Do not end a session by asking the human to go and play it.** The instruction
+that used to live here said to stop and hand feel back. It was followed exactly,
+and it is what stalled this project: `docs/HANDOFF.md` §3 said **"Play it"** at
+the top of the list for two sessions running, nothing behind it could move, and
+the queue became a queue of one. The human plays this game when they want to.
+They are not a subroutine you block on.
+
+"Feel" is two things wearing one word, and only one of them is deferrable.
+
+**RESPONSE — yours.** How long the bird takes to reach top speed, how far it
+slides after you let go, whether a held flap converges on a climb rate or
+compounds into orbit, how many frames pass between eating and the world
+changing. This is arithmetic. It is what makes a controller feel *broken* rather
+than merely unfunny, and it is measurable headless:
+
+```
+godot --headless --path . -- --probe --feeltest     # step 4 of verify.ps1
+```
+
+`tools/feeltest.gd` measures 22 of them, 12 asserted against windows;
+`docs/FEEL_TARGETS.md` carries the argument for every window, so they can be
+argued with rather than merely obeyed. **Measure it, decide it, change it,
+record the before and the after.** A tuning change backed by a measurement and a
+written reason is work, not a guess — and it is one revert away if the human
+disagrees.
+
+**TASTE — the human's, permanently.** Whether a waddling goose is funny. Whether
+the honk lands. Whether the strip mall is a good first zone. Whether the ending
+earns itself. Whether any of it is *fun*. No file in this repo will ever have an
+opinion about those.
+
+**But deferring taste does not mean stopping.** When a decision genuinely needs
+taste:
+
+1. **Make the call.** Pick the option you would defend, and say plainly that you
+   picked it and why.
+2. **Write it down** in `docs/HANDOFF.md` §3 — one line, what you chose and what
+   the alternative was — so it can be overruled in one revert.
+3. **Keep going.** Do not park the rest of the session behind it.
+
+### The one rule that did not change
+
+**Never fabricate a judgement about how something feels.** You cannot play this
+game. *"That feels much snappier now"* is a lie. *"Time to top speed is 0.20 s
+against a 0.10–0.40 window, and the held flap now converges at 0.99x where it
+used to compound at 3.22x"* is not. Report what you measured, or say that you
+decided without measuring and why. Never claim you felt it.

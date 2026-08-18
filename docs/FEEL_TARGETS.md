@@ -129,22 +129,53 @@ questions and are written up in §5 rather than quietly asserted.
 | `cam.catch_up` | **0.35 s** | Rig to within 4 m of a bird teleported 20 m. `-1` means it never did. |
 | `cam.residual` | **3.99 m** | Rig-to-bird distance when that window closed. |
 
+### Stability, measured
+
+A gate that flickers is worse than no gate, because it teaches everyone to
+ignore red. So the harness was run three times back to back on an unchanged
+build. **Eleven of the twelve asserted metrics came back bit-identical:**
+
+```
+ground.latency        1.00  1.00  1.00      fly.one_flap_climb    1.73  1.73  1.73
+ground.top_speed      4.20  4.20  4.20      fly.climb_peak        6.08  6.08  6.08
+ground.time_to_top    0.20  0.20  0.20      fly.climb_convergence 0.99  0.99  0.99
+ground.turn_180       0.30  0.30  0.30      fly.dive_beats_glide  1.65  1.65  1.65
+ground.stop_distance  0.59  0.60  0.59      stam.flaps_to_empty  22.00 22.00 22.00
+dose.latency          1.00  1.00  1.00      stam.refill_ground    3.82  3.82  3.82
+```
+
+`ground.stop_distance` moves by 0.01 m against a window 0.75 m wide.
+
+**This did not come for free, and the flake was instructive.** The zone does not
+spawn the goose in the same place twice, so `_find_dry_ground()` returns a
+different pad each run — 7 m from spawn on one, 28 m on the next. An earlier
+version accepted the first spot that was dry *while standing still*, and on one
+run that was the pond shoreline: the walk test then held forward for two
+seconds, covered 8.4 m, waded in, and reported `top_speed` **5.40** — which is
+`swim_speed` — and `stop_distance` **1.41 m**, because `_tick_water()` has no
+friction term. **It turned `verify.ps1` red on a controller that was fine.**
+
+Two things fixed it, and the second matters more than the first:
+
+1. `_find_dry_ground()` now requires a dry **pad** — four probes at
+   `PAD_RADIUS` = 9 m must all be dry — rather than a dry point, and the walk
+   test was shortened to 90 ticks so it stays inside that pad.
+2. `_watch_dry()` counts any tick of a ground measurement on which the bird was
+   actually in water, and a non-zero count fails the run with a message saying
+   **HARNESS fault, do not tune the controller from these numbers.** A wrong
+   answer now announces itself instead of being reported as a verdict.
+
 ### A precondition for ever asserting the glide rows
 
-Across three consecutive runs the twelve **asserted** metrics were bit-stable —
-4.20, 0.20, 0.59, 0.30, 1.73, 6.08, 0.99, 1.65, 22, 3.82, 1.00, every time. The
-two horizontal glide rows were **not**: 17.36, 17.40, 19.54 m.
-
-The suspected cause is the harness, not the game. `_find_dry_ground()` spirals
-outward from the spawn point and takes the first dry, floored candidate, so it
-lands 7 m from spawn on one run and 21 m on the next; the flight tests then
-start from a different place with a different camera yaw behind them, and
-`_raw_input()` rotates the stick by `-cam.get_yaw()`.
+The two horizontal glide rows are still not stable enough to assert: 17.36,
+17.40, 19.54 m across runs. Same root cause — the flight tests start from
+wherever the dry pad was, with whatever camera yaw the previous test left
+behind, and `_raw_input()` rotates the stick by `-cam.get_yaw()`.
 
 **A metric that moves 12% between identical runs cannot fail a build.** Pinning
-the start pose — or seeding the camera yaw — is the work that has to happen
-before either glide row is promoted out of OBSERVED. Until then they are
-reported, and §5.1 is argued from the range rather than from a point.
+the start pose, or seeding the camera yaw, is the work that has to happen before
+either glide row leaves OBSERVED. Until then they are reported, and §5.1 argues
+from the range rather than from a point.
 
 ---
 
