@@ -2,7 +2,8 @@
 <#
   Geeked Geese verification loop.
 
-    .\verify.ps1              # gate, invariants, controller, feel, substances, flight, credit roll, campaign
+    .\verify.ps1              # nine gates: compile, invariants, controller, feel,
+                              #   substances, flight, credit roll, claims, campaign
     .\verify.ps1 -Shots       # also render every zone and tell you where the PNGs are
     .\verify.ps1 -Quick       # skips the 20 s campaign run
 
@@ -71,6 +72,27 @@ function Fail($name, $why) {
     $script:fail = $true
 }
 
+# EVERY STEP CHECKS FOR `SCRIPT ERROR`, NOT JUST ONE OF THEM.
+#
+# Until 2026-08-18 the full-campaign step was the ONLY one that looked. Each
+# other step greps for its own `[tag] PASS` line and checks the exit code, so a
+# harness could raise a runtime error inside a branch the pass line does not
+# depend on, print its PASS anyway, exit 0, and be reported green. That is the
+# same class as a gate that cannot fail, and it went unnoticed for the life of
+# the project - see docs/RECENT_FAILURES.md F-001, which this half retires.
+#
+# `SCRIPT ERROR` specifically, NOT a blanket `ERROR:`: the compile gate
+# legitimately prints 26 lines of `ERROR: Parameter "method" is null.` parsing
+# scripts/ui/briefing.gd (bisected, attributed, harmless - tools/gate.gd
+# explains it), and two probes exit with `ERROR: N resources still in use at
+# exit` from an engine teardown ordering issue that is diagnosed but not fixed.
+# Failing on those would make the build permanently red for known-benign and
+# known-open conditions, which is how a check gets deleted. F-001 stays open for
+# exactly that half, with the evidence, rather than being gated prematurely.
+function ScriptErrors($out) {
+    return @(($out -split "`r?`n") | Where-Object { $_ -match 'SCRIPT ERROR' })
+}
+
 function Pass($name, $line) {
     Write-Host "[ok] $name" -ForegroundColor Green
     if ($line) { Write-Host "      $line" -ForegroundColor DarkGray }
@@ -100,6 +122,8 @@ if ($gateCode -ne 0) {
     Fail "compile gate" "exit $gateCode"
 } elseif (-not ($gateLines -match 'PASS')) {
     Fail "compile gate" "no [gate] PASS line - did it run at all?"
+} elseif ((ScriptErrors $gateOut).Count -gt 0) {
+    Fail "compile gate" "SCRIPT ERROR: $((ScriptErrors $gateOut)[0])"
 } else {
     Pass "compile gate" ($gateLines | Where-Object { $_ -match 'PASS' })
 }
@@ -119,6 +143,8 @@ if ($stCode -ne 0) {
     Fail "invariants" "exit $stCode"
 } elseif (-not ($stLines -match 'PASS')) {
     Fail "invariants" "no [selftest] PASS line"
+} elseif ((ScriptErrors $stOut).Count -gt 0) {
+    Fail "invariants" "SCRIPT ERROR: $((ScriptErrors $stOut)[0])"
 } else {
     Pass "invariants" ($stLines | Where-Object { $_ -match 'PASS' })
 }
@@ -139,6 +165,8 @@ if ($inCode -ne 0) {
     Fail "controller" "exit $inCode"
 } elseif (-not ($inLines -match 'PASS')) {
     Fail "controller" "no [input] PASS line"
+} elseif ((ScriptErrors $inOut).Count -gt 0) {
+    Fail "controller" "SCRIPT ERROR: $((ScriptErrors $inOut)[0])"
 } else {
     Pass "controller" ($inLines | Where-Object { $_ -match 'PASS' })
 }
@@ -165,6 +193,8 @@ if ($feelCode -ne 0) {
     Fail "feel" "exit $feelCode"
 } elseif (-not ($feelLines -match 'PASS')) {
     Fail "feel" "no [feel] PASS line"
+} elseif ((ScriptErrors $feelOut).Count -gt 0) {
+    Fail "feel" "SCRIPT ERROR: $((ScriptErrors $feelOut)[0])"
 } else {
     Pass "feel" ($feelLines | Where-Object { $_ -match 'PASS' })
 }
@@ -194,6 +224,8 @@ if (-not $Quick) {
         Fail "substances" "exit $subCode"
     } elseif (-not ($subLines -match 'PASS')) {
         Fail "substances" "no [subs] PASS line"
+    } elseif ((ScriptErrors $subOut).Count -gt 0) {
+        Fail "substances" "SCRIPT ERROR: $((ScriptErrors $subOut)[0])"
     } else {
         Pass "substances" ($subLines | Where-Object { $_ -match 'PASS' })
     }
@@ -221,6 +253,8 @@ if (-not $Quick) {
         Fail "flight" "exit $migCode"
     } elseif (-not ($migLines -match 'PASS')) {
         Fail "flight" "no [mig] PASS line"
+    } elseif ((ScriptErrors $migOut).Count -gt 0) {
+        Fail "flight" "SCRIPT ERROR: $((ScriptErrors $migOut)[0])"
     } else {
         Pass "flight" ($migLines | Where-Object { $_ -match 'PASS' })
     }
@@ -241,8 +275,36 @@ if ($rollCode -ne 0) {
     Fail "credit roll" "exit $rollCode"
 } elseif (-not ($rollLines -match 'PASS')) {
     Fail "credit roll" "no [roll] PASS line"
+} elseif ((ScriptErrors $rollOut).Count -gt 0) {
+    Fail "credit roll" "SCRIPT ERROR: $((ScriptErrors $rollOut)[0])"
 } else {
     Pass "credit roll" ($rollLines | Where-Object { $_ -match 'measured' })
+}
+
+# ---------------------------------------------------------------------------
+# 6b. THE CLAIMS GATE. The only step pointed at the DOCUMENTS rather than at the
+#     game: every number a doc writes down is recomputed from the booted project
+#     and compared, and every window feeltest.gd enforces is compared against the
+#     argument docs/FEEL_TARGETS.md makes for it.
+#
+#     It is here rather than at the end because it is fast (about a second) and
+#     because a stale doc is the thing most likely to have misled whoever is
+#     reading this output. Seven live stale facts across four root documents on
+#     the day it was written. See tools/doctest.gd and docs/CLAIMS.md.
+# ---------------------------------------------------------------------------
+Write-Host "`n=== claims ===" -ForegroundColor Cyan
+$docOut = & $GODOT --headless --no-header --path $root -- --doctest 2>&1 | Out-String
+$docCode = $LASTEXITCODE
+$docLines = ($docOut -split "`r?`n") | Where-Object { $_ -match '^\[doctest\]' }
+$docLines | ForEach-Object { Write-Host $_ }
+if ($docCode -ne 0) {
+    Fail "claims" "exit $docCode"
+} elseif ($docOut -notmatch '\[doctest\] PASS') {
+    Fail "claims" "no [doctest] PASS line"
+} elseif ((ScriptErrors $docOut).Count -gt 0) {
+    Fail "claims" "SCRIPT ERROR: $((ScriptErrors $docOut)[0])"
+} else {
+    Pass "claims" ($docLines | Where-Object { $_ -match 'PASS' })
 }
 
 # ---------------------------------------------------------------------------

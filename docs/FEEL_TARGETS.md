@@ -277,6 +277,40 @@ faceplant with no way to avoid it except flaring on approach, and nothing in the
 game teaches flaring. That is either a good implicit lesson or an unfair one,
 and **which of those it is depends on playing it.** Left observed on purpose.
 
+#### The closed form, so the decision has a number rather than an anecdote
+
+D-005 is `Open (human)` and stays open. What it was missing is the *threshold in
+metres*, which nobody had written down, so every discussion of it has been about
+a speed the player never sees. The bird cannot see 13.0 m/s. It can see how far
+down the roof is.
+
+`_do_land()` grades on `impact = absf(_last_y_speed)`, and a no-flap descent
+accelerates at `glide_gravity` = 11.0 m/s² until `max_fall`. So the height at
+which a drop first registers as hard is:
+
+> **h = v² / 2g = 13.0² / (2 × 11.0) = 169 / 22 = 7.68 m**
+
+**Anything more than 7.68 m above what is under it lands hard.** That is the
+number to argue about. Three consequences worth stating in the same breath:
+
+| | |
+|---|---|
+| **7 of the 16 substances set `ragdoll_landings`** | berries, fly_agaric, gravy, math, nitrous, special_k, toad_slime — 44% of the shelf, on which every such descent is an unavoidable faceplant |
+| **A 20 m glide arrives at 20.9 m/s** | 2.7× the threshold speed, and 2.6× the threshold height |
+| **One flap lifts 1.73 m** | so the threshold is **4.4 flaps of height**, which is the unit the player actually reasons in |
+
+**What is still missing, and it is a job rather than a judgement:** how many
+surfaces in each built zone actually sit more than 7.68 m above their nearest
+lower neighbour. That is the same walk as D-006's reachability diff (`HANDOFF`
+§3 item 1) and it should be done in the same pass, because both questions are
+answered by the same enumeration of every walkable surface in every zone. If the
+answer is "three roofs and the atrium", D-005 is a curiosity. If it is "every
+roof in suburbia and every beam level in BIG DOWN", it is a design problem on
+44% of the shelf.
+
+**Not closed, and an agent must not close it.** The height is arithmetic; whether
+an unavoidable faceplant off a two-storey roof is funny or unfair is taste.
+
 ---
 
 ## 6. The flight — where prediction and measurement disagree

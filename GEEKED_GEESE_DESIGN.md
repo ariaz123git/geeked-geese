@@ -4,7 +4,8 @@
 > A 3D physics-comedy game where you are a Canada goose who has discovered the
 > human world's chemistry set, and you have 2,000 km to fly before winter.
 
-**Status: playable, 16 substances, 2 zones, full migration flight.** See
+**Status: the campaign is built end to end — 16 substances, eight zones, two
+bosses, seven flights and an ending.** See
 `README.md` for how to run it and exactly what's wired up. This document is the
 design bible — it describes the whole intended game, including parts not built.
 

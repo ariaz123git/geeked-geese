@@ -998,7 +998,7 @@ func _probe_if_headless() -> void:
 	# takes 160 s are not the same job. `--failsafe:N` overrides both, and exists
 	# so the deadline itself can be tested without waiting four minutes for it.
 	var tool_flags := ["--gate", "--selftest", "--inputtest", "--rolltest", "--feeltest",
-		"--substancetest", "--migtest"]
+		"--substancetest", "--migtest", "--doctest"]
 	var is_tool := false
 	for f in tool_flags:
 		if args.has(f):
@@ -1031,6 +1031,16 @@ func _probe_if_headless() -> void:
 		# only form of that check which can see a third writer is one that lets
 		# the tree run for a few frames first.
 		await preload("res://tools/selftest.gd").run(get_tree(), self)
+		return
+
+	# THE NINTH GATE, and the only one pointed at the DOCUMENTS rather than at
+	# the game. Every number a doc writes down is recomputed from the booted
+	# project and compared; every feel window feeltest.gd enforces is compared
+	# against the argument FEEL_TARGETS.md makes for it. A survey found seven
+	# live stale facts across four root documents on the day it was written.
+	# See tools/doctest.gd and docs/CLAIMS.md.
+	if args.has("--doctest"):
+		preload("res://tools/doctest.gd").run(get_tree(), self)
 		return
 
 	# THE THIRD GATE, and the only one that presses a key. Holds W, flaps, honks,

@@ -109,9 +109,11 @@ difficulty.
   `process_priority = 100` so it writes last. They have a documented contract in
   `docs/JUICE_NOTES.md`. **Do not add a third.** A stranded write once left a run
   in permanent 0.106× slow motion with no way out.
-- **All assets are procedural.** 35 textures and 12 HUD icons from
-  `tools/gen_textures.py`, 40 SFX from `tools/gen_audio.py`, 22 music stems from
-  `tools/gen_music.py`. No imported art or audio anywhere in the project.
+- **All assets are procedural.** 39 textures (23 surfaces plus 16 substance
+  icons) from `tools/gen_textures.py`, 39 SFX and 7 zone ambience beds from
+  `tools/gen_audio.py`, 22 music stems from `tools/gen_music.py`. No imported
+  art or audio anywhere in the project. These counts are claims C-003 to C-007
+  in `docs/CLAIMS.md` and the build fails if they drift.
 - **Two interchangeable art styles.** `goose_visual.gd` (smooth primitives) and
   `goose_visual_lowpoly.gd` (faceted, ~570 triangles, no curved primitive
   anywhere) expose an identical public API and are chosen by the `goose_model`

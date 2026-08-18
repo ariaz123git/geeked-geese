@@ -18,7 +18,9 @@ what is currently built.
 | 1 | `docs/HANDOFF.md` | **current state** — what changed last session, what to do next, what is broken |
 | 2 | `docs/DECISIONS.md` | **decision status** — what is settled, what is open, what is the human's call |
 | 3 | `CLAUDE.md` | **stable rules** — how to work here, what the engine will do to you |
+| 3.5 | `docs/RECENT_FAILURES.md` | **what went wrong most recently, and what would retire it.** Five entries, capped. Shorter than everything above it and the most likely to save you an hour |
 | 4 | `docs/FEEL_TARGETS.md`, `docs/ARCHITECTURE.md`, the specs | why a number or a structure is what it is |
+| — | `docs/CLAIMS.md` | not read, *run*. Every number the docs state, recomputed from the project by `--doctest` |
 
 `CLAUDE.md` is deliberately *below* HANDOFF and DECISIONS in this order. It
 changes rarely, which is its value and also its risk: it went a whole session
@@ -38,8 +40,9 @@ stopped being the useful framing. **Rules age. State and decisions are dated.**
 
 ## Finishing
 
-Do all five. The first four are cheap; skipping them is how the next session
-loses a day.
+Do all seven. The first four are cheap; skipping them is how the next session
+loses a day. **Steps 6 and 7 are the two that make this repo get better rather
+than merely bigger, and they are the two a gate can check.**
 
 1. **Update the four ⟳ sections of `docs/HANDOFF.md`** — §1 where the project
    is, §2 what changed, §3 what to do next, §4 known issues and honest gaps.
@@ -56,6 +59,26 @@ loses a day.
    messages on `session2-feel` are the worked example.
 5. **Say plainly what you did not finish**, and put it in HANDOFF §3 or §4 with
    enough context to be picked up cold.
+6. **Every number you wrote into a document gets a row in `docs/CLAIMS.md`, or
+   gets deleted.** One row plus one `match` case in `tools/doctest.gd::_live()`.
+   A fact stated in prose and checked nowhere is the failure mode this project
+   has paid for ten times: three constraints (see above) and seven facts, found
+   on 2026-08-18 by the survey that produced the claims gate. If you cannot
+   compute the number from the booted project, do not write it down.
+7. **Write what went wrong into `docs/RECENT_FAILURES.md`, or retire one.** The
+   file holds **five** entries and no more. If it is full, the price of adding
+   yours is converting one of the existing five into an assertion, a hook, or a
+   deleted footgun — and naming that check in the same commit that removes the
+   entry. The cap is the mechanism, not housekeeping: it is the only reason a
+   lessons file ever gets *smaller*, and an ever-growing lessons file is
+   `CLAUDE.md` with extra steps. Every entry needs a `**Retires when:**` line
+   naming a specific artefact; if you cannot name one, what you have is not a
+   lesson and it belongs in HANDOFF §4 with its arithmetic.
+
+> **Both of those are enforced by `--doctest`**, step 6b of `verify.ps1`, so
+> "I forgot" fails the build rather than costing the next session a day. It also
+> holds `CLAUDE.md` to a line ceiling that ratchets **down only** (D-026): to add
+> a rule, take one out, or convert one into a check.
 
 ---
 

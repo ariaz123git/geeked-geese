@@ -7,7 +7,7 @@ Drop-in setup for vibecoding this game with an AI agent that has file access to
 |---|---|---|
 | **`VIBECODING_BRIEFING.md`** | **You. Read this first.** | The research: what goes wrong, what the data says, how to work. ~20 min. |
 | **`KICKOFF_PROMPT.md`** | **You** | Ordered setup steps, then the exact message to paste into the other chat. |
-| `CLAUDE.md` | The agent, automatically, every session | Project rules. Under 200 lines on purpose. |
+| `CLAUDE.md` | The agent, automatically, every session | Project rules. The line budget is enforced by `tools/doctest.gd`, which ratchets down and can never be raised; 200 is the target. |
 | `docs/GODOT_4.7_RULES.md` | The agent, on demand | Version-pinned API reference. The antidote to stale training data. |
 | `docs/ARCHITECTURE.md` | The agent, before structural changes | The decisions already made, and why. |
 | `verify.ps1` | The agent, after every edit | The verification loop. The most important file here. |

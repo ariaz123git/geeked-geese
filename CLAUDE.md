@@ -76,7 +76,15 @@ godot --headless --path . -- --probe --substancetest  # all 16 substances bite
 godot --headless --path . -- --probe --migtest     # the flight answers the stick
 godot --headless --path . -- --probe --rolltest    # the credit roll actually travels
 godot --headless --path . -- --probe --loop-test   # seven legs and the ending
+godot --headless --path . -- --doctest             # the DOCS still tell the truth
 ```
+
+**`--doctest` is the ninth gate and the only one pointed at this repo's own
+prose**: every number a doc states is recomputed from the booted project, and
+every window `feeltest.gd` enforces is checked against the argument
+`FEEL_TARGETS.md` makes for it. It found seven stale facts on the day it was
+written. **Any number you write into a document gets a row in `docs/CLAIMS.md`,
+or gets deleted.**
 
 `tools/selftest.gd` asserts the things two files can disagree about: the route,
 both clocks, the leg titles, every substance's data, the objective sets, the
@@ -115,20 +123,14 @@ omission is what cost this project four shipped bugs and a dead gate.
 
 ### Two gates that do not work — do not go back to them
 
-**`--headless --import | grep ERROR` was the documented gate for most of this
-project's life and it never compiled GDScript at all.** `--import` scans and
-imports *assets*. Verified 2026-08-04 by dropping a file containing
-`var x := some_dictionary.key` into `scripts/world/` and watching the gate print
-nothing. Every "verified clean on 4.7.1" claim made against that command was
-worthless, and at least four shipped bugs got through it.
-
-**`--check-only --script <file>`** parses in isolation, so every script that
-touches an autoload reports `Compile Error: Identifier not found: Subs` — a false
-failure on most of the project. It also passes typo'd method names.
-
-The gate has to run **inside the booted project**, because that is the only
-context where the autoloads are registered and identifier resolution is real.
-That is what `--gate` does.
+**Never use `--headless --import | grep ERROR`** (it imports *assets* and never
+compiles GDScript — it was the documented gate for most of this project's life
+and at least four shipped bugs walked through it) **or `--check-only --script`**
+(parses in isolation, so every file touching an autoload false-fails on
+`Identifier not found: Subs`, and typo'd method names pass). A gate has to run
+**inside the booted project**, which is what `--gate` does. The full argument,
+with the 2026-08-04 experiment that proved it, is at the top of `tools/gate.gd`
+— read it there rather than re-deriving it.
 
 Parsing `scripts/ui/briefing.gd` makes the engine print 26 × `ERROR: Parameter
 "method" is null.` — benign, attributed, and explained at the top of
@@ -280,15 +282,12 @@ lit from the wrong side on closed ones. This bug shipped once. Do not
 
 ## Architecture — as built
 
-> **This section describes the code that exists.** An earlier version of this
-> file specified a different architecture (a `Gg` class prefix, one autoload,
-> composed `GgSubstanceEffect` resources) and cited a `docs/ARCHITECTURE.md`
-> that was never written. The build diverged from that spec; the divergence is
-> now **decided** rather than open, and `docs/ARCHITECTURE.md` exists and
-> records each decision with its reason. Do not silently "fix" code toward the
-> old spec.
+> **This describes the code that exists, not a plan.** An earlier version of
+> this file specified a different architecture and the build diverged from it;
+> `docs/ARCHITECTURE.md` records each divergence with its reason. Do not
+> silently "fix" code toward the old spec.
 
-- **Ten autoloads**, in this order: `Prefs Tex Sfx Subs Game Flock Unlocks Juice
+- **10 autoloads, in this order**: `Prefs Tex Sfx Subs Game Flock Unlocks Juice
   Mission Music`. Order matters — several resolve each other in `_ready()`.
 - **Substances are `Resource` files** in `data/substances/`, loaded at boot by
   `Subs`. Adding one is a `.tres`, never a code change.
