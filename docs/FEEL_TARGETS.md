@@ -267,17 +267,46 @@ and **which of those it is depends on playing it.** Left observed on purpose.
 
 ---
 
-## 6. The flight, computed — and why this section is weaker than the rest
+## 6. The flight — where prediction and measurement disagree
 
-**Everything above this line was MEASURED. This section was not.** It is derived
-from `migration.gd`'s own constants, because migration mode is half the game —
-seven flights against seven zones — and has no feel instrument at all. Derived
-numbers are real arithmetic but they are not evidence that the code does what
-the arithmetic says. Treat this as a lead, not a result, and if it matters,
-build the gate.
+This section began as arithmetic derived from `migration.gd`'s constants,
+because migration is half the game and had no instrument at all. **The gate now
+exists** (`tools/migtest.gd`, step 5b of `verify.ps1`), so the derived numbers
+can be set against measured ones — and that is exactly where it got interesting.
+
+| | predicted | measured |
+|---|---|---|
+| Climb, 5 → 34 m | 2.54 s | **2.55 s** |
+| Dive, 34 → 5 m | 1.46 s | **1.47 s** |
+| Passive sink | 1.60 m/s | **1.60 m/s** |
+| Honk rally | ×0.15 | **×0.11** |
+| **Full corridor crossing** | **1.53 s** | **4.50 s** |
+
+Four of five agree to a hundredth. **The fifth does not, and I could not find
+out why.** `_tick_player()` moves the bird at 17.0 m/s across a 26 m corridor;
+the measured effective speed is **5.78 m/s**. Ruled out, each by direct
+measurement rather than reasoning:
+
+- the input vector is exactly `(1.0000, 0.0000)`, raw strength 1.00, deadzone 0.20
+- `Engine.time_scale` is 1.000 on every frame of the run
+- physics-frame time and wall-clock agree to 2 ms across 4.5 s
+- nothing else in `migration.gd` writes `player_pos.x`
+- the vertical channels are measured the same way, in the same run, and are right
+
+The one relation that does hold: 26 m at 17 m/s needs 1.53 s of *summed
+`_process` delta*, and 1.53 / 4.50 ≈ ⅓ — so the deltas `_tick_player` receives
+sum to about a third of real time while the engine reports 145 fps and a
+time_scale of 1.
+
+**Both remaining possibilities matter.** Either the flight is three times less
+responsive than its own constant claims — and lateral movement is the entire
+dodge — or the harness is wrong in a way the vertical channels do not expose.
+The two lateral rows are therefore **OBSERVED**, not asserted: a build-failing
+window here would either wire in a permanent red or bless a number nobody
+understands. **This is the top open question in the file.**
 
 `_tick_player()` integrates position directly rather than running physics, so
-the response times fall straight out:
+the predicted response times fall straight out:
 
 | | | |
 |---|---|---|

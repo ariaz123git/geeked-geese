@@ -983,7 +983,7 @@ func _probe_if_headless() -> void:
 	# takes 160 s are not the same job. `--failsafe:N` overrides both, and exists
 	# so the deadline itself can be tested without waiting four minutes for it.
 	var tool_flags := ["--gate", "--selftest", "--inputtest", "--rolltest", "--feeltest",
-		"--substancetest"]
+		"--substancetest", "--migtest"]
 	var is_tool := false
 	for f in tool_flags:
 		if args.has(f):
@@ -1046,6 +1046,15 @@ func _probe_if_headless() -> void:
 	# unplayable with every .tres correct. See tools/substancetest.gd.
 	if args.has("--substancetest"):
 		await preload("res://tools/substancetest.gd").run(get_tree(), self)
+		return
+
+	# THE EIGHTH GATE, and the first thing ever to measure the FLIGHT. Half this
+	# game is migrations -- seven of them -- and until this file the only thing
+	# any check knew about one was that the campaign loop reached COMPLETE. That
+	# proves the flight ends; it says nothing about whether the bird answers the
+	# stick while it is happening. See tools/migtest.gd.
+	if args.has("--migtest"):
+		await preload("res://tools/migtest.gd").run(get_tree(), self)
 		return
 
 	# THE CREDIT ROLL, MEASURED. Headless, because physics runs headless and the

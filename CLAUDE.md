@@ -42,15 +42,16 @@ project. Source and rationale: `tools/gate.gd`.
 input-lag bug that made *eleven of the sixteen substances unplayable* — the bird
 obeying four-second-old input — passed the compile gate, passed the whole
 headless campaign run, and would have passed any review that did not press a
-key. There are now six gates, and one script that runs all of them:
+key. There are now seven gates, and one script that runs all of them:
 
 ```
-.\verify.ps1                                       # all six. -Quick skips the slow two
+.\verify.ps1                                       # all seven. -Quick skips the slow three
 godot --headless --path . -- --gate                # it compiles
 godot --headless --path . -- --selftest            # it agrees with itself
 godot --headless --path . -- --probe --inputtest   # the bird obeys
 godot --headless --path . -- --probe --feeltest    # the bird obeys WELL
 godot --headless --path . -- --probe --substancetest  # all 16 substances bite
+godot --headless --path . -- --probe --migtest     # the flight answers the stick
 godot --headless --path . -- --probe --loop-test   # seven legs and the ending
 ```
 

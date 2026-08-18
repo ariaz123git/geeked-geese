@@ -2,7 +2,7 @@
 <#
   Geeked Geese verification loop.
 
-    .\verify.ps1              # gate, invariants, controller, feel, substances, credit roll, campaign
+    .\verify.ps1              # gate, invariants, controller, feel, substances, flight, credit roll, campaign
     .\verify.ps1 -Shots       # also render every zone and tell you where the PNGs are
     .\verify.ps1 -Quick       # skips the 20 s campaign run
 
@@ -196,6 +196,33 @@ if (-not $Quick) {
         Fail "substances" "no [subs] PASS line"
     } else {
         Pass "substances" ($subLines | Where-Object { $_ -match 'PASS' })
+    }
+}
+
+# ---------------------------------------------------------------------------
+# 5b. THE FLIGHT. Half this game is migrations - seven of them - and until this
+#     step the only thing any check knew about one was that the campaign loop
+#     reached COMPLETE. That proves the flight ENDS; it says nothing about
+#     whether the bird answers the stick while it is happening, which is the
+#     same gap that hid a four-second input lag for the life of the project.
+#
+#     Four asserted channels (climb, dive, dive-beats-climb, the honk rally) and
+#     two OBSERVED ones. The lateral rows are observed on purpose: the corridor
+#     crossing measures 5.78 m/s against a constant that says 17.0, and that is
+#     unexplained. tools/migtest.gd carries the full list of what was ruled out.
+# ---------------------------------------------------------------------------
+if (-not $Quick) {
+    Write-Host "`n=== flight ===" -ForegroundColor Cyan
+    $migOut = & $GODOT --headless --no-header --path $root -- --probe --migtest --failsafe:300 2>&1 | Out-String
+    $migCode = $LASTEXITCODE
+    $migLines = ($migOut -split "`r?`n") | Where-Object { $_ -match '^\[mig\]' }
+    $migLines | ForEach-Object { Write-Host $_ }
+    if ($migCode -ne 0) {
+        Fail "flight" "exit $migCode"
+    } elseif (-not ($migLines -match 'PASS')) {
+        Fail "flight" "no [mig] PASS line"
+    } else {
+        Pass "flight" ($migLines | Where-Object { $_ -match 'PASS' })
     }
 }
 

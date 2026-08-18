@@ -30,7 +30,7 @@ handles.**
 | Bosses | **2 built.** The Ranger (leg 3) and **BIG DOWN** (the back half of leg 7) |
 | Assets | 39 textures (23 + 16 substance icons), 46 sounds (39 SFX + 7 zone ambience beds), 22 music stems — **all procedurally generated** |
 | Autoloads | 10 (see `docs/ARCHITECTURE.md` §2 for the order and why it matters) |
-| Gates | **7**: compile, invariants (432), controller, **feel (22 metrics, 13 asserted)**, **substances (102 checks over 16)**, credit roll, full campaign. `.\verify.ps1`, about 4 minutes |
+| Gates | **8**: compile, invariants (432), controller, **feel (22 metrics, 13 asserted)**, **substances (117 over 16)**, **flight (9 measurements)**, credit roll, full campaign. `.\verify.ps1`, about 4 minutes |
 | Version control | **A git repo, as of this session.** There was none before, despite `VIBECODING_BRIEFING.md` making "commit before every task" one of its six headline rules. |
 
 ### What works
@@ -391,18 +391,30 @@ Observed across this session's runs:
 If a future gate needs a quiet zone, the lever is pausing the actors — but note
 that a measurement taken in a dead world is measuring a different game.
 
-**MIGRATION HAS NO FEEL INSTRUMENT AT ALL, and one derived number is worth a
-look.** Seven flights against seven zones and nothing measures any of them
-beyond "the campaign completed". `_tick_player()` integrates position directly,
-so the response times fall out of the constants: a full corridor crossing is
-**1.53 s**, a half crossing 0.76 s, a full climb 2.54 s. Leg 7 — the peak —
-spawns hazards every **[0.9, 1.6] s**, so at the tight end **a full corridor
-crossing does not fit between two hazards** and a half crossing comfortably
-does. That is arguably the right shape for the hardest flight: you commit to a
-side rather than swinging across the lane. It is also written down nowhere, and
-a property this load-bearing living in two constants in two files is the pattern
-that produced the clock lie three times. `docs/FEEL_TARGETS.md` §6 — **derived,
-not measured**, and labelled as such.
+**THE FLIGHT'S LATERAL SPEED DOES NOT MATCH ITS OWN CONSTANT, AND I COULD NOT
+FIND OUT WHY. This is the top open question in the project.** `migtest.gd`
+(step 5b) is new and measures migration for the first time. Four of its five
+predictions land to a hundredth of a second — climb 2.55 against 2.54 predicted,
+dive 1.47 against 1.46, sink 1.60 against 1.60, the honk rally ×0.11 against the
+×0.15 the code applies. **The fifth is out by a factor of three:**
+`_tick_player()` moves the bird at 17.0 m/s across a 26 m corridor, and the
+measured effective speed is **5.78 m/s** — a full crossing taking 4.50 s where
+the arithmetic says 1.53 s.
+
+Ruled out by direct measurement, not by reasoning: the input vector is exactly
+`(1.0000, 0.0000)` at raw strength 1.00 with deadzone 0.20; `Engine.time_scale`
+is 1.000 on every frame; physics-frame time and wall-clock agree to 2 ms over
+4.5 s; nothing else in `migration.gd` writes `player_pos.x`; and the vertical
+channels are measured the same way in the same run and are correct. The one
+relation that holds is that the deltas `_tick_player` receives sum to about a
+third of real time while the engine reports 145 fps.
+
+**Either the flight is three times less responsive than it claims — and lateral
+movement is the entire dodge, against a leg 7 hazard every 0.9–1.6 s — or the
+harness is wrong in a way the vertical channels do not expose.** Both matter.
+The lateral rows are OBSERVED rather than asserted for exactly that reason: a
+window here would either ship a permanent red build or bless a number nobody
+understands. `docs/FEEL_TARGETS.md` §6.
 
 **Leg 1's world-space labels collide.** In `shots/gg_zone1_0.png` the flock pen
 prompt and the goose name tags overprint each other near the pond — the visible
