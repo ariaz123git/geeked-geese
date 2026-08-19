@@ -91,6 +91,12 @@ var _flap_anim := 0.0
 ## this turns from four frames into four seconds.
 const SHARE_COOLDOWN := 1.0
 var _share_cd := 0.0
+
+## How often the FULL refusal is allowed to say so. Long enough that
+## holding the key does not become a stream of floating text, short enough
+## that a second attempt gets an answer.
+const FULL_MSG_COOLDOWN := 1.2
+var _full_cd := 0.0
 var _tumble_t := 0.0
 var _water_bodies := 0
 var _drift := Vector2.ZERO
@@ -336,6 +342,7 @@ func _physics_process(delta: float) -> void:
 	var m: Dictionary = Subs.mods
 	_flap_cd = maxf(0.0, _flap_cd - delta)
 	_share_cd = maxf(0.0, _share_cd - delta)
+	_full_cd = maxf(0.0, _full_cd - delta)
 	_tick_size(delta, m)
 
 	if state == State.TUMBLE:
@@ -719,6 +726,22 @@ func _tick_eat(delta: float) -> void:
 
 	var res: Substance = _eating.substance
 	if res == null:
+		return
+
+	# FULL. Bread removes the game's main verb for twenty seconds, and the
+	# player has to be TOLD that rather than left mashing a key that does
+	# nothing. `Subs.take()` refuses it as well — that is the rule — but a
+	# refusal the player cannot see reads as a broken control.
+	if bool(Subs.mods.get("blocks_dosing", false)) and not Subs.is_active(res.id):
+		if _eat_charge > 0.0:
+			_abort_charge()
+			_eat_charge = 0.0
+		if Input.is_action_just_pressed("gg_eat") and _full_cd <= 0.0:
+			_full_cd = FULL_MSG_COOLDOWN
+			Juice.floating_text(global_position + Vector3.UP * 1.2, "FULL",
+				Color(0.92, 0.86, 0.60))
+			if _sfx:
+				_sfx.play(&"dose_commit_bad", -8.0)
 		return
 
 	if Input.is_action_pressed("gg_eat"):

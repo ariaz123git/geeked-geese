@@ -255,11 +255,12 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 	var want_scale: bool = float(r.scale_amp) > 0.05
 	var want_idle: bool = bool(r.cannot_idle)
 	var want_cats: bool = bool(r.aggro_cats)
+	var want_blocks: bool = bool(r.blocks_dosing)
 	var needs_climb: bool = not is_equal_approx(want_flap, 1.0) or not is_equal_approx(want_grav, 1.0)
 
 	var observable := (float(r.drift) > 0.001 or not is_equal_approx(want_turn, 1.0) or needs_climb
 		or not is_equal_approx(want_tscale, 1.0) or want_scale or want_idle
-		or float(r.input_lag) > 0.001 or bool(r.grid_snap) or want_cats)
+		or float(r.input_lag) > 0.001 or bool(r.grid_snap) or want_cats or want_blocks)
 
 	# 1. THE DESIGN RULE ITSELF.
 	if EXEMPT.has(id):
@@ -384,9 +385,80 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 
 	if want_cats:
 		await _the_cats(tree, subs, res)
+	if want_blocks:
+		await _the_bread(tree, subs, res)
 
 	await _sober_up(tree, goose, subs)
 
+
+## THE ONE MUTATION THAT REMOVES THE GAME'S MAIN VERB.
+##
+## Bread sets `blocks_dosing`, and while it is up nothing else can be eaten.
+## No measurement of the BIRD can see that — bread changes no multiplier, adds
+## no drift and moves nothing — so the fingerprint above would read it as
+## sober and the design rule would call it "only a number that goes up".
+##
+## It is emphatically not that. `docs/CAMPAIGN_SPEC.md` §2.1 calls it "the
+## perfect first-90-seconds lesson": the obvious food is the trap. Removing a
+## verb is a stronger control mutation than scaling one, and the right answer
+## is to measure the thing it actually changes — the DOSE API — rather than to
+## put bread in EXEMPT. D-010 emptied that list for exactly this reason: an
+## allowlist is where a real failure gets reclassified as an expected one.
+static func _the_bread(tree: SceneTree, subs: Node, res: Substance) -> void:
+	# A clean slate, so "refused" cannot be a MAX_STACK blackout in disguise.
+	subs.call("reset_for_new_leg")
+	for _i in 6:
+		await tree.physics_frame
+
+	# Something else to try. Any substance that is not this one.
+	var other: Substance = null
+	for k in subs.library.keys():
+		if StringName(k) != res.id:
+			other = subs.library[k]
+			break
+	_ok(other != null,
+		"%s blocks dosing and the shelf holds nothing else to try, so the block cannot be measured." % res.id)
+	if other == null:
+		return
+
+	# BEFORE: the other substance goes down fine.
+	var before_ok: bool = bool(subs.take(other, DOSE))
+	_ok(before_ok,
+		("%s could not be taken on a clear stack, so the %s test below would pass for the "
+		+ "wrong reason.") % [other.id, res.id])
+	subs.call("reset_for_new_leg")
+	for _i in 6:
+		await tree.physics_frame
+
+	# DOSE THE BREAD.
+	_ok(bool(subs.take(res, DOSE)), "%s could not be taken at all." % res.id)
+	for _i in 4:
+		await tree.physics_frame
+	_ok(bool(subs.mods.get("blocks_dosing", false)),
+		("%s declares blocks_dosing and Subs.mods does not carry it after the dose. The field "
+		+ "is set in the .tres and never reaches the aggregator — the stamina_restore shape.")
+			% res.id)
+
+	# THE ACTUAL CLAIM: nothing else goes down while you are full.
+	var blocked: bool = not bool(subs.take(other, DOSE))
+	_ok(blocked,
+		("with %s active, %s was still accepted. \"You are full\" is the whole of what this "
+		+ "substance does, and CAMPAIGN_SPEC §2.1 builds the tutorial on it.") % [res.id, other.id])
+
+	# AND IT MAY TOP ITSELF UP, or a second slice is silently thrown away.
+	_ok(bool(subs.take(res, DOSE)),
+		"%s refused its own top-up, so a second slice is eaten for nothing." % res.id)
+
+	# AND IT WEARS OFF. A block that never lifts is a soft-lock, not a lesson.
+	subs.call("reset_for_new_leg")
+	for _i in 6:
+		await tree.physics_frame
+	_ok(not bool(subs.mods.get("blocks_dosing", false)),
+		"%s left blocks_dosing set after the actives were cleared, which is a soft-lock." % res.id)
+	_ok(bool(subs.take(other, DOSE)),
+		"%s could not be taken after %s cleared. The block does not lift." % [other.id, res.id])
+	subs.call("reset_for_new_leg")
+	print("[subs] %-14s blocks dosing: %s refused while full, accepted after" % [res.id, other.id])
 
 ## THE ONE MUTATION THAT IS NOT ABOUT THE GOOSE.
 ##

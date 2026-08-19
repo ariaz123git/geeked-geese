@@ -77,6 +77,13 @@ The marker is the literal string the prose writes **immediately after** the
 number, so `| Code | 69 GDScript files |` is matched by `" GDScript files"` and
 the row does not care where in the table it sits.
 
+> **A marker must not contain a number that is itself a claim.** C-018 was
+> written as `" textures and 16"` to disambiguate it from another row, and the
+> moment the icon count went to 17 the marker stopped matching and the row
+> failed as "the prose moved" rather than as "the number changed". A marker is
+> an anchor, not an assertion; if two rows need the same words, make one of
+> them longer in the WORDS.
+
 ---
 
 ```claims
@@ -98,7 +105,7 @@ C-014  | 2026-08-18 | png_textures     | " textures ("         | docs/ARCHITECTU
 C-015  | 2026-08-18 | png_textures     | " textures and"       | README.md
 C-016  | 2026-08-18 | wav_files        | " .wav files."        | README.md
 C-017  | 2026-08-18 | sfx_clips        | " SFX and "           | CLAUDE.md, docs/ARCHITECTURE.md, README.md
-C-018  | 2026-08-18 | surface_textures | " textures and 16"    | CLAUDE.md
+C-018  | 2026-08-18 | surface_textures | " textures and "      | CLAUDE.md
 C-019  | 2026-08-18 | music_stems      | " music stems from"   | README.md
 C-020  | 2026-08-18 | verify_steps     | " gates, and one script" | CLAUDE.md
 ```
@@ -113,7 +120,7 @@ That is deliberate rather than circular: the number has to be written down
 another document gets its home here. The gate reads these sentences exactly as
 it reads `README.md`'s.
 
-- The shelf holds **16 substances in the shelf**, loaded from `data/substances/`
+- The shelf holds **17 substances in the shelf**, loaded from `data/substances/`
   at boot by `Subs`. Adding one is a `.tres`, never a code change.
 - The campaign is **7 flown legs**, plus the arrival on the 18th green, which is
   not a leg — no clock, no objectives, no flight out of it.

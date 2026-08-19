@@ -552,6 +552,28 @@ def _icon_canvas(size=128):
     return Image.new("RGBA", (size, size), (0, 0, 0, 0))
 
 
+def icon_bread(size=128):
+    """A slice of white bread. The obvious food, and the trap.
+
+    Deliberately the plainest icon on the shelf: every other one is a bright
+    single-hue shape, and bread is beige. The HUD reads it as "nothing is
+    happening", which is exactly what bread does to you.
+    """
+    img = _icon_canvas(size)
+    d = ImageDraw.Draw(img)
+    crust = (176, 132, 74, 255)
+    crumb = (240, 224, 186, 255)
+    # Body of the slice: a rounded square with the crust outline.
+    d.rounded_rectangle([26, 46, 102, 112], radius=10, fill=crumb, outline=crust, width=6)
+    # The dome on top, which is what makes it read as bread and not a card.
+    d.pieslice([26, 16, 102, 78], start=180, end=360, fill=crumb, outline=crust, width=6)
+    # Re-draw the seam so the dome and the body read as one slice.
+    d.line([(32, 47), (96, 47)], fill=crumb, width=7)
+    # A couple of crumb holes.
+    for cx, cy, r in [(52, 74, 5), (76, 88, 4), (60, 96, 3)]:
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(216, 196, 156, 255))
+    return img
+
 def icon_berries(size=128):
     img = _icon_canvas(size)
     d = ImageDraw.Draw(img)
@@ -773,6 +795,7 @@ ICON_GENERATORS = {
     "icon_bars": icon_bars,
     "icon_gravy": icon_gravy,
     "icon_percs": icon_percs,
+    "icon_bread": icon_bread,
     "icon_berries": icon_berries,
     "icon_double_double": icon_double_double,
     "icon_nitrous": icon_nitrous,

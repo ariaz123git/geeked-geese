@@ -110,7 +110,7 @@ const POND_CLEAR := 13.0
 ## `_tick_eat`, which is a substance-shelf change that ripples through every
 ## gate that counts sixteen. Logged in `docs/DECISIONS.md` D-020, not smuggled
 ## in here.
-const TUTORIAL_SHELF: Array[StringName] = [&"berries", &"double_double", &"grass"]
+const TUTORIAL_SHELF: Array[StringName] = [&"berries", &"double_double", &"grass", &"bread"]
 
 ## The leg the lid comes off at. Every leg from here up gets the whole shelf;
 ## only leg 1 is narrowed. A named constant rather than a bare `> 1` so
@@ -653,6 +653,21 @@ func _sources() -> void:
 	# alone, so the verge height minus the lift is where the trigger goes.
 	_source(Vector3(-24, VERGE_Y - PICKUP_LIFT, -33.5),
 		Subs.get_substance(&"toad_slime"), 0.38)
+
+	# BREAD. THE OBVIOUS FOOD, AND THE TRAP.
+	#
+	# CAMPAIGN_SPEC §2.1 asks for this here and calls it "the perfect
+	# first-90-seconds lesson": the thing everybody knows you feed a goose is
+	# the one thing that takes the game away from you. Twenty seconds of FULL,
+	# chaos at half, and nothing else goes down.
+	#
+	# On the verge by the water, where the people who bring it stand — r = 14.1
+	# from POND_CENTRE, clear of POND_CLEAR and of the cattail ring — with the
+	# sign nobody reads right beside it. The sign is a lawn_sign model and NOT a
+	# chaos prop: it is scenery, and wrecking the notice would be a different
+	# joke from ignoring it.
+	_source(Vector3(-34.0, VERGE_Y - PICKUP_LIFT, -12.0), Subs.get_substance(&"bread"), 0.5)
+	_model_at(&"lawn_sign", Vector3(-32.2, VERGE_Y, -12.7), 0.42)
 
 	# A leaking car battery in the corner of the lot.
 	_source(Vector3(36, 0.5, 26.0), Subs.get_substance(&"acid"), 0.44)

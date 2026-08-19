@@ -69,6 +69,24 @@ IDs increment. Newest on top.
 
 ---
 
+## D-037 · 2026-08-18 · Bread is built, and it is a substance rather than a special case
+Status: Decided (agent — the numbers are pacing and revertible; the mechanism is not)
+Decision: `data/substances/bread.tres`, a seventeenth substance. `duration 20`, `chaos_mult 0.5`, every motion multiplier neutral, and one new export: **`blocks_dosing`**. While it is up, `Subs.take()` refuses everything else, the dose arc will not charge, and the HUD says FULL. It is on leg 1's `TUTORIAL_SHELF`, on the verge by the water, with a lawn sign beside it that is scenery rather than a chaos prop — wrecking the notice is a different joke from ignoring it.
+Why: `docs/CAMPAIGN_SPEC.md` §2.1 has asked for it since the campaign was specced and calls it *"the perfect first-90-seconds lesson"*: **the obvious food is the trap**, delivered before the player has read a word. D-020 recorded it as deliberately unbuilt because it is a shelf-wide change; this is that change, done.
+
+**It is a substance and not a timer, which is the whole reason it was cheap.** The first instinct is a `_full_until` clock on the controller. But "for twenty seconds you cannot dose, and your chaos is halved" is *exactly* what a Substance already is — `duration`, `chaos_mult`, and a mod the aggregator ORs across actives. So bread needed one export, one line in `resolve()`, one in `_empty_mods()`, one in `_aggregate()` and one refusal in `take()`. Everything else — the HUD strip, the timer, the tolerance, the Almanac entry, the unlock — it inherits for free.
+
+**The refusal lives in `Subs.take()`, not only in the controller.** That is the API every path uses: the flock pen, the blanket share and every harness reach it directly, and a rule enforced only at the keyboard is not a rule. The controller *additionally* refuses to charge and says FULL, because a refusal the player cannot see reads as a broken control. `is_active(res.id)` lets bread top ITSELF up, so a second slice extends the fullness rather than being silently eaten for nothing.
+
+**It is measured, not assumed.** `substancetest::_the_bread()` doses bread and asserts that another substance is refused, that `Subs.mods` actually carries the flag, that bread can top itself up, and that the block LIFTS when the actives clear — a block that never lifts is a soft-lock, not a lesson. Bread is NOT in `EXEMPT`; D-010 emptied that list because "an allowlist is where a real failure gets reclassified as an expected one", so `blocks_dosing` was added to the observable set and given its own channel, exactly as catnip is measured on the cats. Watched failing: with the refusal in `take()` disabled, *"with bread active, acid was still accepted."*
+
+**What the numbers are.** `duration 20.0` and `chaos_mult 0.5` are §2.1's. `charge_time 0.5` and a sweet band of 0.05–1.0 are mine: **you cannot fail at eating bread**, which is the joke — the trap is not a skill test, it is the absence of one. `stamina_restore` is **0.0**, also mine: bread is real food and a refund would be defensible, but §2.1 does not ask for one and a trap with a consolation prize is a weaker lesson. All three are one-line reverts.
+
+**The codex fact is a public-health notice rather than a fun fact**, and that is deliberate: bread genuinely causes angel wing in goslings, and the Almanac's whole claim is that every fact in it is true.
+
+**What it cost, which is the argument D-020 made for deferring it:** the shelf went 16 → 17, and the claims gate immediately failed **five** rows across four documents from one new icon. That is the gate paying for itself on the first change big enough to test it.
+Refs: `data/substances/bread.tres`; `scripts/core/substance_manager.gd::take`; `scripts/goose/goose_controller.gd::_tick_eat`; `tools/substancetest.gd::_the_bread`; `scripts/world/zone_strip_mall.gd`; supersedes the deferral in **D-020**.
+
 ## D-036 · 2026-08-18 · Eleven of fifteen props are declared the wrong size, and that is the human’s to fix
 Status: **Open (human)**
 Decision: **Unresolved, and deliberately not decided by an agent.** `tools/geomtest.gd` measured every prop the zones build against the footprint its builder declares. **Eleven of fifteen kinds are out by more than 6% on a horizontal axis.** The gate asserts that the MESHES do not drift and REPORTS the disagreement; it does not correct it.
@@ -199,7 +217,7 @@ Why: Two of the three tutorial substances add lag — berries 0.22 s and grass 0
 Refs: `tools/selftest.gd::_the_shelf`; `data/substances/*.tres`.
 
 ## D-020 · 2026-08-18 · Bread is specced for leg 1 and deliberately not built
-Status: Open
+Status: **Decided — BUILT, later the same day (see D-037)**
 Decision: `CAMPAIGN_SPEC.md` §2.1 asks for bread as leg 1's fourth item — *"the obvious food is the trap"*, control mutation **you are full**, no dosing for 20 s, chaos ×0.5. Not built alongside the shelf split (D-022), and recorded rather than silently dropped.
 Why: It is not just a `.tres`. It needs a generated icon (`selftest` fails a substance with no icon), an Almanac entry, a new control mutation in `_tick_eat`, and it changes the number **sixteen** that four gates count — `substancetest` doses all sixteen, `selftest` counts the shelf, `doctest` claims it, and the shelf census expects 16 on leg 2. That is a shelf-wide change and it does not belong inside a one-`if` leg branch. The design argument for it is strong and unaltered: it is the thesis of the whole game, delivered before the player has read a word.
 Refs: `docs/CAMPAIGN_SPEC.md` §2.1; `scripts/world/zone_strip_mall.gd` header.

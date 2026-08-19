@@ -88,6 +88,17 @@ func take(res: Substance, dose: float) -> bool:
 	if blacked_out or res == null:
 		return false
 
+	# YOU ARE FULL. Bread sets `blocks_dosing` for its whole duration, and
+	# while it is up nothing else goes down. The refusal lives HERE rather
+	# than only in the controller because this is the API every path uses —
+	# the flock pen, the blanket share and every harness reach `take()`
+	# directly, and a rule enforced only at the keyboard is not a rule.
+	#
+	# `is_active(res.id)` lets bread top ITSELF up, so a second slice extends
+	# the fullness instead of being silently eaten for nothing.
+	if bool(mods.get("blocks_dosing", false)) and not is_active(res.id):
+		return false
+
 	# Already on it? A second dose of the same thing is a TOP-UP, not a no-op.
 	#
 	# This used to be `a.t = maxf(a.t, a.resolved.duration * 0.8); return true`,
@@ -229,6 +240,7 @@ func _empty_mods() -> Dictionary:
 		"camera_detach": 0.0, "grid_snap": false, "hud_amnesia": false,
 		"hallucinate": 0.0, "no_fall_damage": false,
 		"scale_amp": 0.0, "scale_period": 7.0, "aggro_cats": false,
+		"blocks_dosing": false,
 	}
 
 
@@ -261,6 +273,7 @@ func _aggregate() -> Dictionary:
 		m.camera_detach = maxf(m.camera_detach, r.camera_detach)
 		m.hallucinate = maxf(m.hallucinate, r.hallucinate)
 		m.aggro_cats = m.aggro_cats or r.aggro_cats
+		m.blocks_dosing = m.blocks_dosing or r.blocks_dosing
 		if r.scale_amp > m.scale_amp:
 			m.scale_amp = r.scale_amp
 			m.scale_period = r.scale_period

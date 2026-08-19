@@ -300,7 +300,7 @@ lit from the wrong side on closed ones. This bug shipped once. Do not
 - **The goose has two interchangeable visuals** (`goose_visual.gd` smooth,
   `goose_visual_lowpoly.gd` faceted) with an identical public API, chosen by the
   `goose_model` pref. Cats and humans follow the same switch.
-- **All assets are procedural.** 23 textures and 16 substance icons from
+- **All assets are procedural.** 23 textures and 17 substance icons from
   `tools/gen_textures.py`; 39 SFX and 7 zone ambience beds from
   `tools/gen_audio.py`; 22 music stems from `tools/gen_music.py`. No imported art
   or audio anywhere. `tools/selftest.gd` fails the build if a substance has no

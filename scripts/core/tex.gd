@@ -29,6 +29,7 @@ var _warned_missing: Dictionary = {}
 # data/substances/ and that every file it names exists on disk.
 const SUBSTANCE_ICONS: Dictionary = {
 	&"acid": "icon_acid",
+	&"bread": "icon_bread",
 	&"bars": "icon_bars",
 	&"gravy": "icon_gravy",
 	&"percs": "icon_percs",

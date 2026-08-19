@@ -251,8 +251,17 @@ func _process(delta: float) -> void:
 
 	var names := Subs.active_names()
 	lbl_actives.text = " + ".join(names) if not names.is_empty() else ("COMEDOWN" if Subs.in_comedown() else "")
+	# FULL, and it goes AFTER the names rather than instead of them. Bread is
+	# a substance like any other and shows in the strip; what the player needs
+	# told is the CONSEQUENCE, which is that the eat key has stopped working.
+	# CAMPAIGN_SPEC §2.1 asks for this in as many words: "the dose arc refuses
+	# to charge and the HUD says FULL".
+	var full := bool(Subs.mods.get("blocks_dosing", false))
+	if full:
+		lbl_actives.text = ("%s  —  FULL" % lbl_actives.text) if lbl_actives.text != "" else "FULL"
 	lbl_actives.add_theme_color_override("font_color",
-		Color(0.75, 0.55, 0.95) if Subs.in_comedown() and names.is_empty() else Color(0.92, 0.94, 0.98))
+		Color(0.94, 0.86, 0.55) if full else (
+			Color(0.75, 0.55, 0.95) if Subs.in_comedown() and names.is_empty() else Color(0.92, 0.94, 0.98)))
 
 	var m: Dictionary = Subs.mods
 

@@ -44,7 +44,7 @@ const CONTROL_KEYS := [
 	"input_lag", "drift", "flap_mult", "gravity_mult", "turn_mult",
 	"ragdoll_landings", "cannot_idle", "time_scale", "smash_through",
 	"camera_detach", "grid_snap", "hud_amnesia", "hallucinate",
-	"no_fall_damage", "scale_amp", "aggro_cats",
+	"no_fall_damage", "scale_amp", "aggro_cats", "blocks_dosing",
 ]
 
 ## Zone ids for each ROUTE leg, in order. Collected once by _the_objectives()
@@ -1025,9 +1025,9 @@ static func _the_shelf(main: Node) -> void:
 
 	_ok(from_leg == 2,
 		"zone_strip_mall.FULL_SHELF_FROM_LEG is %d. Leg 1 is the only narrowed leg in the campaign; anything but 2 either widens leg 1 or narrows leg 2." % from_leg)
-	_ok(tutorial.size() == 3,
-		"CAMPAIGN_SPEC §2.1 gives leg 1 THREE substances; TUTORIAL_SHELF declares %d." % tutorial.size())
-	for want in [&"berries", &"double_double", &"grass"]:
+	_ok(tutorial.size() == 4,
+		"CAMPAIGN_SPEC §2.1 gives leg 1 three substances PLUS bread; TUTORIAL_SHELF declares %d." % tutorial.size())
+	for want in [&"berries", &"double_double", &"grass", &"bread"]:
 		_ok(tutorial.has(want),
 			"TUTORIAL_SHELF is missing %s, which CAMPAIGN_SPEC §2.1 names by hand." % want)
 	for tut_id in tutorial:

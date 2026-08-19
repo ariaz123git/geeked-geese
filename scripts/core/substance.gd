@@ -65,6 +65,14 @@ class_name Substance
 @export var hallucinate: float = 0.0
 ## You stop taking fall damage and can't tumble. Opioids.
 @export var no_fall_damage: bool = false
+## YOU ARE FULL. While this is active nothing else can be eaten — the dose
+## arc refuses to charge and the HUD says FULL. Bread, and only bread.
+##
+## `docs/CAMPAIGN_SPEC.md` §2.1 asks for exactly this and calls it "the
+## perfect first-90-seconds lesson": the obvious food is the trap. It is a
+## real control mutation because it removes the game's main verb, which is
+## a stronger claim on the design rule than any multiplier makes.
+@export var blocks_dosing: bool = false
 ## MACROPSIA / MICROPSIA. Amanita muscaria's actual signature effect: things
 ## look far bigger or smaller than they are, and it PULSES. We execute it by
 ## scaling the goose, which is physically honest — a tiny goose really can get
@@ -164,6 +172,7 @@ func resolve(dose: float, tolerance: int) -> Dictionary:
 		"scale_amp": scale_amp * good,
 		"scale_period": scale_period,
 		"aggro_cats": aggro_cats,
+		"blocks_dosing": blocks_dosing,
 		"fx_mode": fx_mode,
 		"fx_strength": fx_strength * bad,
 		"honk_pitch": honk_pitch,
