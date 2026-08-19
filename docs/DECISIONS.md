@@ -69,6 +69,18 @@ IDs increment. Newest on top.
 
 ---
 
+## D-041 · 2026-08-18 · Every placement group draws from its own seeded stream
+Status: Decided (agent) — **retires F-002**
+Decision: `zone_strip_mall.gd` and `zone_suburbia.gd` gain `_rng(tag)`, which returns a `RandomNumberGenerator` seeded by `hash("<zone>|<leg>|<tag>")`. Every build-time placement group — cats, people, props, cattails, parking, trees, garbage — draws from its own stream. `glidetest.gd::_the_layout_is_seeded()` builds **every zone twice with 137 global `randf()` calls burned in between** and requires every actor to land in the same place.
+Why: F-002. Every builder drew from the one global RNG `main._ready()` seeds with `randomize()`, so where a cat stood was a function of **how many `randf()` calls happened before it**. Narrowing leg 1's shelf removed thirteen pickup constructions, moved every cat, camped one on the measuring pad, and turned four consecutive sober fingerprints red on a controller that was perfect. Adding a pickup can no longer move a cat, because the cats' stream does not know pickups exist.
+
+**Only two zones needed it, which is why this was small.** The other four place their actors from fixed `spots[]` arrays and were already deterministic; the strip mall and suburbia were the only two that randomised, and the strip mall is the one every controller harness measures in. The check covers all six regardless — **50 actors across 6 zones** — so a future zone that starts randomising is caught the day it does.
+
+**Burning the draws is the whole test.** A check that built the zone twice back to back would pass on the broken code too, because nothing would have consumed the stream in between. 137 is arbitrary and deliberately not round; what matters is that it is exactly what adding a pickup does. Watched failing by putting the cats back on the global stream: *"7 of 16 actors moved (worst 43.78 m)"*.
+
+**Runtime randomness is untouched, on purpose.** The `randf()` calls in the other zones are sfx pitch jitter, bark cooldowns and wander targets — those SHOULD vary, and reseeding the global generator at build time (the one-line alternative) would have made them deterministic too. Per-group streams change only what is built.
+Refs: `scripts/world/zone_strip_mall.gd::_rng`; `scripts/world/zone_suburbia.gd::_rng`; `tools/glidetest.gd::_the_layout_is_seeded`; retires `docs/RECENT_FAILURES.md` F-002.
+
 ## D-040 · 2026-08-18 · The results card's short-landing clock is THIS leg's
 Status: Decided (agent — a bug fix, not a balance change)
 Decision: `evaluate_leg()` returns `short_zone_base` beside `next_zone_base`, derived from `leg_seconds(leg)` rather than `leg_seconds(leg + 1)`, and `results_screen.gd::_short_clock()` reads it. `selftest.gd::_the_result_clocks()` drives all seven legs and asserts both.

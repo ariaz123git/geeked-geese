@@ -1202,15 +1202,33 @@ func _sources(houses: Array) -> void:
 
 # ------------------------------------------------------------------ population
 
+## A deterministic stream for one group of placements. Same mechanism and same
+## reason as `zone_strip_mall.gd::_rng()`, which carries the long version of
+## the argument: every builder used to draw from the one global RNG, so where
+## an actor stood was a function of how many `randf()` calls happened first,
+## and editing any builder moved every actor after it. `docs/RECENT_FAILURES.md`
+## F-002.
+##
+## Suburbia and the strip mall are the only two zones that place actors
+## randomly at all — the other four use fixed `spots[]` arrays — so between
+## them this closes it. `tools/glidetest.gd::_the_layout_is_seeded()` builds
+## every zone twice with global draws burned in between and requires every
+## actor to land in the same place.
+func _rng(tag: String) -> RandomNumberGenerator:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash("suburbia|%d|%s" % [Flock.leg, tag])
+	return r
+
 func _people() -> void:
 	var shirts := [Color(0.78, 0.24, 0.22), Color(0.22, 0.34, 0.62), Color(0.90, 0.86, 0.42),
 		Color(0.28, 0.52, 0.34), Color(0.56, 0.30, 0.62), Color(0.92, 0.92, 0.92)]
+	var folks := _rng("people")
 	for i in 8:
 		var n := NpcHuman.new()
 		add_child(n)
 		n.setup(shirts[i % shirts.size()])
-		var a := randf_range(0, TAU)
-		var r := randf_range(6.0, _bulb_r + 8.0)
+		var a := folks.randf_range(0, TAU)
+		var r := folks.randf_range(6.0, _bulb_r + 8.0)
 		n.global_position = Vector3(sin(a) * r, 0.1, cos(a) * r)
 
 
@@ -1219,12 +1237,13 @@ func _cats() -> void:
 	## ignore you entirely, which is both accurate and funnier.
 	var furs := [Color(0.24, 0.22, 0.21), Color(0.78, 0.62, 0.36), Color(0.92, 0.92, 0.90),
 		Color(0.46, 0.42, 0.40), Color(0.62, 0.44, 0.24), Color(0.30, 0.30, 0.32)]
+	var moggies := _rng("cats")
 	for i in 6:
 		var c := Cat.new()
 		add_child(c)
 		c.setup(furs[i % furs.size()])
-		var a := randf_range(0, TAU)
-		var r := randf_range(6.0, _bulb_r + 10.0)
+		var a := moggies.randf_range(0, TAU)
+		var r := moggies.randf_range(6.0, _bulb_r + 10.0)
 		c.global_position = Vector3(sin(a) * r, 0.2, cos(a) * r)
 
 

@@ -78,32 +78,6 @@ AudioServer's playbacks, torn down after the leak report. Until that is closed,
 gating on `ERROR: N resources still in use` would make the build permanently red
 for a known-open condition, which is how a check gets deleted.
 
-### F-002 · 2026-08-18 · Editing a zone builder re-rolls the world and can break any harness measuring in it
-**Symptom:** `--substancetest` went red with `offaxis 1.099` between two sober
-runs while `turnrate` and `climb` agreed to `0.000` in the same pair. Nothing
-about the substances or the controller had changed.
-**Diagnosis:** a cat. Leg 1 builds seven that wander at 2.6 m/s and none stop for
-a measurement, and `offaxis` — the angle between where the stick points and where
-the bird actually goes — is the channel a shove shows up in. It started *now*
-because narrowing leg 1's shelf removed thirteen `SubstancePickup` constructions
-from the zone build, **every one of which consumed `randf()`**. `main._ready()`
-calls `randomize()`, so the cats' spawn positions come off the same stream: a
-change with nothing to do with cats moved every cat. Any edit to any zone builder
-can do this to any harness that measures in that zone, and the failure will look
-like a regression in whatever the harness measures.
-**Mostly retired, 2026-08-18 (D-027):** `probe_common.gd::hold_actors()` freezes
-every `cat` and `npc` for the duration of a controller measurement, so the
-ACTOR half of this cannot bite a harness any more — sober noise went from four
-consecutive disturbed runs to **0.000 on every channel with zero retakes**, and
-`catnip` still sees 7 of 7 cats in frenzy because `_the_cats()` runs outside
-the hold.
-**Retires when:** the STATIC half is closed too. `hold_actors()` cannot freeze a
-shopping cart that was re-rolled into the measuring pad, and no probe checks for
-one. The fix is the original: the zone builders take a seed, so a build's layout
-is a function of that seed rather than of how many `randf()` calls happened to
-precede it — at which point `find_dry_ground()` can also reject a pad with a
-rigid body on it and know the answer will not change under it.
-
 ### F-003 · 2026-08-18 · `add_child()` during `main._ready()` fails silently and hands back an empty node
 **Symptom:** the first version of the leg-1 shelf check built the strip mall at
 leg 1 and leg 2 and counted **zero** pickups in both, and reported a correct

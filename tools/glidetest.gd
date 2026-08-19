@@ -195,6 +195,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 		await _one_zone(tree, main, leg, path, str(route[i].get("name", "?")), hard_drop)
 	Flock.leg = was_leg
 
+	await _the_layout_is_seeded_wrapper(tree, main)
 	_totals(hard_drop)
 	tree.quit(0 if _filter_ok else 1)
 
@@ -232,6 +233,102 @@ static func _export_float(src: String, field: String) -> float:
 	var m := re.search(src)
 	return 0.0 if m == null else float(m.get_string(1))
 
+
+## ════════════════════════════════════════════════════════════════════════════
+## THE LAYOUT IS A FUNCTION OF THE SEED, NOT OF THE DRAW COUNT (F-002)
+## ════════════════════════════════════════════════════════════════════════════
+##
+## Every builder used to draw from the ONE global RNG `main._ready()` seeds
+## with `randomize()`, so where a cat stood was a function of **how many
+## `randf()` calls happened before it**. Narrowing leg 1's shelf removed
+## thirteen pickup constructions, moved every cat, camped one on the measuring
+## pad, and turned four consecutive sober fingerprints red on a controller that
+## was perfect.
+##
+## `zone_strip_mall.gd::_rng(tag)` gives each placement group its own stream.
+## This is what proves it: build the zone, **burn a pile of global draws**,
+## build it again, and require every actor to be in the same place. Burning the
+## draws is the whole test — it is exactly what adding a pickup does.
+##
+## It lives in this file because this is the gate that already builds zones
+## directly. Nothing else does; the other harnesses take the one the director
+## made.
+## This file has no `_fails` array — it reports through `_filter_ok`, which
+## `run()` turns into the exit code. One place to say "this run is not to be
+## believed", used by both the filter checks and the seed check.
+static func _seed_fail_if(cond: bool, msg: String) -> void:
+	if cond:
+		_seed_fail(msg)
+
+
+static func _seed_fail(msg: String) -> void:
+	print("[glide] FAIL — %s" % msg)
+	_filter_ok = false
+
+static func _the_layout_is_seeded_wrapper(tree: SceneTree, main: Node) -> void:
+	_the_layout_is_seeded(tree, main)
+	await tree.process_frame
+
+
+static func _the_layout_is_seeded(tree: SceneTree, main: Node) -> void:
+	var route: Array = main.get_script().get_script_constant_map().get("ROUTE", [])
+	var was_leg: int = Flock.leg
+	var seen := {}
+	var total := 0
+	for i in route.size():
+		var leg := i + 1
+		var path := str(route[i].get("zone", ""))
+		if path == "" or seen.has(path):
+			continue
+		seen[path] = true
+		var zs = load(path)
+		if zs == null:
+			continue
+		Flock.leg = leg
+
+		var first := _actor_layout(tree, main, zs)
+		# Exactly what adding one pickup to a builder does to the global stream.
+		for _i in 137:
+			randf()
+		var second := _actor_layout(tree, main, zs)
+
+		if first.size() != second.size():
+			_seed_fail("two builds of %s produced %d and %d actors." % [
+				path.get_file(), first.size(), second.size()])
+			continue
+		total += first.size()
+		var moved := 0
+		var worst := 0.0
+		for k in first.size():
+			var d: float = (first[k] as Vector3).distance_to(second[k])
+			if d > 0.001:
+				moved += 1
+				worst = maxf(worst, d)
+		if moved > 0:
+			_seed_fail(("%d of %d actors in %s moved (worst %.2f m) between two builds with 137 "
+				+ "global draws burned in between. Their positions are still a function of the "
+				+ "draw COUNT, so any edit to any builder can move one onto a measuring pad. "
+				+ "docs/RECENT_FAILURES.md F-002.") % [moved, first.size(), path.get_file(), worst])
+	Flock.leg = was_leg
+	_seed_fail_if(total < 10,
+		"the seeded-layout check saw only %d actors across every zone — it has gone blind" % total)
+	print("[glide] %d actors across %d zones are seeded: identical across two builds with 137 global draws between"
+		% [total, seen.size()])
+
+
+## Every cat and NPC position in a freshly built leg-1 zone, in build order.
+static func _actor_layout(tree: SceneTree, main: Node, zs) -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	var z: Node = zs.new()
+	main.add_child(z)
+	for group in ["cat", "npc"]:
+		for a in tree.get_nodes_in_group(group):
+			var n := a as Node3D
+			if n != null and is_instance_valid(n) and z.is_ancestor_of(n):
+				out.append(n.global_position)
+	main.remove_child(z)
+	z.free()
+	return out
 
 static func _one_zone(tree: SceneTree, main: Node, leg: int, path: String, zone_name: String,
 		hard_drop: float) -> void:

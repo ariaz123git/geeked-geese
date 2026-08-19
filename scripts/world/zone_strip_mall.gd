@@ -104,12 +104,10 @@ const POND_CLEAR := 13.0
 ## `berries|double_double` is THE WOBBLER — so the tutorial shelf contains
 ## exactly one discoverable named combo, and it is the flagship one.
 ##
-## **Bread is missing and that is deliberate, not an oversight.** §2.1 asks for
-## it here as the fourth item ("the obvious food is the trap"). It needs a new
-## `.tres`, a generated icon, an Almanac entry and a new control mutation in
-## `_tick_eat`, which is a substance-shelf change that ripples through every
-## gate that counts sixteen. Logged in `docs/DECISIONS.md` D-020, not smuggled
-## in here.
+## **And bread is the fourth**, §2.1's *"the obvious food is the trap"*. It
+## removes the game's main verb for twenty seconds and halves your chaos while
+## it does, which is a stronger claim on the design rule than any multiplier
+## makes. D-037; it was D-020's deferral until the same day.
 const TUTORIAL_SHELF: Array[StringName] = [&"berries", &"double_double", &"grass", &"bread"]
 
 ## The leg the lid comes off at. Every leg from here up gets the whole shelf;
@@ -158,6 +156,31 @@ func _ready() -> void:
 
 
 # ------------------------------------------------------------------ helpers
+
+## A DETERMINISTIC RANDOM STREAM FOR ONE GROUP OF PLACEMENTS.
+##
+## THE BUG THIS EXISTS FOR, and it is `docs/RECENT_FAILURES.md` F-002. Every
+## builder in this file drew from the ONE global RNG that `main._ready()`
+## seeds with `randomize()`, so where a cat stood was a function of **how many
+## `randf()` calls happened before it**. Narrowing leg 1's shelf removed
+## thirteen `SubstancePickup` constructions and therefore moved every cat,
+## camping one on the measuring pad; four consecutive sober fingerprints came
+## back disagreeing on bearing while turn rate and climb were bit-identical in
+## all four. The controller was perfect. A change with nothing to do with cats
+## had moved every cat.
+##
+## Each group now draws from its own stream, seeded by the zone, the leg and
+## the group's name. **Adding a pickup cannot move a cat, because the cats'
+## stream does not know pickups exist.** The layout is a function of the seed,
+## which is what F-002 asks for.
+##
+## It also makes the zone reproducible run to run, which is a second and
+## smaller win: a harness failure caused by a prop is now something you can
+## reproduce rather than something you wait for.
+func _rng(tag: String) -> RandomNumberGenerator:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash("strip_mall|%d|%s" % [Flock.leg, tag])
+	return r
 
 func _mat(c: Color, rough := 0.9) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -221,8 +244,11 @@ func _decal_box(pos: Vector3, size: Vector3, color: Color, rot_y := 0.0) -> void
 	mi.rotation.y = rot_y
 
 
+## `rng` is the caller's group stream. Without it the yaw would come off the
+## global RNG and one extra prop anywhere would rotate every prop after it —
+## the same F-002 shape as the cats, one step smaller. See `_rng()`.
 func _prop(pos: Vector3, size: Vector3, color: Color, mass_kg: float, pts: int,
-		lbl: String, extra := {}) -> ChaosProp:
+		lbl: String, extra := {}, rng: RandomNumberGenerator = null) -> ChaosProp:
 	var p := ChaosProp.new()
 	add_child(p)
 	var kind: StringName = PROP_KIND.get(lbl, &"")
@@ -231,7 +257,7 @@ func _prop(pos: Vector3, size: Vector3, color: Color, mass_kg: float, pts: int,
 		params[_colour_key(kind)] = color
 	p.setup(size, color, mass_kg, pts, lbl, kind, params)
 	p.global_position = pos
-	p.rotation.y = randf_range(-PI, PI)
+	p.rotation.y = (rng.randf_range(-PI, PI) if rng != null else randf_range(-PI, PI))
 	return p
 
 
@@ -305,9 +331,11 @@ static func shelf_for_leg(leg: int) -> Dictionary:
 ## ended up entirely inside the water, and a zone builder that can hang is a
 ## worse bug than a sign in a pond. 24 tries against a 73% dry area misses
 ## with probability 0.27^24, which is about 1 in 10^14.
-func _dry_xz(x0: float, x1: float, z0: float, z1: float) -> Vector2:
+func _dry_xz(x0: float, x1: float, z0: float, z1: float,
+		rng: RandomNumberGenerator = null) -> Vector2:
 	for _try in 24:
-		var p := Vector2(randf_range(x0, x1), randf_range(z0, z1))
+		var p := (Vector2(rng.randf_range(x0, x1), rng.randf_range(z0, z1)) if rng != null
+			else Vector2(randf_range(x0, x1), randf_range(z0, z1)))
 		if p.distance_to(Vector2(POND_CENTRE.x, POND_CENTRE.z)) >= POND_CLEAR:
 			return p
 	# Every try was wet. Push the last sample radially out to the clear ring
@@ -448,11 +476,12 @@ func _pond() -> void:
 
 	# Cattails. Base-anchored models, so they go in at ground height rather than
 	# at the half-height the old decal boxes needed.
+	var reeds := _rng("cattails")
 	for i in 26:
-		var a := randf_range(0, TAU)
-		var r := randf_range(POND_RADIUS + 0.2, POND_CLEAR - 0.4)
+		var a := reeds.randf_range(0, TAU)
+		var r := reeds.randf_range(POND_RADIUS + 0.2, POND_CLEAR - 0.4)
 		_model_at(&"cattail", centre + Vector3(cos(a) * r, 0.0, sin(a) * r),
-			randf_range(0, TAU), {}, randf_range(0.82, 1.18))
+			reeds.randf_range(0, TAU), {}, reeds.randf_range(0.82, 1.18))
 
 
 func _building() -> void:
@@ -483,6 +512,7 @@ func _building() -> void:
 
 func _parking() -> void:
 	# Stalls
+	var park := _rng("parking")
 	for row in 3:
 		var z := -2.0 + row * 9.0
 		for i in 17:
@@ -492,8 +522,8 @@ func _parking() -> void:
 	var colors := [Color(0.62, 0.16, 0.16), Color(0.20, 0.28, 0.48), Color(0.82, 0.82, 0.84),
 		Color(0.14, 0.14, 0.16), Color(0.36, 0.46, 0.36)]
 	for i in 11:
-		var x := -34.0 + randf_range(0, 1) * 4.0 + i * 6.4
-		var z: float = [-2.0, 7.0, 16.0][i % 3] + randf_range(-0.6, 0.6)
+		var x := -34.0 + park.randf_range(0, 1) * 4.0 + i * 6.4
+		var z: float = [-2.0, 7.0, 16.0][i % 3] + park.randf_range(-0.6, 0.6)
 		var v := _prop(Vector3(x, 1.0, z), Vector3(2.1, 1.9, 4.6),
 			colors[i % colors.size()], 900.0, 120, "VEHICLE")
 		v.breakable = false
@@ -502,7 +532,7 @@ func _parking() -> void:
 		# the minivan model's long axis is Z with the bonnet at -Z, so a yaw of
 		# about zero is already square in the bay — the couple of degrees of
 		# slop is somebody parking badly, not a modelling error.
-		v.rotation.y = randf_range(-0.05, 0.05)
+		v.rotation.y = park.randf_range(-0.05, 0.05)
 	# Lamp posts. Collider stays the 0.3 x 8.0 x 0.3 pole it always was; the
 	# model brings its own tapered column and shoebox luminaire, which is why
 	# the separate head decal is gone.
@@ -523,6 +553,7 @@ func _trees() -> void:
 	## faceted blobs on a leaning trunk, and its outline changes as you orbit
 	## it. Trunk collider (0.5 x 3.2 x 0.5 at y 1.6) is unchanged, so the berry
 	## pickup at y 4.6 is still exactly where it was, still in the branches.
+	var grove := _rng("trees")
 	var spots := [Vector3(-12, 0, -8), Vector3(-34, 0, -6), Vector3(-16, 0, -32), Vector3(6, 0, -26)]
 	for si in spots.size():
 		var s: Vector3 = spots[si]
@@ -537,13 +568,14 @@ func _trees() -> void:
 		})
 		# Fruit clusters, pushed out to the canopy's real radius.
 		for i in 8:
-			var a := randf_range(0, TAU)
-			_decal_box(s + Vector3(cos(a) * 1.75, 4.0 + randf_range(-0.7, 0.8), sin(a) * 1.75),
+			var a := grove.randf_range(0, TAU)
+			_decal_box(s + Vector3(cos(a) * 1.75, 4.0 + grove.randf_range(-0.7, 0.8), sin(a) * 1.75),
 				Vector3(0.3, 0.3, 0.3), Color(0.72, 0.14, 0.18))
 
 
 func _sources() -> void:
 	# Berries under the crabapples — reachable on the ground, better up top.
+	var litter := _rng("garbage")
 	_source(Vector3(-12, 0.5, -8), _berries, 0.5)
 	_source(Vector3(-16, 0.5, -32), _berries, 0.5)
 	_source(Vector3(-12, 4.6, -8), _berries, 0.62)  # in the branches: full-strength
@@ -562,9 +594,10 @@ func _sources() -> void:
 	# `variant` is a deterministic shape seed for the sack: same pile every run,
 	# but no two bags slumped the same way.
 	for i in 7:
-		_prop(Vector3(30 + randf_range(-2.5, 2.5), 0.4, -12 + randf_range(-2.5, 2.5)),
+		_prop(Vector3(30 + litter.randf_range(-2.5, 2.5), 0.4,
+				-12 + litter.randf_range(-2.5, 2.5)),
 			Vector3(0.5, 0.7, 0.5), Color(0.12, 0.12, 0.14), 3.0, 15, "GARBAGE",
-			{"variant": float(i) * 1.3})
+			{"variant": float(i) * 1.3}, litter)
 
 	# Grass. You're a goose — this is both lunch and a controlled substance,
 	# which is the single funniest fact in the whole design.
@@ -706,8 +739,9 @@ func _sources() -> void:
 
 func _props() -> void:
 	# Shopping carts — the ideal chaos prop: light, loud, rolls forever.
+	var carts := _rng("props")
 	for i in 14:
-		_prop(Vector3(randf_range(-36, 36), 0.5, randf_range(-14, 20)),
+		_prop(Vector3(carts.randf_range(-36, 36), 0.5, carts.randf_range(-14, 20)),
 			Vector3(0.8, 1.0, 1.3), Color(0.74, 0.75, 0.78), 12.0, 35, "CART")
 	# Cart corral
 	for i in 6:
@@ -715,7 +749,7 @@ func _props() -> void:
 			Color(0.74, 0.75, 0.78), 12.0, 35, "CART")
 	# Patio set outside the coffee place
 	for i in 8:
-		_prop(Vector3(8 + randf_range(-5, 5), 0.45, 19.0 + randf_range(-2, 2)),
+		_prop(Vector3(8 + carts.randf_range(-5, 5), 0.45, 19.0 + carts.randf_range(-2, 2)),
 			Vector3(0.6, 0.9, 0.6), Color(0.42, 0.30, 0.22), 6.0, 30, "PATIO CHAIR")
 	# Recycling bins
 	# z was 24.0, which is INSIDE the storefront volume (the building spans
@@ -737,19 +771,21 @@ func _props() -> void:
 		# independent dry points and use x from one and z from the other, and
 		# the pair is not guaranteed to be dry — which is the original bug with
 		# extra steps.
-		var sign_xz := _dry_xz(-30.0, 30.0, -30.0, -18.0)
+		var sign_xz := _dry_xz(-30.0, 30.0, -30.0, -18.0, carts)
 		_prop(Vector3(sign_xz.x, 0.6, sign_xz.y),
 			Vector3(1.1, 0.8, 0.08), Color(0.92, 0.86, 0.20), 2.0, 25, "LAWN SIGN")
 
 
 func _people() -> void:
+	var folks := _rng("people")
 	var shirts := [Color(0.78, 0.24, 0.22), Color(0.22, 0.34, 0.62), Color(0.90, 0.86, 0.42),
 		Color(0.28, 0.52, 0.34), Color(0.56, 0.30, 0.62), Color(0.92, 0.92, 0.92)]
 	for i in 9:
 		var n := NpcHuman.new()
 		add_child(n)
 		n.setup(shirts[i % shirts.size()])
-		n.global_position = Vector3(randf_range(-32, 32), 0.1, randf_range(-10, 22))
+		n.global_position = Vector3(folks.randf_range(-32, 32), 0.1,
+			folks.randf_range(-10, 22))
 
 
 ## Title shown by the HUD at the top of the leg.
@@ -765,13 +801,15 @@ func zone_title() -> String:
 func _cats() -> void:
 	## Cats exist so catnip has something to command. Roughly a third of them
 	## will ignore you entirely, which is both accurate and funnier.
+	var moggies := _rng("cats")
 	var furs := [Color(0.24, 0.22, 0.21), Color(0.78, 0.62, 0.36), Color(0.92, 0.92, 0.90),
 		Color(0.46, 0.42, 0.40), Color(0.62, 0.44, 0.24)]
 	for i in 7:
 		var c := Cat.new()
 		add_child(c)
 		c.setup(furs[i % furs.size()])
-		c.global_position = Vector3(randf_range(-34, 34), 0.2, randf_range(-16, 24))
+		c.global_position = Vector3(moggies.randf_range(-34, 34), 0.2,
+			moggies.randf_range(-16, 24))
 
 
 func _spawn_goose() -> void:
