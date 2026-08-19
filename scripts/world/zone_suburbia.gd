@@ -1171,7 +1171,14 @@ func _sources(houses: Array) -> void:
 	# a better reward for the player who actually learned to fly.
 	var tree_p: Vector3 = h5.tree_pos
 	var berries := Subs.get_substance(&"berries")
-	_source(tree_p + Vector3(0, 0.5, 0), berries, 0.5)
+	# 1.1 m OUT FROM THE TRUNK, not on its axis. `_crabapple_tree()` gives the
+	# tree a 0.5 m square collider and this source used to sit at its centreline,
+	# so the berry model rendered inside the wood. Out along the house's `right`
+	# because that is the direction `tree_pos` itself was pushed — away from the
+	# wall, into the open side yard — so the fruit stays on the side of the tree
+	# a goose can actually stand on. tools/geomtest.gd pass 2.
+	var right5: Vector3 = h5.right
+	_source(tree_p + right5 * 1.1 + Vector3(0, 0.5, 0), berries, 0.5)
 	_source(tree_p + Vector3(0, 4.1, 0), berries, 0.62)
 
 	# Molly, the golden retriever, in house 0's fenced backyard.

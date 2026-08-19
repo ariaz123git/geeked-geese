@@ -1192,8 +1192,19 @@ func _sources() -> void:
 	_source(Vector3(-19.0, 3.35, 25.4), Subs.get_substance(&"berries"), 0.48)
 
 	# ── the thermos on the other truck's step ───────────────────────────
-	_source(Vector3(-29.3, 0.95, 23.0), Subs.get_substance(&"double_double"), 0.44)
-	_decal_box(Vector3(-29.3, 0.74, 23.0), Vector3(0.16, 0.30, 0.16),
+	# THE TRUCK IS YAWED 0.14 rad AND THIS USED TO IGNORE IT. The grey truck sits
+	# at (-28, _, 25) with a 2.50 x 3.20 x 7.30 collider; subtracting 1.3 m along
+	# WORLD x from its centre lands 1.008 m along its LOCAL x, which is inside a
+	# box whose half-width is 1.25. The thermos spent the whole project inside the
+	# cab, 0.24 m in, and was only takeable because a pickup's trigger sphere is
+	# 1.6 m across. tools/geomtest.gd pass 2 found it.
+	#
+	# Written in the truck's own frame now, so the two cannot disagree again: 1.60
+	# out along local -x is 0.35 m clear of the cab side, which is where a step is.
+	var cab := Transform3D(Basis(Vector3.UP, 0.14), Vector3(-28.0, 0.0, 25.0))
+	var step := cab * Vector3(-1.60, 0.95, -2.16)
+	_source(step, Subs.get_substance(&"double_double"), 0.44)
+	_decal_box(step - Vector3(0, 0.21, 0), Vector3(0.16, 0.30, 0.16),
 		Color(0.16, 0.34, 0.24))
 
 	# ── grass, infinite, on the headland ────────────────────────────────

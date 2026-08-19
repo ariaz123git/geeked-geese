@@ -1435,7 +1435,13 @@ func _sources() -> void:
 	# Compatibility renders at most 32 lights in a frame by default; this zone
 	# runs 12 fixed lamps, so the pickup budget is 20 and a fourth patch of
 	# grass is the cheapest thing to spend it on. See ZONE3_NOTES.md.
-	for p in [Vector3(-13.0, PLATEAU_Y + 0.45, 18.5), Vector3(15.5, SHORE_Y + 0.45, -3.0),
+	# THE FIRST ONE IS AT x = -14.6, NOT -13.0. `_the_cottage()` gives the body a
+	# 15 x 3.1 x 10 collider centred at (-6, _, 22), so its west face is at
+	# x = -13.5 and the old placement put the grass 0.5 m INSIDE THE COTTAGE.
+	# -14.6 stands it 1.1 m clear of the wall, still on the plateau (which runs
+	# x -40..40 north of FACE_Z) and still visible from the fire pit.
+	# tools/geomtest.gd pass 2.
+	for p in [Vector3(-14.6, PLATEAU_Y + 0.45, 18.5), Vector3(15.5, SHORE_Y + 0.45, -3.0),
 			Vector3(-4.0, 3.9, 0.7)]:
 		var gp: Vector3 = p
 		_source(gp, grass, 0.42, true)

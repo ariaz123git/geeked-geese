@@ -124,6 +124,11 @@ static var _checks := 0
 static var _seen := {}
 static var _off := 0
 static var _worst := 0.0
+static var _buried: Array[String] = []
+static var _pickups := 0
+static var _shape_skips := {}
+static var _modelless := 0
+static var _zone_tally: Array[String] = []
 
 
 static func run(tree: SceneTree, main: Node) -> void:
@@ -132,6 +137,11 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_seen.clear()
 	_off = 0
 	_worst = 0.0
+	_buried.clear()
+	_pickups = 0
+	_shape_skips.clear()
+	_modelless = 0
+	_zone_tally.clear()
 	await tree.process_frame
 
 	var route: Array = main.get_script().get_script_constant_map().get("ROUTE", [])
@@ -152,10 +162,12 @@ static func run(tree: SceneTree, main: Node) -> void:
 
 	_report()
 	if _fails.is_empty():
-		print("[geom] PASS — %d footprints checked across %d kinds" % [_checks, _seen.size()])
+		print("[geom] PASS — %d footprint assertions across %d kinds, %d pickups clear of solids"
+			% [_checks, _seen.size(), _pickups])
 		tree.quit(0)
 		return
-	print("[geom] FAIL — %d of %d:" % [_fails.size(), _checks])
+	print("[geom] FAIL — %d, across %d footprint assertions and %d pickups:"
+		% [_fails.size(), _checks, _pickups])
 	for f in _fails:
 		print("[geom]   %s" % f)
 	tree.quit(1)
@@ -168,8 +180,26 @@ static func _walk_zone(tree: SceneTree, main: Node, leg: int, path: String) -> v
 	Flock.leg = leg
 	var z: Node = zs.new()
 	main.add_child(z)
+	# TWO FRAMES, BECAUSE A PICKUP'S MODEL IS NOT WHERE `setup()` PUT IT.
+	# `substance_pickup.gd::setup()` writes `_model.position.y = 0.15` once, and
+	# then `PickupModels.animate()` either preserves that (breathe, sway) or
+	# overwrites it outright (bob, which assigns `position.y` absolutely), and a
+	# substance with no model at all gets `_fallback` parked at y = 0.7. Measured
+	# before the first `_process`, every pickup lies about where it renders — by
+	# 0.15 m for the bob ones and by 0.55 m for the modelless ones, which is more
+	# than the depths this pass is looking for.
+	await tree.process_frame
+	await tree.process_frame
 
-	for node in tree.get_nodes_in_group("chaos_prop"):
+	# THE ZONE, NOT THE TREE. `probe_common` boots the game to get a goose, and
+	# booting builds leg 1 — so the strip mall is already in the tree, with all
+	# its props and pickups, before the first walk starts, and it stays there for
+	# the whole run. A `get_nodes_in_group()` here counts that zone once per walk
+	# on top of the zone being measured. It did not move a median (the kinds are
+	# identical per instance, spread 0.000 for fourteen of fifteen) but it made
+	# every `n=` a fiction, and it made the pickup pass below report leg 1's bread
+	# as buried in four zones that have never heard of it.
+	for node in _in_group_under(z, "chaos_prop"):
 		var prop := node as Node3D
 		if prop == null or not is_instance_valid(prop):
 			continue
@@ -190,10 +220,185 @@ static func _walk_zone(tree: SceneTree, main: Node, leg: int, path: String) -> v
 			_seen[kind] = {"declared": model.get_meta("declared"), "all": []}
 		_seen[kind]["all"].append(natural)
 
+	_bury_pass(z, path)
+
 	main.remove_child(z)
 	z.free()
 	await tree.process_frame
 
+
+## ═══════════════════════════════════════════════════════════════════════════
+## PASS 2 — IS ANYTHING EDIBLE BURIED IN A SOLID?
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## Every pickup in this game is placed by hand-written arithmetic against a prop
+## placed by other hand-written arithmetic, and **nothing has ever compared the
+## two**. `zone_corn.gd::_sources()` carries a comment saying the first pass put
+## a pickup "INSIDE the collider" and had to be moved; that was found by looking,
+## once, by a human. The thermos two lines below it was still inside the grain
+## truck's cab afterwards, because the placement subtracts 1.3 m along world X
+## and the truck is yawed 0.14 rad.
+##
+## WHAT IS WRONG WITH A BURIED PICKUP, stated honestly: it is not necessarily
+## unreachable. `setup()` gives every pickup a 1.6 m SphereShape3D, wider than
+## most props are thick, so one a handspan inside a wall can still be triggered
+## from outside it. What is always true is that **the player cannot see what is
+## on offer**, and recognising a substance before eating it is the one thing this
+## game asks of them. Reachability is then an accident of whether the sphere
+## happens to poke out, which is not a thing to leave to chance.
+##
+## ═══════════════════════════════════════════════════════════════════════════
+## THE MESH, NOT THE Area3D. THE FIRST VERSION OF THIS PASS TESTED THE ORIGIN.
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## It reported nine, and **three of them were the instrument** — the newest
+## entry in the long list at the top of `tools/probe_common.gd`. A pickup's
+## Area3D origin is NOT where its model renders, and there are three different
+## offsets in play:
+##
+##   * `breathe` and `sway` keep the `_model.position.y = 0.15` that `setup()`
+##     writes, so those models ride 0.15 m ABOVE the origin — which is why
+##     `zone_strip_mall.gd` places the toad and the mushrooms at
+##     `VERGE_Y - PICKUP_LIFT` and is right to.
+##   * `bob` assigns `model.position.y` outright every frame, destroying the
+##     lift, so those sit AT the origin.
+##   * a substance with no pickup model at all falls back to `_fallback`, which
+##     `_animate()` parks at y = 0.7 — leg 1's bread, whose Area3D is 0.14 m
+##     underground and whose visible blob is half a metre in the air.
+##
+## So the pass measures the world AABB of the meshes actually under the pickup,
+## after two frames, and tests its CENTRE. The centre rather than the box
+## because every pickup deliberately resting on a surface overlaps that surface.
+static func _bury_pass(zone: Node, path: String) -> void:
+	var solids := _solids_under(zone)
+	var here := 0
+	for node in _in_group_under(zone, "substance_source"):
+		var pick := node as Node3D
+		if pick == null or not is_instance_valid(pick):
+			continue
+		here += 1
+		_pickups += 1
+		var box := _mesh_box(pick)
+		if box.size == Vector3.ZERO:
+			_modelless += 1
+			continue
+		var p := box.get_center()
+		var worst := -1.0
+		var who := ""
+		for sol in solids:
+			var row: Dictionary = sol
+			var xf: Transform3D = row.xform
+			var sh: Shape3D = row.shape
+			var d := _depth_inside(p, xf, sh)
+			if d > worst:
+				worst = d
+				# "@StaticBody3D@873" identifies nothing. Where it is and how big it
+				# is identifies it in one grep of the zone file.
+				var centre := xf.origin
+				var span := _extent_of(sh)
+				who = "a solid at (%.1f, %.1f, %.1f) of %.2f x %.2f x %.2f" % [
+					centre.x, centre.y, centre.z, span.x, span.y, span.z]
+		if worst <= 0.0:
+			continue
+		var res: Object = pick.get("substance")
+		var id := "?" if res == null else str(res.get("id"))
+		_buried.append("%-20s %-14s at (%7.2f,%6.2f,%7.2f) is %.2f m inside %s"
+			% [path.get_file(), id, p.x, p.y, p.z, worst, who])
+	_zone_tally.append("%s %d" % [path.get_file(), here])
+
+
+## World AABB of every mesh under `pick`, or a zero AABB if it has none.
+static func _mesh_box(pick: Node3D) -> AABB:
+	var box := AABB()
+	var any := false
+	var stack: Array[Node] = [pick]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		for c in n.get_children():
+			stack.append(c)
+		var mi := n as MeshInstance3D
+		if mi == null or mi.mesh == null or not mi.visible:
+			continue
+		var mb: AABB = mi.global_transform * mi.mesh.get_aabb()
+		box = mb if not any else box.merge(mb)
+		any = true
+	return box if any else AABB()
+
+## Members of `group` that are inside `root`'s subtree. See the note in
+## `_walk_zone`: the tree holds more than the zone under measurement.
+static func _in_group_under(root: Node, group: String) -> Array:
+	var out: Array = []
+	var stack: Array[Node] = [root]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		for c in n.get_children():
+			stack.append(c)
+		if n.is_in_group(group):
+			out.append(n)
+	return out
+
+## Every enabled collision shape under every StaticBody3D in the zone.
+static func _solids_under(root: Node) -> Array:
+	var out: Array = []
+	var stack: Array[Node] = [root]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		for c in n.get_children():
+			stack.append(c)
+		var body := n as StaticBody3D
+		if body == null:
+			continue
+		for c2 in body.get_children():
+			var cs := c2 as CollisionShape3D
+			if cs == null or cs.shape == null or cs.disabled:
+				continue
+			out.append({"xform": cs.global_transform, "shape": cs.shape, "body": body})
+	return out
+
+
+## The full size of a shape this pass understands, for the report.
+static func _extent_of(shape: Shape3D) -> Vector3:
+	var box := shape as BoxShape3D
+	if box != null:
+		return box.size
+	var sph := shape as SphereShape3D
+	if sph != null:
+		return Vector3.ONE * sph.radius * 2.0
+	var cyl := shape as CylinderShape3D
+	if cyl != null:
+		return Vector3(cyl.radius * 2.0, cyl.height, cyl.radius * 2.0)
+	return Vector3.ZERO
+
+## How far `p` is inside `shape`, in metres, or -1.0 if it is outside. Only the
+## three shapes the zones actually build are understood; anything else is
+## counted in `_shape_skips` and printed, because a shape this cannot read is a
+## hole in the check and a hole nobody prints is a hole nobody knows about.
+static func _depth_inside(p: Vector3, xform: Transform3D, shape: Shape3D) -> float:
+	var local := xform.affine_inverse() * p
+	var box := shape as BoxShape3D
+	if box != null:
+		var half := box.size * 0.5
+		var deep := INF
+		for axis in 3:
+			var slack: float = half[axis] - absf(local[axis])
+			if slack <= 0.0:
+				return -1.0
+			deep = minf(deep, slack)
+		return deep
+	var sph := shape as SphereShape3D
+	if sph != null:
+		var reach := local.length()
+		return sph.radius - reach if reach < sph.radius else -1.0
+	var cyl := shape as CylinderShape3D
+	if cyl != null:
+		var radial: float = cyl.radius - Vector2(local.x, local.z).length()
+		var axial: float = cyl.height * 0.5 - absf(local.y)
+		if radial <= 0.0 or axial <= 0.0:
+			return -1.0
+		return minf(radial, axial)
+	var kind := shape.get_class()
+	_shape_skips[kind] = int(_shape_skips.get(kind, 0)) + 1
+	return -1.0
 
 ## The model's mesh extent with its `size:` scaling divided back out, which is
 ## the number `FOOTPRINTS` claims to hold.
@@ -278,6 +483,22 @@ static func _report() -> void:
 	print("[geom]   scales with want / footprint, so each of those renders at the wrong size")
 	print("[geom]   against its collider. Correcting one rescales the model NON-UNIFORMLY,")
 	print("[geom]   which is a look and therefore not an agent's call. docs/DECISIONS.md D-036.")
+
+	print("[geom]")
+	# ASSERTED, not merely reported. This started life as a report because the
+	# first run found nine and three of them were the instrument; once those were
+	# understood and the remaining six were fixed the list was empty, and an empty
+	# list is the moment a report becomes a check. Six placements were wrong here
+	# for the life of the project and nothing could see any of them.
+	print("[geom] BURIED PICKUPS: %d of %d pickup models have their centre inside a"
+		% [_buried.size(), _pickups])
+	print("[geom]   static collider. Per zone: %s. %d had no mesh to measure."
+		% [", ".join(_zone_tally), _modelless])
+	for b in _buried:
+		_fails.append(b + " — the player cannot see what is on offer, and whether it can"
+			+ " be taken at all is left to whether the 1.6 m trigger sphere happens to poke out.")
+	if not _shape_skips.is_empty():
+		print("[geom]   shapes this pass cannot read, so not covered: %s" % str(_shape_skips))
 
 ## Per-axis median of the samples for one kind. Median rather than mean
 ## because a `variant` seed can produce one outlier silhouette and the

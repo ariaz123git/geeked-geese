@@ -69,6 +69,22 @@ IDs increment. Newest on top.
 
 ---
 
+## D-043 · 2026-08-19 · A pickup's model may not sit inside a solid, and the gate now says so
+Status: Decided (agent)
+Decision: `geomtest.gd` grows a second pass. For every `SubstancePickup` in every built zone it takes the world AABB of the meshes actually under it, after two frames, and asserts the centre of that box is outside every enabled `StaticBody3D` collider in the same zone. Six placements were wrong and all six are fixed: two berry sources at the strip mall's crabapple trunks, one at suburbia's, the cottage grass patch 0.5 m inside the cottage's west wall, leg 6's thermos inside the grain truck cab, and the truckstop coffee inside a fuel dispenser.
+Why: **Pickups are placed by hand-written arithmetic against props placed by other hand-written arithmetic, and nothing had ever compared the two.** `zone_corn.gd` even carries a comment saying an earlier pickup had been found "INSIDE the collider" and moved — found by a human, once, by looking. The thermos two lines below it was still in the cab.
+
+**Five of the six are one bug, not five.** A pickup was written at the prop's own anchor point as though the anchor were the prop's surface: `_source(Vector3(-12, 0.5, -8), ...)` next to `_static_box(Vector3(-12, 1.6, -8), Vector3(0.5, 3.2, 0.5))`. The sixth (leg 6) is the same mistake with a rotation on top — subtracting 1.3 m along **world** x from a truck yawed 0.14 rad lands 1.008 m along its **local** x, inside a half-width of 1.25.
+
+**So the fixes bind the pickup to the prop rather than re-deriving a literal.** The strip mall gains `TREE_SPOTS` — the array `_trees()` already had, now shared — and `_at_the_foot_of()`, which offsets `FALLEN_FRUIT_R = 1.1` m away from `POND_CENTRE`; suburbia offsets along `h5.right`, the same direction `tree_pos` itself was pushed; leg 6 builds a `Transform3D` for the cab and places the thermos at local `(-1.60, 0.95, -2.16)`. A literal drifts away from its prop the first time anyone moves one. A reference cannot.
+
+**Stated honestly, this is a visibility bug and not always a reachability one.** `setup()` gives every pickup a 1.6 m trigger sphere, wider than a tree trunk, so five of the six were still takeable — by a player who could not see what they were taking. That is the argument the assertion message carries.
+
+**It was a report before it was a check, and that is why it is right.** The first run found nine and **three were the instrument** — it tested the Area3D origin, which is not where the art is: `breathe`/`sway` keep `setup()`'s 0.15 m lift, `bob` overwrites it, and a substance with no model falls back to 0.70 m. A fourth answer appears if you measure before the first `_process`. Measuring the mesh after two frames collapses all four. Recorded as entry 6 in `tools/probe_common.gd`; the boot zone never leaving the tree is entry 7, which had the same pass reporting leg 1's bread as buried in four zones that have never heard of it.
+
+Watched failing by putting the truckstop cup back on the dispenser: *"1 of 74 … 0.36 m inside a solid at (-24.6, 1.2, 13.4) of 0.92 x 2.05 x 0.72"*, exit 1, and nothing else named.
+Refs: `tools/geomtest.gd::_bury_pass`; `tools/probe_common.gd` entries 6–7; `scripts/world/zone_strip_mall.gd::_at_the_foot_of`; `zone_suburbia.gd`, `zone_cottage.gd`, `zone_corn.gd`, `zone_truckstop.gd`.
+
 ## D-042 · 2026-08-18 · The substance gate doses inside each substance's own band
 Status: Decided (agent)
 Decision: `substancetest.gd::_dose_for(res)` returns `clampf(DOSE, res.sweet_min, res.sweet_max)`, and every substance is asserted **not** to resolve `overdosed`.

@@ -44,6 +44,25 @@ const PROP_KIND := {
 	"GARBAGE": &"garbage_bag",
 }
 
+## Where the four crabapples stand, as a constant because `_sources()` needs it
+## too. The two ground-level berry sources used to be written as bare literals
+## at the same coordinates as the trunks — which is to say **at the trunk's
+## centreline**, 0.24 m inside a 0.5 m collider. They rendered inside the wood
+## for the life of the project and were only reachable because a pickup's
+## trigger sphere is 1.6 m and the tree is thinner than that.
+##
+## Sharing the array is the actual fix. A literal drifts away from its tree the
+## first time anyone moves one; a reference cannot.
+const TREE_SPOTS := [Vector3(-12, 0, -8), Vector3(-34, 0, -6),
+	Vector3(-16, 0, -32), Vector3(6, 0, -26)]
+
+## How far from a trunk's axis fallen fruit lands. The trunk collider is 0.5 m
+## square, so its half-width is 0.25 and the berry model is about 0.5 m across:
+## anything under ~0.5 tucks the model back into the wood. The canopy's own
+## fruit clusters hang at r = 1.75, so 1.1 is inside the drip line — where fruit
+## would actually fall — and clear of the trunk face by 0.6 m.
+const FALLEN_FRUIT_R := 1.1
+
 ## How far a SubstancePickup's model rides above its Area3D origin.
 ## substance_pickup.gd:64 sets `_model.position.y = 0.15` once, and the
 ## `breathe` and `sway` idle styles only touch scale and rotation.z, so for
@@ -543,6 +562,17 @@ func _parking() -> void:
 		_model_body(post, &"lamp_post", -4.0)
 
 
+## A point at the foot of a trunk, on the side AWAY FROM THE WATER — the side a
+## goose can stand on. Any direction clear of the trunk would satisfy the
+## geometry; this one also means a tree moved next to the pond can never push
+## its fruit into it.
+func _at_the_foot_of(trunk: Vector3, y: float) -> Vector3:
+	var away := trunk - POND_CENTRE
+	away.y = 0.0
+	if away.length() < 0.01:
+		away = Vector3.RIGHT
+	return trunk + away.normalized() * FALLEN_FRUIT_R + Vector3(0, y, 0)
+
 func _trees() -> void:
 	## Crabapple / mountain ash. In late winter the fruit ferments on the branch
 	## — this is the real mechanism behind drunk waxwings, and it's why the
@@ -554,7 +584,7 @@ func _trees() -> void:
 	## it. Trunk collider (0.5 x 3.2 x 0.5 at y 1.6) is unchanged, so the berry
 	## pickup at y 4.6 is still exactly where it was, still in the branches.
 	var grove := _rng("trees")
-	var spots := [Vector3(-12, 0, -8), Vector3(-34, 0, -6), Vector3(-16, 0, -32), Vector3(6, 0, -26)]
+	var spots := TREE_SPOTS
 	for si in spots.size():
 		var s: Vector3 = spots[si]
 		var trunk := _static_box(s + Vector3(0, 1.6, 0), Vector3(0.5, 3.2, 0.5),
@@ -576,9 +606,14 @@ func _trees() -> void:
 func _sources() -> void:
 	# Berries under the crabapples — reachable on the ground, better up top.
 	var litter := _rng("garbage")
-	_source(Vector3(-12, 0.5, -8), _berries, 0.5)
-	_source(Vector3(-16, 0.5, -32), _berries, 0.5)
-	_source(Vector3(-12, 4.6, -8), _berries, 0.62)  # in the branches: full-strength
+	# AT THE FOOT OF THE TRUNK, NOT ON ITS AXIS. Both of these used to be bare
+	# literals equal to TREE_SPOTS[0] and TREE_SPOTS[2], so the berry model sat
+	# inside the trunk collider. tools/geomtest.gd pass 2 found them.
+	_source(_at_the_foot_of(TREE_SPOTS[0], 0.5), _berries, 0.5)
+	_source(_at_the_foot_of(TREE_SPOTS[2], 0.5), _berries, 0.5)
+	# The canopy one stays on the axis: the trunk collider is 3.2 m tall and this
+	# is at 4.6, which is above it and in the branches.
+	_source(TREE_SPOTS[0] + Vector3(0, 4.6, 0), _berries, 0.62)  # full-strength
 
 	# The dumpster behind the coffee place. Same 3.4 x 2.0 x 2.0 collider, but
 	# now with a sloped skirt, stiffening ribs, forklift pockets and two plastic

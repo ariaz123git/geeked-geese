@@ -64,9 +64,9 @@ declared the wrong size.
 | `--probe --substancetest` | all seventeen substances bite | 165 checks |
 | `--probe --migtest` | the flight answers the stick, and the seven differ | 14 measurements |
 | `--probe --rolltest` | the credit roll travels |  |
-| `--doctest` | **the documents still tell the truth** | 190 claims |
+| `--doctest` | **the documents still tell the truth** | 189 claims |
 | `--audiotest` | **the WAVs are what their names claim** | 246 over 68 files |
-| `--probe --geomtest` | **a model is the size its table says** | 45 over 15 kinds |
+| `--probe --geomtest` | **a model is the size its table says, and nothing edible is buried in a solid** | 45 over 15 kinds, 74 pickups |
 | `--probe --loop-test` | seven legs, seven flights and the ending | + the shelf census |
 
 ### What is specced but not built
@@ -248,8 +248,8 @@ and each is a one-line revert. The share cooldown of 1.0 s is pacing (D-032).
 > `input_lag` and `grid_snap` still have no behavioural coverage; nothing
 > drives the eating verb through the key the player presses; `migtest`'s
 > `lateral.half_cross` cannot fail independently; the failsafe arms after the
-> first zone is built; four placement numbers (leg 6's cab, suburbia's lamp,
-> the recycling chevron, the lowpoly feet); and the three BIG DOWN items,
+> first zone is built; three placement numbers (suburbia's lamp, the
+> recycling chevron, the lowpoly feet); and the three BIG DOWN items,
 > which need a render or a judgement.
 
 
@@ -333,7 +333,7 @@ game, so the Almanac states a rule about the player's options that is not true.
 It is also in `selftest`'s `CONTROL_KEYS`, which means a substance could satisfy
 the design rule with a field that mutates nothing.
 
-**Placement arithmetic, each with both numbers.** **The lawn signs are FIXED (D-033)** and **`wedge()` is FIXED (D-039)**; the other three are live. Original text:
+**Placement arithmetic, each with both numbers.** **The lawn signs are FIXED (D-033)**, **`wedge()` is FIXED (D-039)** and **leg 6's cab is FIXED (D-043)** — along with five more buried pickups nothing in this list had ever noticed; the other two are live. Original text:
 
 **Placement arithmetic, each with both numbers:** leg 6's double-double pickup
 sits **inside the grain truck's cab** because the placement ignores the truck's

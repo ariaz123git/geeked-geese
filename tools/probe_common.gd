@@ -38,6 +38,24 @@ extends RefCounted
 ##      `cannot_idle` ROTATES, so end-minus-start cancels the motion. Both were
 ##      measured wrong, in three different costumes.
 ##
+##   6. **A node's origin is not where its art is.** `geomtest.gd`'s pickup pass
+##      tested each `SubstancePickup`'s Area3D position and reported nine buried
+##      in solids; three were the instrument. A pickup's model sits 0.15 m above
+##      the origin under the `breathe` and `sway` idles, AT the origin under
+##      `bob` (which assigns `position.y` outright), and at 0.70 m when the
+##      substance has no model and gets `_fallback` — three different offsets,
+##      the largest of them five times the depth being measured. Worse, none of
+##      the three is applied until `_process` has run, so the same pass measured
+##      before the first frame gets a fourth answer. **Measure the mesh, after a
+##      frame, not the node.**
+##
+##   7. **The tree holds more than the zone you are measuring.** `boot()` builds
+##      leg 1 to get a goose, and that zone never leaves. A
+##      `get_nodes_in_group()` inside a per-zone walk therefore returns the strip
+##      mall on top of whatever is under test, every time — which made the same
+##      pass report leg 1's bread as buried in four zones that have never heard
+##      of it, and inflated every prop sample count. Walk the subtree.
+##
 ## The habit that caught all of them: **measure the baseline twice and refuse to
 ## report anything if the two runs disagree.** A harness that cannot reproduce
 ## itself cannot accuse anything else.

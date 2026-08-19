@@ -1428,7 +1428,13 @@ func _sources() -> void:
 	_decal_box(Vector3(-6.0, 0.82, BLD_Z0 - 0.75), Vector3(0.16, 0.24, 0.16),
 		Color(0.86, 0.82, 0.74))
 	# And one on the pump island, going cold.
-	_source(Vector3(CANOPY_X - 3.6, GRADE + 0.85, CANOPY_Z + 3.4), coffee, 0.26)
+	# OFFSET 0.9 m ALONG THE ISLAND: the bare `CANOPY_X - 3.6, CANOPY_Z + 3.4` is
+	# the dispenser's own position (see `_canopy()`, which builds a
+	# 0.92 x 2.05 x 0.72 pump at exactly that point), so the cup used to render
+	# inside the pump. 0.9 clears the pump's 0.46 m half-width and stops well
+	# short of the bollards at ±1.5, and z is unchanged so it is still on the
+	# 1.5 m kerb. tools/geomtest.gd pass 2.
+	_source(Vector3(CANOPY_X - 3.6 + 0.9, GRADE + 0.85, CANOPY_Z + 3.4), coffee, 0.26)
 
 	# Half a pack, and a sand-top receptacle nobody has emptied since June.
 	_source(Vector3(-11.5, GRADE + 0.55, WALK_Z0 + 1.4), darts, 0.24)
