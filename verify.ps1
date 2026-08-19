@@ -4,6 +4,8 @@
 
     .\verify.ps1              # eleven gates: compile, invariants, controller, feel, substances,
                               #   flight, credit roll, claims, audio, footprints, campaign
+                              # then step 12: the gate table in docs/HANDOFF.md, against
+                              #   the PASS lines those eleven just printed
     .\verify.ps1 -Shots       # also render every zone and tell you where the PNGs are
     .\verify.ps1 -Quick       # skips the 20 s campaign run
 
@@ -93,9 +95,13 @@ function ScriptErrors($out) {
     return @(($out -split "`r?`n") | Where-Object { $_ -match 'SCRIPT ERROR' })
 }
 
+# Every PASS line, kept, because step 12 checks them against docs/HANDOFF.md.
+$script:passLines = @{}
+
 function Pass($name, $line) {
     Write-Host "[ok] $name" -ForegroundColor Green
     if ($line) { Write-Host "      $line" -ForegroundColor DarkGray }
+    $script:passLines[$name] = [string]$line
 }
 
 # ---------------------------------------------------------------------------
@@ -415,6 +421,105 @@ if ($Shots) {
     Write-Host "`n$($pngs.Count) image(s) in $shotDir" -ForegroundColor Cyan
     Write-Host "OPEN AT LEAST THREE OF THEM before saying anything about how the game looks." -ForegroundColor Yellow
 }
+
+# ---------------------------------------------------------------------------
+# 12. THE GATE TABLE IN docs/HANDOFF.md, AGAINST WHAT THE GATES JUST PRINTED.
+#
+#    CLAUDE.md's rule is "any number you write into a document gets a row in
+#    docs/CLAIMS.md, or gets deleted" - and the table that describes the gates
+#    broke it. Its count column said 148 substance checks when the gate printed
+#    165, and 190 claims when doctest printed 189. Both were stale for a whole
+#    session and nothing could say so, because doctest recomputes numbers from
+#    the BOOTED PROJECT and cannot know what a gate prints without running it.
+#
+#    This script can: it has just run all eleven and kept every PASS line. So
+#    the rule here is deliberately dumb and needs no per-gate configuration -
+#    EVERY INTEGER IN THE DOC CELL MUST APPEAR IN THAT GATE'S PASS LINE. A cell
+#    reading "22 metrics, 13 asserted" is satisfied by "22 measurements, 13
+#    asserted, all in window"; a cell with no integers in it (the credit roll,
+#    the campaign) asserts nothing and is skipped, which is stated below rather
+#    than being silent about it.
+#
+#    The map is also checked BOTH WAYS. A gate added to this script without a
+#    row, or a row for a gate that no longer runs, fails here - which is the
+#    other half of how the table went stale: rows outlive the thing they
+#    describe.
+# ---------------------------------------------------------------------------
+Write-Host "`n=== the gate table ===" -ForegroundColor Cyan
+
+$gateFlags = [ordered]@{
+    "compile gate" = "--gate"
+    "invariants"   = "--selftest"
+    "controller"   = "--probe --inputtest"
+    "feel"         = "--probe --feeltest"
+    "substances"   = "--probe --substancetest"
+    "flight"       = "--probe --migtest"
+    "credit roll"  = "--probe --rolltest"
+    "claims"       = "--doctest"
+    "audio"        = "--audiotest"
+    "footprints"   = "--probe --geomtest"
+    "full campaign" = "--probe --loop-test"
+    # Its own row, so the reverse check below does not call it an orphan. The
+    # cell states no number on purpose: this step's count is not known until
+    # after the loop that would have to check it.
+    "the gate table" = "verify.ps1"
+}
+
+$tick = [char]0x60
+$handoffPath = Join-Path $root "docs\HANDOFF.md"
+$docRows = @{}
+# ONLY THE ROWS UNDER THE GATE HEADING. The first version matched any table
+# row starting with a backtick and swept up docs/HANDOFF.md's document index
+# and half of section 4 - 26 spurious failures, each politely reporting that
+# nothing in this script runs `docs/MULTIPLAYER_SPEC.md`.
+$inTable = $false
+foreach ($line in (Get-Content $handoffPath -Encoding UTF8)) {
+    if ($line -match "^#+ ") { $inTable = ($line -match "gates, and what each one"); continue }
+    if (-not $inTable) { continue }
+    if ($line -notmatch "^\|\s*$tick") { continue }
+    $cells = $line.Split("|")
+    if ($cells.Count -lt 4) { continue }
+    $flag = $cells[1].Trim().Trim($tick)
+    $docRows[$flag] = $cells[3].Trim()
+}
+
+$checked = 0
+$skipped = @()
+# Local, not \:fail - an earlier gate failing must not suppress this
+# step's own verdict line.
+$tableFail = $false
+foreach ($name in $gateFlags.Keys) {
+    $flag = $gateFlags[$name]
+    if (-not $docRows.ContainsKey($flag)) {
+        Fail "the gate table" "$flag runs in this script and has no row in docs/HANDOFF.md"; $tableFail = $true
+        continue
+    }
+    $cell = $docRows[$flag]
+    $want = @([regex]::Matches($cell, "\d+") | ForEach-Object { $_.Value })
+    if ($want.Count -eq 0) { $skipped += $flag; continue }
+    if (-not $script:passLines.ContainsKey($name)) {
+        $skipped += "$flag (did not run)"
+        continue
+    }
+    $line = $script:passLines[$name]
+    $got = @([regex]::Matches($line, "\d+") | ForEach-Object { $_.Value })
+    foreach ($n in $want) {
+        $checked++
+        if ($got -notcontains $n) {
+            Fail "the gate table" ("docs/HANDOFF.md says $flag is `"$cell`", but the gate printed " +
+                "`"$line`" - $n is not in it"); $tableFail = $true
+        }
+    }
+}
+foreach ($flag in $docRows.Keys) {
+    if ($gateFlags.Values -notcontains $flag) {
+        Fail "the gate table" "docs/HANDOFF.md has a row for $flag and nothing here runs it"; $tableFail = $true
+    }
+}
+if ($skipped.Count -gt 0) {
+    Write-Host "      stating nothing, so checking nothing: $($skipped -join ", ")" -ForegroundColor DarkGray
+}
+if (-not $tableFail) { Pass "the gate table" "$checked numbers in docs/HANDOFF.md match the gate that produced them" }
 
 # --- verdict ----------------------------------------------------------------
 if ($script:fail) {

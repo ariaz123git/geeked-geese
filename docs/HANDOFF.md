@@ -53,7 +53,7 @@ declared the wrong size.
 | Decisions | `docs/DECISIONS.md` — **40 entries.** Five are `Open (human)` and must not be closed by an agent: D-005, D-006, D-007, D-019, **D-036** |
 | Failure log | `docs/RECENT_FAILURES.md` — 3 of a hard cap of 5. An entry leaves only by becoming a check |
 
-### The eleven gates, and what each one is the only thing that can see
+### The twelve gates, and what each one is the only thing that can see
 
 | gate | proves | count |
 |---|---|---|
@@ -64,10 +64,11 @@ declared the wrong size.
 | `--probe --substancetest` | all seventeen substances bite | 165 checks |
 | `--probe --migtest` | the flight answers the stick, and the seven differ | 14 measurements |
 | `--probe --rolltest` | the credit roll travels |  |
-| `--doctest` | **the documents still tell the truth** | 189 claims |
+| `--doctest` | **the documents still tell the truth** | 195 claims |
 | `--audiotest` | **the WAVs are what their names claim** | 246 over 68 files |
 | `--probe --geomtest` | **a model is the size its table says, and nothing edible is buried in a solid** | 45 over 15 kinds, 74 pickups |
 | `--probe --loop-test` | seven legs, seven flights and the ending | + the shelf census |
+| `verify.ps1` | **every count in this table matches the gate that printed it** | |
 
 ### What is specced but not built
 - **The Ranger's leg 6 exam** (`BOSS_DESIGN.md` §2.1.4). D-013 records the real

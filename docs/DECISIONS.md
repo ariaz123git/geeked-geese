@@ -69,6 +69,18 @@ IDs increment. Newest on top.
 
 ---
 
+## D-044 · 2026-08-19 · The gate table checks itself against the gates
+Status: Decided (agent)
+Decision: `verify.ps1` gains a twelfth step. It keeps every gate's PASS line, reads the gate table in `docs/HANDOFF.md` §1, and requires **every integer in a doc cell to appear in that gate's PASS line**. The map is checked both ways: a gate this script runs with no row fails, and a row for a gate nothing runs fails.
+Why: CLAUDE.md's rule is *"any number you write into a document gets a row in `docs/CLAIMS.md`, or gets deleted"* — and **the table that describes the gates broke it**. It said 148 substance checks when the gate printed 165, and 190 claims when doctest printed 189. Both were stale for a session and nothing could say so, because `doctest` recomputes from the **booted project** and cannot know what a gate prints without running it. This script has just run all eleven and is holding the answers.
+
+**The rule is deliberately dumb, so it needs no per-gate configuration.** "22 metrics, 13 asserted" is satisfied by "22 measurements, 13 asserted, all in window"; a cell with no integers asserts nothing and is skipped — printed, not silent, so the gaps (`--rolltest`, `--loop-test`, this step's own row) are visible. 13 numbers are checked today.
+
+**This makes it the twelfth gate, and `doctest` said so within a minute.** `verify_steps` counts `Pass "` in this script, and its comment already defined the term: *"a step that can report PASS is exactly what a gate is"*. CLAUDE.md's "11 gates" broke on the first run. It now says 12 **at the same line count** — 373, the ratchet's ceiling — by rewording rather than appending, which is the discipline the ceiling exists to force.
+
+Watched failing twice, both times for real: the intended canary was doctest moving 189 → 195 while the table still said 189, which it named exactly. The unintended one was its own first draft matching **any** backticked table row, which swept up HANDOFF's document index and reported 26 failures politely explaining that nothing here runs `docs/MULTIPLAYER_SPEC.md`. Rows are now read only between the gate heading and the next heading.
+Refs: `verify.ps1` step 12; `docs/HANDOFF.md` §1; `tools/doctest.gd::_live` "verify_steps"; `docs/CLAIMS.md` C-020, C-021.
+
 ## D-043 · 2026-08-19 · A pickup's model may not sit inside a solid, and the gate now says so
 Status: Decided (agent)
 Decision: `geomtest.gd` grows a second pass. For every `SubstancePickup` in every built zone it takes the world AABB of the meshes actually under it, after two frames, and asserts the centre of that box is outside every enabled `StaticBody3D` collider in the same zone. Six placements were wrong and all six are fixed: two berry sources at the strip mall's crabapple trunks, one at suburbia's, the cottage grass patch 0.5 m inside the cottage's west wall, leg 6's thermos inside the grain truck cab, and the truckstop coffee inside a fuel dispenser.
