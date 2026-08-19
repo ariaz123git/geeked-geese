@@ -64,7 +64,7 @@ project. Source and rationale: `tools/gate.gd`.
 input-lag bug that made *eleven of the sixteen substances unplayable* — the bird
 obeying four-second-old input — passed the compile gate, passed the whole
 headless campaign run, and would have passed any review that did not press a
-key. There are now 10 gates, and one script that runs all of them:
+key. There are now 11 gates, and one script that runs all of them:
 
 ```
 .\verify.ps1                                       # all of them. -Quick skips the slow three
@@ -78,6 +78,7 @@ godot --headless --path . -- --probe --rolltest    # the credit roll actually tr
 godot --headless --path . -- --probe --loop-test   # seven legs and the ending
 godot --headless --path . -- --doctest             # the DOCS still tell the truth
 godot --headless --path . -- --audiotest           # the WAVs are what they claim
+godot --headless --path . -- --probe --geomtest    # the models are the size they claim
 ```
 
 **`--doctest` is the ninth gate and the only one pointed at this repo's own
@@ -97,12 +98,10 @@ that COMPOUNDED — 7.36 m of climb in the first second of holding the button an
 23.66 m in the third, with a `max_fall` in the controller and no `max_rise`
 anywhere — on a build where all four of the other gates passed.
 
-`tools/substancetest.gd` doses all sixteen substances and measures the bird for
-each one, because the design rule at the top of `scripts/core/substance.gd` —
-*a substance must never be only a number that goes up* — was enforced only by
-reading the `.tres`. The input-lag bug is the precedent: eleven of the sixteen
-were unplayable while every `.tres` involved was correct. Data and behaviour
-have to be compared, not each checked alone.
+`tools/substancetest.gd` doses all sixteen and measures the bird, because the
+design rule at the top of `scripts/core/substance.gd` — *a substance must never
+be only a number that goes up* — was enforced only by reading the `.tres`.
+**Data and behaviour have to be compared, not each checked alone.**
 
 `tools/migtest.gd` is the first thing ever to measure a MIGRATION — half this
 game is flights, and the only thing any check knew about one was that the

@@ -42,7 +42,7 @@ Nothing answered prose *facts* rotting. Now `--doctest` does.
 | | |
 |---|---|
 | Engine | Godot 4.7.1, GL Compatibility renderer |
-| Code | 71 GDScript files (read the live count off `[gate] PASS — N scripts`) |
+| Code | 72 GDScript files (read the live count off `[gate] PASS — N scripts`) |
 | Zones built | 8 — retention pond / strip mall lot (one zone, two legs, **two shelves now**), suburbia, cottage country, the stopover, cut corn, truck stop, the 18th green |
 | Route legs | 7 flown + the arrival |
 | Substances | 16, all with models, control mutations, true codex facts and a HUD icon. **Leg 1 offers 3 of them**; every other leg offers its zone's full set |
@@ -50,7 +50,7 @@ Nothing answered prose *facts* rotting. Now `--doctest` does.
 | Bosses | 2 — the Ranger (leg 3) and BIG DOWN (the back half of leg 7) |
 | Assets | 39 textures (23 + 16 substance icons), 46 sounds (39 SFX + 7 zone ambience beds), 22 music stems — all procedurally generated |
 | Autoloads | 10 (see `docs/ARCHITECTURE.md` §2 for the order and why it matters) |
-| Gates | **10**: compile, invariants (**862**), controller (8), feel (22 metrics, 13 asserted), substances (135 over 16), flight (14 measurements), credit roll, claims (**189**), **audio (246 over 68 files)**, full campaign. `.\verify.ps1`, about five minutes |
+| Gates | **11**: compile, invariants (862), controller (8), feel (22 metrics, 13 asserted), substances (135 over 16), flight (14), credit roll, claims (190), **audio (246 over 68 files)**, **footprints (45 over 15 kinds)**, full campaign. `.\verify.ps1`, about six minutes |
 | Docs that check themselves | `--doctest` — every number in `docs/CLAIMS.md`'s table, `feeltest.gd`'s 13 windows against `FEEL_TARGETS.md`'s arguments, `CLAUDE.md`'s line ceiling, and the five-entry cap on `docs/RECENT_FAILURES.md`. Plus `selftest::_the_docs()`, which seeded the idea |
 | Decisions | `docs/DECISIONS.md` — **26 entries.** Four are `Open (human)` and must not be closed by an agent: D-005, D-006, D-007, D-019. Seven new this session, D-020 to D-026 |
 

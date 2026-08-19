@@ -2,8 +2,8 @@
 <#
   Geeked Geese verification loop.
 
-    .\verify.ps1              # ten gates: compile, invariants, controller, feel,
-                              #   substances, flight, credit roll, claims, audio, campaign
+    .\verify.ps1              # eleven gates: compile, invariants, controller, feel, substances,
+                              #   flight, credit roll, claims, audio, footprints, campaign
     .\verify.ps1 -Shots       # also render every zone and tell you where the PNGs are
     .\verify.ps1 -Quick       # skips the 20 s campaign run
 
@@ -329,6 +329,31 @@ if ($audCode -ne 0) {
     Fail "audio" "SCRIPT ERROR: $((ScriptErrors $audOut)[0])"
 } else {
     Pass "audio" ($audLines | Where-Object { $_ -match 'PASS' })
+}
+
+# ---------------------------------------------------------------------------
+# 6d. THE FOOTPRINT GATE. prop_models*.gd::build() sizes every model with
+#     `want / footprint(kind)`, so a declared box that disagrees with the mesh
+#     makes every `size:` placement of that kind wrong by exactly that ratio.
+#     Nothing had ever compared the two.
+#
+#     ASSERTS that the meshes do not drift. REPORTS that 11 of 15 declarations
+#     disagree with them - correcting one rescales the model non-uniformly,
+#     which is a look and therefore the human's call. D-036.
+# ---------------------------------------------------------------------------
+Write-Host "`n=== footprints ===" -ForegroundColor Cyan
+$geoOut = & $GODOT --headless --no-header --path $root -- --probe --geomtest 2>&1 | Out-String
+$geoCode = $LASTEXITCODE
+$geoLines = ($geoOut -split "`r?`n") | Where-Object { $_ -match '^\[geom\] (PASS|FAIL|REPORTED|  )' }
+$geoLines | ForEach-Object { Write-Host $_ }
+if ($geoCode -ne 0) {
+    Fail "footprints" "exit $geoCode"
+} elseif ($geoOut -notmatch '\[geom\] PASS') {
+    Fail "footprints" "no [geom] PASS line"
+} elseif ((ScriptErrors $geoOut).Count -gt 0) {
+    Fail "footprints" "SCRIPT ERROR: $((ScriptErrors $geoOut)[0])"
+} else {
+    Pass "footprints" ($geoLines | Where-Object { $_ -match 'PASS' })
 }
 
 # ---------------------------------------------------------------------------

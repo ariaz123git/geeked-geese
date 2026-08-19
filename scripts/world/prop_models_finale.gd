@@ -165,6 +165,14 @@ static func build(kind: StringName, parent: Node3D, params := {}) -> Node3D:
 			_fallback(b, params)
 
 	model.set_meta("tri_count", b.tri_count + w.tri_count)
+	# THE MODEL CARRIES ITS OWN DECLARATION, so `tools/geomtest.gd` can compare
+	# the box this builder PROMISED against the mesh it actually emitted without
+	# knowing which of the seven FOOTPRINTS tables the kind came from. `build()`
+	# sizes with `want / footprint(kind)`, so a declaration that disagrees with
+	# the mesh makes every `size:` placement of that kind wrong by exactly that
+	# ratio, in every zone that asks for one — and nothing could see it.
+	model.set_meta("kind", kind)
+	model.set_meta("declared", footprint(kind, params))
 	if b.tri_count > 0:
 		LPB.attach(model, b.commit(), shared_material(), "Shell")
 	# Only when there is something wet: an empty SurfaceTool commits to null,

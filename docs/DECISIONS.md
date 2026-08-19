@@ -69,6 +69,32 @@ IDs increment. Newest on top.
 
 ---
 
+## D-036 · 2026-08-18 · Eleven of fifteen props are declared the wrong size, and that is the human’s to fix
+Status: **Open (human)**
+Decision: **Unresolved, and deliberately not decided by an agent.** `tools/geomtest.gd` measured every prop the zones build against the footprint its builder declares. **Eleven of fifteen kinds are out by more than 6% on a horizontal axis.** The gate asserts that the MESHES do not drift and REPORTS the disagreement; it does not correct it.
+Why: `prop_models*.gd::build()` sizes with `model.scale = want / footprint(kind)`, so a declaration that disagrees with the mesh makes every `size:` placement of that kind wrong by exactly that ratio, in every zone that asks for one. The measurements, with the spread across instances at **0.000 for fourteen of the fifteen kinds** — these are stable facts, not sampling noise:
+
+| kind | declared (x, z) | mesh (x, z) | error |
+|---|---|---|---|
+| `hydrant` | 0.40, 0.40 | 0.286, 0.300 | **−28.5%, −25.0%** |
+| `gnome` | 0.32, 0.32 | 0.244, 0.257 | **−23.7%, −19.8%** |
+| `bench` | 1.80, 0.62 | 1.810, 0.506 | +0.6%, **−18.4%** |
+| `stop_sign` | 0.72, 0.16 | 0.665, 0.280 | −7.6%, **+75.0%** |
+| `lawn_sign` | 1.10, 0.08 | 1.060, 0.094 | −3.6%, **+17.8%** |
+| `bbq` | 1.00, 0.55 | 0.880, 0.467 | **−12.0%, −15.0%** |
+| `garbage_bag` | 0.48, 0.50 | 0.504, 0.454 | +5.0%, −9.1% |
+| `patio_chair` | 0.60, 0.60 | 0.548, 0.577 | −8.6%, −3.8% |
+| `mailbox` | 0.42, 0.60 | 0.384, 0.599 | −8.6%, −0.2% |
+| `basketball` | 0.42, 0.42 | 0.390, 0.400 | −7.2%, −4.8% |
+| `fence_panel` | 2.20, 0.16 | 2.288, 0.176 | +4.0%, **+10.0%** |
+
+The four that are right — `minivan` +1.4%, `dumpster` +0.6%, `recycling_bin` +1.6%, `shopping_cart` −1.1% — are the big props somebody clearly measured. The wrong ones are the small props declared by eye.
+
+**Why an agent must not just fix the table.** Correcting a declaration changes `model.scale` **non-uniformly**: `stop_sign` would go to (1.07, 1.01, **0.57**), squashing a model somebody authored to look right into the box its collider promises. Whether the prop should be squashed to fit its hitbox, or the hitbox resized to fit the prop, is a **look** — and `CLAUDE.md` is explicit that looks are the human’s. Nor can it be settled by a render an agent reads: the question is not "does it clip through the ground", it is "does a slightly squashed stop sign look right", and no file in this repo will ever have an opinion about that.
+
+**To act on it:** change the FOOTPRINTS entry to the measured value, run `.\verify.ps1 -Shots`, and look at the zone. `geomtest` prints a copy-paste `MESH_BASELINE` block on every run for exactly this.
+Refs: `tools/geomtest.gd`; `scripts/world/prop_models*.gd`; `docs/HANDOFF.md` §4, which has suspected `down_bale` of this for two sessions.
+
 ## D-035 · 2026-08-18 · The tenth gate opens the WAVs, and says what it cannot hear
 Status: Decided (agent)
 Decision: `tools/audiotest.gd`, step 6c of `verify.ps1`. **246 checks over 68 files.** A bed must loop and be long enough to be a bed; a one-shot must be short enough to be a one-shot; nothing may be silent or clipping; the sixteen layered music stems must share a length.

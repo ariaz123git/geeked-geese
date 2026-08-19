@@ -101,7 +101,7 @@ const VERIFY := "res://verify.ps1"
 ## **Lower this number whenever you cut the file. Never raise it.** If a session
 ## needs to add a rule, it takes one out — which is the forcing function the
 ## budget exists to be.
-const CLAUDE_MD_CEILING := 374
+const CLAUDE_MD_CEILING := 373
 const CLAUDE_MD_TARGET := 200
 
 ## `docs/RECENT_FAILURES.md` holds at most this many. See `_the_failure_log()`

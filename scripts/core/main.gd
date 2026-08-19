@@ -998,7 +998,7 @@ func _probe_if_headless() -> void:
 	# takes 160 s are not the same job. `--failsafe:N` overrides both, and exists
 	# so the deadline itself can be tested without waiting four minutes for it.
 	var tool_flags := ["--gate", "--selftest", "--inputtest", "--rolltest", "--feeltest",
-		"--substancetest", "--migtest", "--doctest", "--audiotest"]
+		"--substancetest", "--migtest", "--doctest", "--audiotest", "--geomtest"]
 	var is_tool := false
 	for f in tool_flags:
 		if args.has(f):
@@ -1051,6 +1051,16 @@ func _probe_if_headless() -> void:
 	# It cannot tell you anything SOUNDS good and says so. See tools/audiotest.gd.
 	if args.has("--audiotest"):
 		preload("res://tools/audiotest.gd").run(get_tree(), self)
+		return
+
+	# THE ELEVENTH GATE. `prop_models*.gd::build()` sizes every model with
+	# `want / footprint(kind)`, so a declared box that disagrees with the mesh
+	# makes every `size:` placement of that kind wrong by exactly that ratio, in
+	# every zone that asks for one. Nothing had ever compared the two. This walks
+	# the BUILT zones rather than constructing kinds from an empty params dict,
+	# which is the wall the previous attempt hit. See tools/geomtest.gd.
+	if args.has("--geomtest"):
+		await preload("res://tools/geomtest.gd").run(get_tree(), self)
 		return
 
 	# A REPORT, NOT A GATE, and deliberately not in `tool_flags` or verify.ps1.
