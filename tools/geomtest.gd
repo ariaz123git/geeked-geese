@@ -95,7 +95,11 @@ const MESH_BASELINE := {
 	&"mailbox": Vector3(0.384, 0.295, 0.599),
 	&"minivan": Vector3(2.130, 1.906, 4.615),
 	&"patio_chair": Vector3(0.548, 0.913, 0.577),
-	&"recycling_bin": Vector3(1.016, 1.215, 0.841),
+	# 0.792 and not the 0.841 that stood here until 2026-08-19. The old figure
+	# was the tub PLUS a chevron badge hanging 8.6 cm off the front of it, so
+	# nearly a tenth of this kind's declared depth was a bug. Moving the badge
+	# onto the tub took the declaration error from +5.1% to -1.0%.
+	&"recycling_bin": Vector3(1.016, 1.215, 0.792),
 	&"shopping_cart": Vector3(0.791, 1.002, 1.230),
 	&"stop_sign": Vector3(0.665, 2.233, 0.280),
 }
@@ -119,6 +123,15 @@ const TOL_Y := 0.20
 ## Below this a mesh is a decal or a marker, not a prop with a footprint.
 const MIN_SIZE := 0.02
 
+## How far the lowest vertex of a goose model may miss the capsule's contact
+## point. 5 mm: small enough that the 101 mm and 180 mm this was written to
+## catch cannot come back, and large enough to absorb the last digit of a
+## FOOT_DROP written to three decimals. It is a placement error, not a
+## measurement one — the mesh builders are deterministic and pass 1 reports
+## 0.000 spread for fourteen of fifteen kinds, so there is no noise to leave
+## room for.
+const STANCE_TOL := 0.005
+
 static var _fails: Array[String] = []
 static var _checks := 0
 static var _seen := {}
@@ -129,6 +142,7 @@ static var _pickups := 0
 static var _shape_skips := {}
 static var _modelless := 0
 static var _zone_tally: Array[String] = []
+static var _stance: Array[String] = []
 
 
 static func run(tree: SceneTree, main: Node) -> void:
@@ -142,6 +156,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_shape_skips.clear()
 	_modelless = 0
 	_zone_tally.clear()
+	_stance.clear()
 	await tree.process_frame
 
 	var route: Array = main.get_script().get_script_constant_map().get("ROUTE", [])
@@ -159,6 +174,8 @@ static func run(tree: SceneTree, main: Node) -> void:
 		built[path] = true
 		await _walk_zone(tree, main, i + 1, path)
 	Flock.leg = was_leg
+
+	await _stance_pass(tree, main)
 
 	_report()
 	if _fails.is_empty():
@@ -306,6 +323,104 @@ static func _bury_pass(zone: Node, path: String) -> void:
 			% [path.get_file(), id, p.x, p.y, p.z, worst, who])
 	_zone_tally.append("%s %d" % [path.get_file(), here])
 
+
+
+## ═══════════════════════════════════════════════════════════════════════════
+## PASS 3 — DOES THE BIRD STAND ON THE GROUND, OR IN IT?
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## `move_and_slide()` rests the CAPSULE on the ground, and the player watches
+## the MODEL. Nothing has ever compared the two, and `docs/HANDOFF.md` has
+## carried "the lowpoly goose's webbed feet sit 5–10 cm below the collider and
+## are underground whenever the bird stands" for two sessions as an estimate
+## nobody could tighten — the number came from reading the constants, not from
+## measuring the mesh.
+##
+## The controller's capsule is radius 0.34 laid along Z, so the contact point
+## is 0.34 m below the body origin and the visual is a direct child at the
+## origin. The lowest vertex of the visual therefore has to sit at or above
+## -radius, and how far below it sits is exactly how deep the feet sink.
+##
+## BOTH VISUALS, not the one the pref happens to select. `goose_visual.gd` and
+## `goose_visual_lowpoly.gd` are interchangeable by design (CLAUDE.md), which
+## means a check that only ever measures one of them is checking a setting
+## rather than the game.
+static func _stance_pass(tree: SceneTree, main: Node) -> void:
+	var goose: CharacterBody3D = await COMMON.fresh_goose(tree, main)
+	if goose == null:
+		_ok(false, "the stance pass could not get a goose, so it measured nothing")
+		return
+	var bottom := _capsule_bottom(goose)
+	_ok(bottom < 0.0,
+		"the goose has no capsule collider this pass can read — the stance check has gone blind")
+	if bottom >= 0.0:
+		return
+	var models: Dictionary = goose.get_script().get_script_constant_map().get("MODEL_SCRIPTS", {})
+	_ok(models.size() >= 2,
+		"could not read goose_controller.gd's MODEL_SCRIPTS; the stance pass sees one visual at most")
+	var prefs := tree.root.get_node_or_null("Prefs")
+	_ok(prefs != null, "the stance pass needs Prefs to switch models and cannot find it")
+	if prefs == null:
+		return
+	var was: String = str(prefs.get_pref(&"goose_model", "lowpoly"))
+	var keys: Array = models.keys()
+	keys.sort()
+	for k in keys:
+		var key := str(k)
+		# THROUGH THE PREF, NOT BY CONSTRUCTING ONE. `_build_visual()` is what
+		# places the model, and a pass that instances the script itself would
+		# measure FOOT_DROP and prove nothing about whether the controller uses
+		# it. Prefs.set_pref emits pref_changed, which is the path a player takes
+		# through the options menu.
+		prefs.set_pref(&"goose_model", key)
+		await tree.process_frame
+		await tree.process_frame
+		var vis: Node3D = goose.get("visual")
+		_ok(vis != null, "%s: the goose has no visual after switching to it" % key)
+		if vis == null:
+			continue
+		var declared: float = vis.get_script().get_script_constant_map().get("FOOT_DROP", -1.0)
+		_ok(declared > 0.0,
+			("%s declares no FOOT_DROP, so goose_controller.gd cannot lift it onto the ground "
+			+ "and falls back to standing it on its own origin.") % key)
+		var box := _mesh_box(vis)
+		_ok(box.size != Vector3.ZERO, "%s built no meshes to measure" % key)
+		if box.size == Vector3.ZERO:
+			continue
+		var low := box.position.y - goose.global_position.y
+		var sunk := bottom - low
+		_stance.append("%-8s lowest vertex %+.3f m, capsule contact %+.3f m, sunk %+.3f m (FOOT_DROP %.3f)"
+			% [key, low, bottom, sunk, declared])
+		# ASSERTED. The whole point is that the model the player watches touches
+		# the surface the physics rests on; a metre of tolerance would let the
+		# thing this was written to catch straight back in.
+		_ok(absf(sunk) <= STANCE_TOL,
+			("the %s goose stands %.3f m %s the ground: its lowest vertex is at %.3f and the "
+			+ "capsule contacts at %.3f. goose_controller.gd::_stand_visual() lifts the visual by "
+			+ "FOOT_DROP - CAPSULE_RADIUS, so either FOOT_DROP (%.3f) no longer matches the mesh "
+			+ "or the lift is not being applied.")
+				% [key, absf(sunk), "into" if sunk > 0.0 else "above", low, bottom, declared])
+	prefs.set_pref(&"goose_model", was)
+	await tree.process_frame
+
+## How far below the body origin the goose's capsule touches down. The capsule
+## is laid along Z, so it is the radius — read off the shape rather than
+## written here, because a controller that changes shape must not leave this
+## measuring against a number from a comment.
+static func _capsule_bottom(goose: Node3D) -> float:
+	var stack: Array[Node] = [goose]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		for c in n.get_children():
+			stack.append(c)
+		var cs := n as CollisionShape3D
+		if cs == null or cs.shape == null:
+			continue
+		var cap := cs.shape as CapsuleShape3D
+		if cap == null:
+			continue
+		return cs.position.y - cap.radius
+	return 0.0
 
 ## World AABB of every mesh under `pick`, or a zero AABB if it has none.
 static func _mesh_box(pick: Node3D) -> AABB:
@@ -497,6 +612,11 @@ static func _report() -> void:
 	for b in _buried:
 		_fails.append(b + " — the player cannot see what is on offer, and whether it can"
 			+ " be taken at all is left to whether the 1.6 m trigger sphere happens to poke out.")
+	print("[geom]")
+	print("[geom] STANCE: where each goose visual's lowest vertex sits against the")
+	print("[geom]   capsule contact point the physics actually rests on.")
+	for row in _stance:
+		print("[geom]   %s" % row)
 	if not _shape_skips.is_empty():
 		print("[geom]   shapes this pass cannot read, so not covered: %s" % str(_shape_skips))
 

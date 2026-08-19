@@ -69,6 +69,22 @@ IDs increment. Newest on top.
 
 ---
 
+## D-045 · 2026-08-19 · The last three placement numbers, and the one that was twice as bad as recorded
+Status: Decided (agent)
+Decision: Suburbia's island lamp collider drops 0.6 m onto the grass; the recycling bin's chevron badge is computed from the tub's taper instead of a literal; and **both** goose visuals are lifted onto the capsule's contact point by `goose_controller.gd::_stand_visual()`. `geomtest.gd` gains pass 3, which drives the model pref and asserts the lowest vertex lands on the contact point.
+Why: These were the last three entries in `docs/HANDOFF.md` §4's placement list, each recorded with both its numbers and none of them checkable.
+
+**The lamp.** A 6 m box centred at 3.6 spans y 0.6 to 6.6 — floating 0.6 m off the grass and overhanging its own luminaire by the same. The MODEL was always right, which is why every render looked fine: `_model_body`'s offset was -3.6 to match the wrong centre. Every other post in the project passes minus HALF THE HEIGHT (`zone_strip_mall.gd` 8.0/-4.0, `zone_cottage.gd` `wall_h`/`-wall_h * 0.5`); this was the only one that passed minus the centre. Both move, so the model does not.
+
+**The chevron.** The badge sat at a literal `z = -0.437` on a tub that tapers from `hz` 0.290 to 0.364, whose surface at the badge's height is 0.339 — 8.6 cm behind it. It is now `lerpf(0.290, 0.364, t) + 0.002`, read from the loft three lines above it. **A literal cannot follow a taper.** `MESH_BASELINE` moved 0.841 → 0.792 as a result, and the footprint gate stopped the commit until it did: nearly a tenth of that kind's measured depth was the bug, and correcting it took its declaration error from +5.1% to -1.0%.
+
+**The feet, which were worse than recorded and worse in a second model nobody had mentioned.** HANDOFF estimated "5–10 cm" from reading constants. Measured: the lowpoly bird sinks **101 mm** and the classic bird **180 mm**, on every frame it stands. Each visual now declares `FOOT_DROP` — its lowest vertex below its own origin — and the controller lifts by `FOOT_DROP - CAPSULE_RADIUS`, scaled by `size` because macropsia scales the collider too and a fixed offset would re-bury a big goose. `0.34` is now `CAPSULE_RADIUS` rather than a literal inside `_build()`.
+
+**Pass 3 goes through `Prefs.set_pref`, not through `.new()`.** A pass that instanced the visual scripts itself would measure `FOOT_DROP` and prove nothing about whether the controller applies it; the pref path is the one a player takes through the options menu, and it is what `_build_visual()` hangs off. Watched failing by setting the lowpoly `FOOT_DROP` to `CAPSULE_RADIUS`, which reproduces the original zero-lift bug exactly: *"the lowpoly goose stands 0.101 m into the ground"*, exit 1, classic unaffected.
+
+**Feel is unchanged and that was checked, not assumed.** `_stand_visual()` writes `visual.position.y` and nothing else; all 13 feel windows report the same values as before the edit.
+Refs: `scripts/world/zone_suburbia.gd::_central_island`; `scripts/world/prop_models.gd::_recycling_bin`; `scripts/goose/goose_controller.gd::_stand_visual`; `goose_visual.gd`/`goose_visual_lowpoly.gd` `FOOT_DROP`; `tools/geomtest.gd::_stance_pass`.
+
 ## D-044 · 2026-08-19 · The gate table checks itself against the gates
 Status: Decided (agent)
 Decision: `verify.ps1` gains a twelfth step. It keeps every gate's PASS line, reads the gate table in `docs/HANDOFF.md` §1, and requires **every integer in a doc cell to appear in that gate's PASS line**. The map is checked both ways: a gate this script runs with no row fails, and a row for a gate nothing runs fails.

@@ -800,8 +800,20 @@ static func _recycling_bin(b: RefCounted, params: Dictionary) -> void:
 	for sx in [-1.0, 1.0]:
 		b.box(Vector3(sx * 0.478, 0.86, 0.0), Vector3(0.030, 0.055, 0.100), lid.lightened(0.10))
 
-	# The recycling chevron, as a flat badge on the front.
-	b.box(Vector3(0, 0.70, -0.437), Vector3(0.130, 0.130, 0.012), Color(0.88, 0.90, 0.92))
+	# The recycling chevron, as a flat badge on the front. ITS DEPTH COMES FROM
+	# THE TUB'S OWN TAPER rather than from a literal. The tub is a loft from
+	# hz 0.290 at y 0.02 to 0.364 at y 1.04, so at the badge's height the front
+	# face is at 0.339 — and the -0.437 this used to carry left the badge
+	# hanging 8.6 cm in front of a bin it is supposed to be moulded into. A
+	# literal cannot follow a taper; two of the three numbers it depended on are
+	# right there in the loft above and one of them is a lerp.
+	#
+	# +0.002 puts the 12 mm badge 8 mm proud of the surface and 4 mm into it, so
+	# it cannot z-fight with the tub wall either.
+	var badge_y := 0.70
+	var badge_z := lerpf(0.290, 0.364, (badge_y - y0) / (y1 - y0)) + 0.002
+	b.box(Vector3(0, badge_y, -badge_z), Vector3(0.130, 0.130, 0.012),
+		Color(0.88, 0.90, 0.92))
 
 
 # ===========================================================================

@@ -122,6 +122,12 @@ var _bank_ref := 0.0
 ## Current body scale. 1.0 normal. Driven by macropsia substances.
 var size := 1.0
 
+## The body capsule's radius. It lies along Z, so this is also HOW FAR BELOW THE
+## BODY ORIGIN THE BIRD TOUCHES DOWN — which is the number the visuals have to
+## be lifted against, and the reason it is a constant rather than a literal
+## inside `_build()`.
+const CAPSULE_RADIUS := 0.34
+
 
 func _ready() -> void:
 	_sfx = get_node_or_null("/root/Sfx")
@@ -140,7 +146,7 @@ func _build() -> void:
 	# Body collider: a capsule lying along Z so the goose is longer than it is wide.
 	var col := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
-	cap.radius = 0.34
+	cap.radius = CAPSULE_RADIUS
 	cap.height = 1.10
 	col.shape = cap
 	col.rotation_degrees = Vector3(90, 0, 0)
@@ -197,13 +203,32 @@ func _build_visual() -> void:
 	visual = load(MODEL_SCRIPTS[key]).new()
 	visual.name = "Visual"
 	add_child(visual)
-	# Re-apply the current body scale so a mid-run swap doesn't reset a goose
+	# Re-apply the current body pose so a mid-run swap doesn't reset a goose
 	# that happens to be halfway through a macropsia pulse.
-	visual.scale = Vector3.ONE * size
+	_stand_visual()
 
 	if prefs and prefs.has_signal("pref_changed") and not prefs.pref_changed.is_connected(_on_pref_changed):
 		prefs.pref_changed.connect(_on_pref_changed)
 
+
+## Scale the model to the current body size AND LIFT IT ONTO THE GROUND.
+##
+## `move_and_slide()` rests the capsule, and the player watches the model. The
+## two had never been reconciled: the capsule contacts 0.34 m below the body
+## origin, and the models' lowest vertices are at 0.441 (lowpoly) and 0.520
+## (classic), so the webbed feet spent the whole project 10 cm and 18 cm
+## underground respectively, on every frame the bird was standing. Measured by
+## `tools/geomtest.gd` pass 3, which had to build the meshes to find it — the
+## estimate in docs/HANDOFF.md was "5–10 cm" and mentioned only one of the two.
+##
+## The lift scales with `size` because macropsia scales the COLLIDER too, so the
+## contact point moves with it. A fixed offset would re-bury a big goose.
+func _stand_visual() -> void:
+	if not visual:
+		return
+	visual.scale = Vector3.ONE * size
+	var drop: float = visual.get_script().get_script_constant_map().get("FOOT_DROP", CAPSULE_RADIUS)
+	visual.position.y = (drop - CAPSULE_RADIUS) * size
 
 func _on_pref_changed(key: StringName, _value) -> void:
 	if key == &"goose_model":
@@ -645,8 +670,7 @@ func _tick_size(delta: float, m: Dictionary) -> void:
 		want = pow(2.0, phase * amp)
 	size = lerpf(size, want, 1.0 - pow(0.06, delta))
 
-	if visual:
-		visual.scale = Vector3.ONE * size
+	_stand_visual()
 	if _collider:
 		_collider.scale = Vector3.ONE * size
 	if _probe:

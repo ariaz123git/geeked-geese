@@ -496,9 +496,18 @@ func _central_island() -> void:
 		Color(0.30, 0.24, 0.18))
 	_model_body(trunk, &"tree_conifer", -1.0, {}, 0.60)
 	# Island lamp. 6.0 m collider, so the 8.4 m model scales to match.
-	var lamp := _static_box(Vector3(2.6, 3.6, 0), Vector3(0.28, 6.0, 0.28),
+	# CENTRED AT 3.0, NOT 3.6. A 6 m box centred at 3.6 spans y 0.6 to 6.6: it
+	# floats 0.6 m off the grass and overhangs its own luminaire by the same,
+	# so a goose can be stopped by nothing and pass through the post's foot.
+	# The MODEL was always right — `_model_body`'s offset was -3.6 to match the
+	# wrong centre, which is why this looked correct in every render. Every
+	# other post in the project sets the offset to minus HALF THE HEIGHT
+	# (`zone_strip_mall.gd` 8.0/-4.0, `zone_cottage.gd` wall_h/-wall_h*0.5);
+	# this was the only one that used minus the centre. Both move, so the
+	# model stays exactly where it is and only the collider drops.
+	var lamp := _static_box(Vector3(2.6, 3.0, 0), Vector3(0.28, 6.0, 0.28),
 		Color(0.30, 0.30, 0.32))
-	_model_body(lamp, &"lamp_post", -3.6, {}, 6.0 / 8.4)
+	_model_body(lamp, &"lamp_post", -3.0, {}, 6.0 / 8.4)
 
 
 # ------------------------------------------------------------------ houses

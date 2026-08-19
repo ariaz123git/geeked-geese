@@ -1,4 +1,18 @@
 extends Node3D
+
+## HOW FAR THE LOWEST VERTEX OF THIS MODEL SITS BELOW ITS OWN ORIGIN.
+##
+## `goose_controller.gd` uses it to stand the bird ON the ground instead of
+## IN it: the capsule contacts at -CAPSULE_RADIUS, so the visual is lifted by
+## `FOOT_DROP - CAPSULE_RADIUS` and the feet land exactly on the surface the
+## physics rests on. Before this existed the webbed feet were underground
+## whenever the bird stood still — the smooth build hangs its legs lower than the faceted one.
+##
+## MEASURED, NOT ESTIMATED, and it does not get to drift: `geomtest.gd` pass
+## 3 builds the bird through the real pref path and asserts the lowest vertex
+## lands on the contact point. Change the model and this number changes with
+## it or the gate says so.
+const FOOT_DROP := 0.520
 ## A recognisable Canada goose built from primitives — no art assets needed.
 ## Black head and neck, white chinstrap, brown body, black bill, orange webbed
 ## feet. The chinstrap is the entire silhouette; don't remove it.
