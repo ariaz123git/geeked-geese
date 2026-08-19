@@ -160,27 +160,27 @@ check `docs/GODOT_4.7_RULES.md`. If it is not there, fetch
 ### The parser can HANG on an edit, with no output at all
 
 **Symptom: `--gate` prints nothing — not even `[gate] compiling N
-scripts...` — and never exits.** Not an error, not a crash. Silence.
-**Two causes are known, both found here, both confirmed by bisecting a single
-edit:**
+scripts...` — and never exits.**
 
-1. **A local name reused inside one function scope.**
-   `substancetest.gd::_fingerprint()` grew a second `var prev`;
-   `selftest.gd::_the_files()` declared `var f`/`var text` in two loops.
-   Renaming fixed both, and `previous`, `prevd`, `d`, `step` and `delta_v`
-   all compile in the identical position. **Never reuse a local name inside
-   one function here.**
+**FIRST, RE-RUN WITHOUT THE `^\[gate\]` FILTER.** It is not always a hang: a
+parse error in `main.gd` stops the scene loading, so the gate never runs and
+`tree.quit()` is never called — and the filter (there for the 26 benign
+`briefing.gd` lines) throws away the `Parse Error` at `main.gd:NNN` that says
+what is wrong. **The failsafe cannot help**: it is in `main.gd` too.
+
+If it is genuinely silent, **two causes are known**, both bisected here:
+
+1. **A local name reused inside one function scope.** A second `var prev` in
+   `substancetest.gd::_fingerprint()`; `var f`/`var text` in two loops in
+   `selftest.gd::_the_files()`. Renaming fixed both. **Never reuse a local
+   name inside one function here.**
 2. **An escape sequence GDScript does not define, inside a string literal.**
-   A RegEx written `"\*\*([0-9]+)"` hung it; the same pattern written
-   `"[*][*]([0-9]+)"` compiled in 25 s. **`selftest.gd::_bad_escape()` now
-   scans every script for this** — but a scan only runs once the project
-   boots, so the gate can still stall on the file before it reports.
+   `"\*\*([0-9]+)"` hung it; `"[*][*]([0-9]+)"` compiled in 25 s.
+   **`selftest.gd::_bad_escape()` scans every script for this** — but a scan
+   only runs once the project boots, so the gate can still stall first.
 
-Neither root cause is established and neither is a claim about Godot in
-general — a minimal two-`var prev` file gives the clean parse error. What is
-established is the diagnosis: **if the gate goes silent, the last edit is the
-suspect.** `git stash push <file>` and re-run isolates it in one step, which
-is what the safety net is for.
+Neither root cause is established. The diagnosis is: **the last edit is the
+suspect** — `git stash push <file>` isolates it in one step.
 
 ### The single most common way this codebase breaks
 

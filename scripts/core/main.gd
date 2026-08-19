@@ -125,6 +125,14 @@ func _ready() -> void:
 	if OS.get_cmdline_user_args().has("--boss"):
 		_ranger_delay = 3.0
 		_big_down_delay = 3.0
+	# THE DEADLINE, BEFORE ANYTHING THAT COULD HANG. This used to be armed inside
+	# `_probe_if_headless()`, which is the LAST statement of this function — so a
+	# stall in `_build_overlays()` or in the first zone `Game.new_run()` builds
+	# happened with no deadline running at all, and became exactly the invisible
+	# process the failsafe exists to prevent. Zone construction is the largest
+	# single body of code in this project and the likeliest place to hang.
+	# `tools/selftest.gd::_the_failsafe_is_first()` asserts this order.
+	_arm_headless_deadline()
 	_build_overlays()
 	Game.phase_changed.connect(_on_phase)
 	Game.chaos_scored.connect(_on_chaos_scored)
@@ -990,13 +998,16 @@ func _arm_failsafe(secs: float, what: String) -> void:
 		get_tree().quit(2))
 
 
-func _probe_if_headless() -> void:
+## Two budgets, because a compile gate that takes 30 s and a software-rendered
+## finale probe that takes 160 s are not the same job. `--failsafe:N` overrides
+## both, and exists so the deadline itself can be tested without waiting four
+## minutes for it.
+##
+## Called from the TOP of `_ready()`. `tool_flags` is also what
+## `tools/doctest.gd` parses to check that every gate this dispatches is one
+## `verify.ps1` runs, so it stays a plain literal array.
+func _arm_headless_deadline() -> void:
 	var args := OS.get_cmdline_user_args()
-
-	# THE DEADLINE, before anything else can go wrong. Two budgets, because a
-	# compile gate that takes 30 s and a software-rendered finale probe that
-	# takes 160 s are not the same job. `--failsafe:N` overrides both, and exists
-	# so the deadline itself can be tested without waiting four minutes for it.
 	var tool_flags := ["--gate", "--selftest", "--inputtest", "--rolltest", "--feeltest",
 		"--substancetest", "--migtest", "--doctest", "--audiotest", "--geomtest"]
 	var is_tool := false
@@ -1004,13 +1015,18 @@ func _probe_if_headless() -> void:
 		if args.has(f):
 			is_tool = true
 			break
-	if is_tool or args.has("--probe"):
-		var budget: float = 240.0 if is_tool else 900.0
-		for a in args:
-			if a.begins_with("--failsafe:"):
-				budget = float(a.substr(11))
-		if budget > 0.0:
-			_arm_failsafe(budget, "this headless run")
+	if not (is_tool or args.has("--probe")):
+		return
+	var budget: float = 240.0 if is_tool else 900.0
+	for a in args:
+		if a.begins_with("--failsafe:"):
+			budget = float(a.substr(11))
+	if budget > 0.0:
+		_arm_failsafe(budget, "this headless run")
+
+func _probe_if_headless() -> void:
+	var args := OS.get_cmdline_user_args()
+
 
 	# THE COMPILE GATE. Has to run from inside the booted project, because that
 	# is the only context where the autoload singletons are registered and

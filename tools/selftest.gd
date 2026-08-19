@@ -68,6 +68,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_shelf(main)
 	_the_layers()
 	_the_itemisation(main)
+	_the_failsafe_is_first()
 	_the_hitstops()
 	_the_primitives_are_closed()
 	_the_control_keys()
@@ -1075,6 +1076,74 @@ static func _the_itemisation(main: Node) -> void:
 	game.chaos = was_chaos
 	game.leg_chaos = was_leg_chaos
 	game.combo_timer = was_timer
+
+
+## ────────────────────────────────────────────── the deadline is armed first
+
+## A DEADLINE THAT STARTS AFTER THE RISKY PART IS NOT A DEADLINE.
+##
+## `main.gd::_arm_failsafe()` exists so a headless run cannot become "an
+## invisible process that outlives the shell that started it" — its own words.
+## It used to be armed inside `_probe_if_headless()`, which is the LAST
+## statement of `_ready()`, so a stall in `_build_overlays()` or in the first
+## zone that `Game.new_run()` builds happened with no deadline running. Zone
+## construction is the largest body of code in this project and the likeliest
+## place to hang; it was the one part the failsafe did not cover.
+##
+## Checked by SOURCE ORDER rather than by behaviour, and deliberately: proving
+## it at runtime means hanging the build on purpose and waiting for the timer,
+## which is a check nobody would keep. This is the same idiom as
+## `_the_hitstops()` — read the file, assert the shape.
+static func _the_failsafe_is_first() -> void:
+	var handle := FileAccess.open("res://scripts/core/main.gd", FileAccess.READ)
+	var src := handle.get_as_text() if handle != null else ""
+	_ok(src != "", "main.gd is unreadable, so the failsafe ordering cannot be checked")
+	if src == "":
+		return
+
+	# STATEMENTS, NOT PROSE, and the first version of this check did not make
+	# that distinction. It searched the raw text and failed on correct code,
+	# because the comment ABOVE the arming call explains what would otherwise
+	# run unguarded and names `_build_overlays()` and `Game.new_run()` while
+	# doing so. A source-order check that a comment can break is a check that
+	# punishes explaining yourself.
+	var arm := -1
+	var overlays := -1
+	var run_at := -1
+	var inside := false
+	var lines := src.split("\n")
+	for i in lines.size():
+		var raw: String = lines[i]
+		var line := raw.strip_edges()
+		if raw.begins_with("func "):
+			# Column zero, so an inner class's own _ready() cannot end the walk.
+			inside = line.begins_with("func _ready(")
+			continue
+		if not inside or line.begins_with("#"):
+			continue
+		if arm < 0 and line.begins_with("_arm_headless_deadline("):
+			arm = i
+		if overlays < 0 and line.begins_with("_build_overlays("):
+			overlays = i
+		if run_at < 0 and line.begins_with("Game.new_run("):
+			run_at = i
+
+	_ok(arm >= 0,
+		("main.gd::_ready() never calls `_arm_headless_deadline()`. A headless run that "
+		+ "hangs before the probe body is an invisible process, which is the entire reason "
+		+ "`_arm_failsafe()` exists."))
+	_ok(overlays >= 0 and run_at >= 0,
+		"main.gd::_ready() no longer builds the overlays or starts a run; this check has gone blind")
+	if arm < 0 or overlays < 0 or run_at < 0:
+		return
+	_ok(arm < overlays,
+		("main.gd::_ready() builds the overlays on line %d and arms the deadline on line %d. "
+		+ "Anything that stalls in there runs forever.") % [overlays + 1, arm + 1])
+	_ok(arm < run_at,
+		("main.gd::_ready() calls Game.new_run() on line %d — which BUILDS THE FIRST ZONE — "
+		+ "and arms the deadline on line %d. Zone construction is the largest body of code "
+		+ "in this project and the likeliest thing to hang, and it would hang with no timer "
+		+ "running.") % [run_at + 1, arm + 1])
 
 static func _the_primitives_are_closed() -> void:
 	var lpb := load("res://scripts/goose/lowpoly_builder.gd")

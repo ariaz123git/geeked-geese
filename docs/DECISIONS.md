@@ -69,6 +69,18 @@ IDs increment. Newest on top.
 
 ---
 
+## D-049 · 2026-08-19 · A deadline that starts after the risky part is not a deadline
+Status: Decided (agent)
+Decision: The headless failsafe moves out of `_probe_if_headless()` into `_arm_headless_deadline()`, called from the **top** of `main.gd::_ready()`. `selftest::_the_failsafe_is_first()` asserts the ordering by reading the source.
+Why: `_arm_failsafe()` exists so a headless run cannot become *"an invisible process that outlives the shell that started it"* — its own words. It was armed inside `_probe_if_headless()`, which is the LAST statement of `_ready()`, so a stall in `_build_overlays()` or in the first zone `Game.new_run()` builds ran with no deadline at all. Zone construction is the largest body of code in this project and the likeliest thing to hang; it was the one part the failsafe did not cover. `docs/HANDOFF.md` §4 recorded it.
+
+**Checked by source order rather than behaviour, deliberately.** Proving it at runtime means hanging the build on purpose and waiting out the timer, which is a check nobody keeps. Same idiom as `_the_hitstops()`: read the file, assert the shape. Watched failing by moving the call back next to `_probe_if_headless()` — it names both lines.
+
+**THE FIRST VERSION OF THAT CHECK FAILED ON CORRECT CODE, AND THE REASON IS WORTH KEEPING.** It searched the raw text, and the comment ABOVE the arming call explains what would otherwise run unguarded — naming `_build_overlays()` and `Game.new_run()` while doing so. **A source-order check that a comment can break is a check that punishes explaining yourself.** It now walks lines, skips comments, and matches statements at the start of a stripped line.
+
+**And this landed via a 20-minute detour that found something CLAUDE.md did not say.** A swallowed newline joined `_build_overlays()` to the next statement; `--gate` then printed **nothing at all** and never exited, which CLAUDE.md attributes only to a parser hang. It was an ordinary parse error: `main.gd` would not load, so the gate never ran, `tree.quit()` was never called, and the process sat alive — while the documented `grep '^[gate]'` filter threw away the `Parse Error ... at main.gd:136` that said so. **The failsafe cannot cover that case either, because it lives in `main.gd`.** CLAUDE.md now says to re-run without the filter first, written at the same line count as before.
+Refs: `scripts/core/main.gd::_arm_headless_deadline`; `tools/selftest.gd::_the_failsafe_is_first`; CLAUDE.md *"The parser can HANG on an edit"*.
+
 ## D-048 · 2026-08-19 · An itemisation has to be in the same currency as the thing it itemises
 Status: Decided (agent)
 Decision: `Mission._complete()` records `paid` — the movement in `Game.chaos` across its `Game.score()` call — and `evaluate_leg()` sums that instead of the raw `reward` fields. `selftest::_the_itemisation()` drives one objective through `_complete()` at combo 7 and asserts the two agree.

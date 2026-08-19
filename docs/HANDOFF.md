@@ -58,7 +58,7 @@ declared the wrong size.
 | gate | proves | count |
 |---|---|---|
 | `--gate` | every `.gd` compiles and every resource loads, inside the booted project | 72 scripts |
-| `--selftest` | the game agrees with itself | **948 invariants** |
+| `--selftest` | the game agrees with itself | **953 invariants** |
 | `--probe --inputtest` | the bird obeys a key, **including the one that eats** | 30 checks |
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
@@ -244,9 +244,10 @@ and each is a one-line revert. The share cooldown of 1.0 s is pacing (D-032).
 > them is why the fix is what it is and deleting it would cost the next reader
 > the reasoning. The entries that are NOT struck are live.
 >
-> **Still open, in rough order of cost:** `migtest`'s `lateral.half_cross` cannot fail
-> independently; the failsafe arms after the
-> first zone is built; and the three BIG DOWN items, which need a render
+> **Still open, in rough order of cost:** `migtest`'s `lateral.half_cross`
+> cannot fail independently; **verify.ps1 has no per-step wall-clock timeout**,
+> so a main.gd that will not parse hangs it forever; and the three BIG DOWN
+> items, which need a render
 > or a judgement. **The placement list is empty** — all five are fixed and
 > `--geomtest` now has an assertion for each class.
 
@@ -394,9 +395,27 @@ is overwritten by the Almanac's own `_ready()`.
   two probes exit with `ERROR: N resources still in use` from a teardown
   ordering issue that is diagnosed and open. See `docs/RECENT_FAILURES.md`
   F-001, which this half retired.
+- ~~**The failsafe is armed after the first zone has already been built.**~~
+  **FIXED, D-049** — `_arm_headless_deadline()` is now the first statement of
+  `_ready()`, and `selftest::_the_failsafe_is_first()` asserts the ordering.
+  Original text:
+
 - **The failsafe is armed after the first zone has already been built.**
   `_arm_failsafe()` runs partway through `_ready()`, so a crash or stall before
   that point is still an invisible process.
+
+- **NEW: `verify.ps1` has no per-step wall-clock timeout, and the in-engine
+  failsafe cannot substitute for one.** Found the hard way on 2026-08-19: a
+  swallowed newline in `main.gd` made the main scene fail to parse, so
+  `_probe_if_headless()` never ran, `tree.quit()` was never called, and the
+  process sat alive forever printing nothing past the `^[gate]` filter. **The
+  failsafe cannot help because it lives in `main.gd` too** — a file that will
+  not parse takes its own deadline down with it. The shell that started the
+  process is the only thing that can always kill it. The fix is one helper in
+  `verify.ps1` — `Start-Process -PassThru -RedirectStandardOutput` plus
+  `WaitForExit(ms)` and `Kill()` — applied to all twelve invocations; it was
+  not done in the same session as the bug that revealed it because it is a
+  refactor of the file that runs everything.
 
 ---
 ### Carried forward from previous sessions
