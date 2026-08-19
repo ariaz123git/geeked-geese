@@ -998,7 +998,7 @@ func _probe_if_headless() -> void:
 	# takes 160 s are not the same job. `--failsafe:N` overrides both, and exists
 	# so the deadline itself can be tested without waiting four minutes for it.
 	var tool_flags := ["--gate", "--selftest", "--inputtest", "--rolltest", "--feeltest",
-		"--substancetest", "--migtest", "--doctest"]
+		"--substancetest", "--migtest", "--doctest", "--audiotest"]
 	var is_tool := false
 	for f in tool_flags:
 		if args.has(f):
@@ -1041,6 +1041,16 @@ func _probe_if_headless() -> void:
 	# See tools/doctest.gd and docs/CLAIMS.md.
 	if args.has("--doctest"):
 		preload("res://tools/doctest.gd").run(get_tree(), self)
+		return
+
+	# THE TENTH GATE, and the only one that opens the WAVs. `selftest` proves a
+	# file exists for every key the code asks for; the bug that got past that is
+	# in the record -- the truck stop's "rain" was a 0.700 s goose hiss that
+	# never looped. This checks that a bed loops, that a one-shot is short, that
+	# nothing is silent or clipping, and that the layered stems share a length.
+	# It cannot tell you anything SOUNDS good and says so. See tools/audiotest.gd.
+	if args.has("--audiotest"):
+		preload("res://tools/audiotest.gd").run(get_tree(), self)
 		return
 
 	# A REPORT, NOT A GATE, and deliberately not in `tool_flags` or verify.ps1.

@@ -2,8 +2,8 @@
 <#
   Geeked Geese verification loop.
 
-    .\verify.ps1              # nine gates: compile, invariants, controller, feel,
-                              #   substances, flight, credit roll, claims, campaign
+    .\verify.ps1              # ten gates: compile, invariants, controller, feel,
+                              #   substances, flight, credit roll, claims, audio, campaign
     .\verify.ps1 -Shots       # also render every zone and tell you where the PNGs are
     .\verify.ps1 -Quick       # skips the 20 s campaign run
 
@@ -305,6 +305,30 @@ if ($docCode -ne 0) {
     Fail "claims" "SCRIPT ERROR: $((ScriptErrors $docOut)[0])"
 } else {
     Pass "claims" ($docLines | Where-Object { $_ -match 'PASS' })
+}
+
+# ---------------------------------------------------------------------------
+# 6c. THE AUDIO GATE. Opens every WAV and checks it is what its name claims: a
+#     bed loops and is long enough to be a bed, a one-shot is short enough to be
+#     a one-shot, nothing is silent or clipping, and the sixteen layered stems
+#     share a length. It cannot tell you anything SOUNDS good and says so.
+#
+#     The bug it exists for is in the record: the truck stop's "rain" was a
+#     0.700 s goose hiss that never looped, and every existence check passed it.
+# ---------------------------------------------------------------------------
+Write-Host "`n=== audio ===" -ForegroundColor Cyan
+$audOut = & $GODOT --headless --no-header --path $root -- --audiotest 2>&1 | Out-String
+$audCode = $LASTEXITCODE
+$audLines = ($audOut -split "`r?`n") | Where-Object { $_ -match '^\[audio\]' }
+$audLines | ForEach-Object { Write-Host $_ }
+if ($audCode -ne 0) {
+    Fail "audio" "exit $audCode"
+} elseif ($audOut -notmatch '\[audio\] PASS') {
+    Fail "audio" "no [audio] PASS line"
+} elseif ((ScriptErrors $audOut).Count -gt 0) {
+    Fail "audio" "SCRIPT ERROR: $((ScriptErrors $audOut)[0])"
+} else {
+    Pass "audio" ($audLines | Where-Object { $_ -match 'PASS' })
 }
 
 # ---------------------------------------------------------------------------

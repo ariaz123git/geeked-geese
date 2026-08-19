@@ -69,6 +69,14 @@ IDs increment. Newest on top.
 
 ---
 
+## D-035 · 2026-08-18 · The tenth gate opens the WAVs, and says what it cannot hear
+Status: Decided (agent)
+Decision: `tools/audiotest.gd`, step 6c of `verify.ps1`. **246 checks over 68 files.** A bed must loop and be long enough to be a bed; a one-shot must be short enough to be a one-shot; nothing may be silent or clipping; the sixteen layered music stems must share a length.
+Why: `selftest::_the_assets()` proved a file EXISTS for every key the code asks for, and the bug that got past it is in the record — **the truck stop's "rain" was a 0.700 s goose hiss that never looped**, so the zone played 0.7 s of goose and then 174 s of silence. The file existed and the key resolved. **Named limits, both printed on every run:** it can say nothing about whether anything SOUNDS good, and 40 of the 68 files import as QOA, whose `data` holds compressed bytes, so the silence and clipping checks are skipped for those with a count.
+**The floors are per family because a single one accused two healthy files.** The first version used one 3.0 s floor and immediately failed `dose_charge_loop` (1.000 s, because the dose arc is 1.1 s) and `swim_loop` (2.000 s, a paddle cycle). Lowering it to let them through would have let a 0.700 s hiss through too. So: `amb_*` ≥ 4.0, `*_loop` ≥ 0.25, `mus_*` ≥ 10.0, each argued in the file.
+Watched failing twice, and the second is the one that matters: disabling `sfx.gd::_configure_loop_if_needed()` — the runtime fix that forces looping on `amb_`/`_loop` keys — failed **exactly the four files that depend on it** (`amb_parking_lot`, `dose_charge_loop`, `swim_loop`, `wind_loop`) and no others, because the other six beds and all sixteen stems loop from their `.import`.
+Refs: `tools/audiotest.gd`; `verify.ps1` step 6c.
+
 ## D-034 · 2026-08-18 · Six unreachable objectives: three deleted, two moved, one re-gated
 Status: Decided (agent — the two homes are design calls and revertible)
 Decision: `selftest.gd::_the_objectives_are_reachable()` fails the build if an objective's leg gate excludes every leg `ROUTE` plays its zone on. It found **six**, and each was resolved on evidence rather than by lowering the gate:

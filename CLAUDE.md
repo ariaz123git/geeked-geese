@@ -64,7 +64,7 @@ project. Source and rationale: `tools/gate.gd`.
 input-lag bug that made *eleven of the sixteen substances unplayable* — the bird
 obeying four-second-old input — passed the compile gate, passed the whole
 headless campaign run, and would have passed any review that did not press a
-key. There are now 9 gates, and one script that runs all of them:
+key. There are now 10 gates, and one script that runs all of them:
 
 ```
 .\verify.ps1                                       # all of them. -Quick skips the slow three
@@ -77,6 +77,7 @@ godot --headless --path . -- --probe --migtest     # the flight answers the stic
 godot --headless --path . -- --probe --rolltest    # the credit roll actually travels
 godot --headless --path . -- --probe --loop-test   # seven legs and the ending
 godot --headless --path . -- --doctest             # the DOCS still tell the truth
+godot --headless --path . -- --audiotest           # the WAVs are what they claim
 ```
 
 **`--doctest` is the ninth gate and the only one pointed at this repo's own
@@ -107,19 +108,18 @@ have to be compared, not each checked alone.
 game is flights, and the only thing any check knew about one was that the
 campaign reached `COMPLETE`.
 
-**Before writing a fifth harness, read the header of `tools/probe_common.gd`.**
-Every one of the four written in one session spent its first runs accusing a
-healthy game, and every one of those was the instrument, not the game: the goose
-spawns in a pond, the zone's cats shove it, the tree pauses behind your back,
-the substance ends before the measurement does, and half these drivers are
-sine-phased or rotating so a short sample or a net-displacement metric reads
-zero. That file carries the list and the shared setup.
+**Before writing another harness, read the header of `tools/probe_common.gd`.**
+Every measuring gate here spent its first runs accusing a healthy game, and every
+time it was the instrument: the goose spawns in a pond, cats shove it mid-
+measurement, the tree pauses behind your back, the substance ends before the
+measurement does, drivers are sine-phased so a short sample reads zero, and a
+geometry walk counted the invisible boundary walls as level design. That file
+carries the numbered list and the shared setup.
 
-**Every assertion in all five is a bug that already got through once.** When you fix
-something a gate could not see, add the assertion that would have seen it — and
-then break it on purpose and watch it fail. A check nobody has watched fail is
-worse than no check, because it launders a guess into a claim. That single
-omission is what cost this project four shipped bugs and a dead gate.
+**Every assertion in all of them is a bug that already got through once.** When
+you fix something a gate could not see, add the assertion that would have seen
+it — then break it on purpose and watch it fail. A check nobody has watched fail
+is worse than no check: it launders a guess into a claim.
 
 ### Two gates that do not work — do not go back to them
 
