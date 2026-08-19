@@ -61,7 +61,7 @@ declared the wrong size.
 | `--selftest` | the game agrees with itself | **944 invariants** |
 | `--probe --inputtest` | the bird obeys a key | 8 checks |
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
-| `--probe --substancetest` | all seventeen substances bite | 165 checks |
+| `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, and the seven differ | 14 measurements |
 | `--probe --rolltest` | the credit roll travels |  |
 | `--doctest` | **the documents still tell the truth** | 195 claims |
@@ -246,8 +246,7 @@ and each is a one-line revert. The share cooldown of 1.0 s is pacing (D-032).
 >
 > **Still open, in rough order of cost:** the results card quotes
 > un-multiplied rewards;
-> `input_lag` and `grid_snap` still have no behavioural coverage; nothing
-> drives the eating verb through the key the player presses; `migtest`'s
+> nothing drives the eating verb through the key the player presses; `migtest`'s
 > `lateral.half_cross` cannot fail independently; the failsafe arms after the
 > first zone is built; and the three BIG DOWN items, which need a render
 > or a judgement. **The placement list is empty** — all five are fixed and
@@ -354,6 +353,17 @@ inside the 0.4 s debounce is lost; and `almanac.layer = 20` in `_build_overlays(
 is overwritten by the Almanac's own `_ready()`.
 
 **Gaps in the gates themselves, named honestly:**
+
+- ~~**`input_lag` has no behavioural coverage in any of the eleven gates.**~~
+  **FIXED, D-046** — `substancetest` measures the delay from key to movement and
+  asserts it, and `_the_grid()` holds a diagonal to catch `grid_snap` (0.785 rad
+  dosed against 0.000 sober, which is PI/4 exactly). **But only 2 of the 11
+  laggards are asserted**, and the reason is in the code rather than the harness:
+  drift is added to the stick AFTER the lag buffer, so under a drifting substance
+  the bird moves on frame 1 however stale the stick is. The nine are printed as
+  not asserted with that reason. Two is enough to hold the MECHANISM — one buffer
+  serves all eleven — but a wrong number in one `.tres` is still only covered
+  statically. Original text:
 
 - **`input_lag` has no behavioural coverage in any of the eleven gates.** It is
   the field that caused this project's most expensive bug — eleven of sixteen

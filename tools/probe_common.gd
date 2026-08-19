@@ -56,6 +56,16 @@ extends RefCounted
 ##      pass report leg 1's bread as buried in four zones that have never heard
 ##      of it, and inflated every prop sample count. Walk the subtree.
 ##
+##   8. **The peak of a turn is not a bearing.** `substancetest`'s grid check
+##      took a max over its sample window and reported robo travelling 1.746
+##      rad off a commanded diagonal — more than a right angle of error from a
+##      mechanic whose largest possible effect is 45°. It was catching the bird
+##      MID-TURN: `_reset()` leaves it facing wherever it last faced, and robo
+##      halves the turn rate, so the worst frame of the sample is the middle of
+##      a rotation. The last valid sample — the steady state — reads 0.785,
+##      which is PI/4 to three decimals. **`maxf` is right for an excursion and
+##      wrong for a direction.**
+##
 ## The habit that caught all of them: **measure the baseline twice and refuse to
 ## report anything if the two runs disagree.** A harness that cannot reproduce
 ## itself cannot accuse anything else.

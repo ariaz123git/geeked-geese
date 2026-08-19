@@ -85,6 +85,32 @@ const TURN_TOL := 0.25
 ## the other way. See the leash argument in `_fingerprint()`.
 const LEASH := 6.0
 
+## How much longer than its declared `input_lag` a substance may take to reach
+## the bird, in seconds.
+##
+## `_wanted()` walks the buffer newest-first and takes the first entry whose age
+## is `>= lag`, so the delivered delay is the declared one rounded UP to a tick,
+## plus the tick the sample was appended on. Measured: bars declares 0.10 and
+## arrives at 7 ticks over sober (0.117 s); robo declares 0.16 and arrives at 11
+## (0.183 s). Both are the declared value plus one to one and a half ticks.
+##
+## 0.05 is three ticks: room for that rounding and one more frame of scheduling,
+## and nowhere near enough to hide the failure this exists to catch. The bug it
+## is aimed at delivered FOUR SECONDS — 240 ticks.
+const LAG_TOL := 0.05
+
+## Sober, how far off a commanded diagonal the bird may travel before the grid
+## check calls its own baseline broken. 0.12 rad is 7° — room for the last of
+## the acceleration ramp turning the velocity onto the stick, and a sixth of the
+## effect being measured.
+const GRID_CLEAN := 0.12
+
+## And how far off it must be under a substance that declares `grid_snap`. A 90°
+## snap of a 45° stick is exactly PI/4 = 0.785 rad; 0.60 leaves room for the
+## velocity still turning onto the snapped bearing at the end of the sample
+## without admitting anything that is merely wobbling.
+const GRID_SNAPPED := 0.60
+
 
 ## Substances whose only control mutation changes the WORLD, not the hands, and
 ## which therefore cannot be seen by a controller measurement. Each one needs a
@@ -284,6 +310,7 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 	var want_cats: bool = bool(r.aggro_cats)
 	var want_blocks: bool = bool(r.blocks_dosing)
 	var needs_climb: bool = not is_equal_approx(want_flap, 1.0) or not is_equal_approx(want_grav, 1.0)
+	var want_lag: float = float(r.input_lag)
 
 	var observable := (float(r.drift) > 0.001 or not is_equal_approx(want_turn, 1.0) or needs_climb
 		or not is_equal_approx(want_tscale, 1.0) or want_scale or want_idle
@@ -321,9 +348,46 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 
 	var fp := await _fingerprint(tree, goose, subs)
 
-	print("[subs] %-14s speed %5.2f  drift %.3f (%.3f rad off)  turnrate %5.2f  climb %5.2f"
-		% [id, fp.speed, fp.driftmag, fp.offaxis, fp.turnrate, fp.climb])
+	print("[subs] %-14s speed %5.2f  drift %.3f (%.3f rad off)  turnrate %5.2f  climb %5.2f  lag %d tick (sober %d, declared %.2f s)"
+		% [id, fp.speed, fp.driftmag, fp.offaxis, fp.turnrate, fp.climb, int(fp.lag), int(sober.lag), want_lag])
 	_wet_check(String(id), fp)
+
+	# 1b. THE FIELD THAT CAUSED THIS PROJECT'S MOST EXPENSIVE BUG.
+	#
+	# `input_lag` ramped to a FOUR SECOND delay and made eleven of the sixteen
+	# substances unplayable. It passed the compile gate, the campaign run, and
+	# every review that did not press a key — and until now it passed this file
+	# too, which counted `input_lag` as satisfying the design rule while
+	# asserting nothing whatever about it. `docs/HANDOFF.md` §4 named the gap.
+	#
+	# ONLY THE DRIFT-FREE SUBSTANCES CAN BE MEASURED THIS WAY, and that is a
+	# statement about `_wanted()` rather than about this harness. Drift is added
+	# to the stick AFTER the lag buffer is read, so under any substance that
+	# drifts the bird is never still and "the first frame it moved" is frame one
+	# no matter how stale the stick is. Measured: nine of the eleven laggards
+	# report 1 tick, and they are exactly the nine that drift.
+	#
+	# Two is enough to hold the mechanism, which is the thing that broke. The
+	# buffer in `_wanted()` is SHARED by all eleven — there is no per-substance
+	# lag code — so the four-second ramp would show here as bars arriving at 240
+	# ticks instead of 8. What two cannot catch is a substance whose own .tres
+	# value is wrong, and `selftest` covers that statically.
+	var lag_seconds := float(int(fp.lag) - int(sober.lag)) * TICK
+	if want_lag > 0.001 and float(r.drift) <= 0.001:
+		_ok(lag_seconds >= want_lag - TICK and lag_seconds <= want_lag + LAG_TOL,
+			("%s declares input_lag %.2f s and the bird answered the key %.3f s after sober "
+			+ "(%d ticks against %d). Allowed [%.3f, %.3f]. The lag buffer in "
+			+ "goose_controller.gd::_wanted() is shared by every laggard, so this is the "
+			+ "mechanism, not one substance.")
+				% [id, want_lag, lag_seconds, int(fp.lag), int(sober.lag),
+					want_lag - TICK, want_lag + LAG_TOL])
+	elif want_lag > 0.001:
+		# NOT ASSERTED, AND SAID OUT LOUD. A gap nobody prints is a gap nobody
+		# knows about.
+		print(("[subs]   %s declares input_lag %.2f but also drift %.2f, which is added "
+			+ "after the lag buffer — the bird moves on frame 1 either way and the lag "
+			+ "cannot be separated from it here. Not asserted.")
+				% [id, want_lag, float(r.drift)])
 
 	# THE MEASUREMENT IS ONLY VALID IF THE SUBSTANCE WAS STILL ON THE BIRD.
 	#
@@ -414,6 +478,8 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 		await _the_cats(tree, subs, res)
 	if want_blocks:
 		await _the_bread(tree, subs, res)
+	if bool(r.grid_snap):
+		await _the_grid(tree, goose, subs, res)
 
 	await _sober_up(tree, goose, subs)
 
@@ -431,6 +497,93 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 ## is to measure the thing it actually changes — the DOSE API — rather than to
 ## put bread in EXEMPT. D-010 emptied that list for exactly this reason: an
 ## allowlist is where a real failure gets reclassified as an expected one.
+
+## ═══════════════════════════════════════════════════════════════════════════
+## grid_snap — THE DIAGONAL IS THE THING IT TAKES AWAY
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## `grid_snap` was the other field `docs/HANDOFF.md` §4 named as having no
+## behavioural coverage. One substance declares it — robo — and the whole
+## mechanic is two lines of `_wanted()`: snap the stick angle to a multiple of
+## 90° and keep its length.
+##
+## Holding FORWARD ALONE cannot see it. A pure forward stick is already on an
+## axis, so the snap is the identity and the bird goes exactly where it went
+## sober — which is why every existing channel in this file, all of which hold
+## forward, reported robo as ordinary. The measurement has to hold a DIAGONAL.
+##
+## THE CAMERA YAW IS SET, NOT MERELY FROZEN, and that is the whole reason this
+## can assert a number. `_raw_input()` rotates the stick by -yaw BEFORE the snap,
+## so the snap error is |snappedf(a, PI/2) - a| for a = -PI/4 - yaw: it is PI/4
+## at yaw 0 and ZERO at yaw -PI/4, where the diagonal happens to already lie on
+## a world axis. A test that only pinned whatever yaw it found would pass or
+## fail on where the camera was looking. Pinning `_manual_t` stops the
+## auto-follow from writing `_yaw` back.
+static func _the_grid(tree: SceneTree, goose: CharacterBody3D, subs: Node, res: Substance) -> void:
+	var cam: Node3D = goose.get("cam") as Node3D
+	_ok(cam != null, "%s: the grid check needs the camera to fix a bearing and cannot find it" % res.id)
+	if cam == null:
+		return
+	COMMON.hold_actors(tree, true)
+	await _sober_up(tree, goose, subs)
+	var clean := await _diagonal(tree, goose, cam)
+	_ok(bool(subs.call("take", res, _dose_for(res))),
+		"%s could not be taken for the grid check." % res.id)
+	# Past the substance's own input lag before the diagonal is judged: robo
+	# declares 0.16 s and a stick that has not arrived yet cannot be snapped.
+	for _i in 30:
+		await tree.physics_frame
+	var snapped := await _diagonal(tree, goose, cam)
+	COMMON.hold_actors(tree, false)
+	print("[subs] %-14s diagonal off by %.3f rad sober, %.3f rad dosed (a full snap is %.3f)"
+		% [res.id, clean, snapped, PI * 0.25])
+	_ok(clean >= 0.0 and snapped >= 0.0,
+		"%s: the bird never got moving on the diagonal, so the grid check measured nothing." % res.id)
+	if clean < 0.0 or snapped < 0.0:
+		return
+	_ok(clean <= GRID_CLEAN,
+		("sober, the bird went %.3f rad off a commanded diagonal, which is more than the "
+		+ "%.3f this check treats as straight. The BASELINE is wrong, so read nothing "
+		+ "below it as a verdict on %s.") % [clean, GRID_CLEAN, res.id])
+	_ok(snapped >= GRID_SNAPPED,
+		("%s declares grid_snap and the bird still took the diagonal: %.3f rad off the "
+		+ "commanded bearing where a 90° snap of a 45° stick is %.3f. `_wanted()` snaps the "
+		+ "stick ANGLE and keeps its length, so this is that branch not running.")
+			% [res.id, snapped, PI * 0.25])
+
+
+## How far off a commanded 45° diagonal the bird actually travels, in radians,
+## or -1.0 if it never got moving. The bearing is fixed by setting the camera
+## yaw to 0, so the commanded direction is world (+x, -z) exactly.
+static func _diagonal(tree: SceneTree, goose: CharacterBody3D, cam: Node3D) -> float:
+	await _reset(tree, goose)
+	cam.set("_manual_t", 9999.0)
+	cam.set("_yaw", 0.0)
+	var want := Vector2(1.0, -1.0).normalized()
+	var leash := goose.global_position
+	Input.action_press("gg_forward")
+	Input.action_press("gg_right")
+	var settled := -1.0
+	for i in 90:
+		await tree.physics_frame
+		if Vector2(goose.global_position.x - leash.x, goose.global_position.z - leash.z).length() > LEASH:
+			var carry := goose.velocity
+			goose.global_position = leash
+			goose.velocity = carry
+		var v := Vector2(goose.velocity.x, goose.velocity.z)
+		# WHERE THE BIRD ENDED UP GOING, not the worst frame on the way there.
+		# The first version took a max over the window and reported robo 1.746 rad
+		# off a diagonal whose snap is 0.785 — more than a right angle of error
+		# from a mechanic that can only ever produce 45°. It was catching the bird
+		# MID-TURN: `_reset()` leaves it facing wherever it last faced, robo halves
+		# the turn rate, and the peak of a turn is not a bearing. The last valid
+		# sample is the steady state, which is what "the diagonal is gone" means.
+		if i >= 40 and v.length() > 1.0:
+			settled = absf(v.angle_to(want))
+	Input.action_release("gg_forward")
+	Input.action_release("gg_right")
+	return settled
+
 static func _the_bread(tree: SceneTree, subs: Node, res: Substance) -> void:
 	# A clean slate, so "refused" cannot be a MAX_STACK blackout in disguise.
 	subs.call("reset_for_new_leg")
@@ -576,7 +729,7 @@ static func _fingerprint(tree: SceneTree, goose: CharacterBody3D, subs: Node) ->
 	var out := {
 		"speed": 0.0, "offaxis": 0.0, "driftmag": 0.0, "turnrate": 0.0,
 		"climb": 0.0, "size": 0.0, "idle": 0.0, "power": 1.0, "active": true,
-		"wet": 0,
+		"wet": 0, "lag": -1,
 	}
 	var cam: Node3D = goose.get("cam") as Node3D
 
@@ -662,6 +815,18 @@ static func _fingerprint(tree: SceneTree, goose: CharacterBody3D, subs: Node) ->
 		var v := Vector2(goose.velocity.x, goose.velocity.z)
 		out.speed = maxf(float(out.speed), v.length())
 
+		# HOW MANY TICKS AFTER THE KEY WENT DOWN THE BIRD FIRST MOVED.
+		#
+		# `input_lag` is the field that caused this project's most expensive bug —
+		# a ramp to a FOUR SECOND delay that made eleven of the sixteen substances
+		# unplayable — and until now no gate asserted anything about it at all.
+		# `docs/HANDOFF.md` §4 named the gap: this file counted `input_lag` as
+		# satisfying the design rule while measuring nothing.
+		#
+		# It costs nothing to take here: the hold already starts from rest (see
+		# `_reset()`), so the first frame with any speed at all is the answer.
+		if int(out.lag) < 0 and v.length() > 0.01:
+			out.lag = i + 1
 		# DRIFT IS A BIAS OVER THIS WINDOW, NOT A WOBBLE.
 		#
 		# `_wanted()` builds drift from sines of `Time.get_ticks_msec() * 0.0009`,

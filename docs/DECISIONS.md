@@ -69,6 +69,22 @@ IDs increment. Newest on top.
 
 ---
 
+## D-046 · 2026-08-19 · The field that caused the worst bug in this project now has a gate
+Status: Decided (agent)
+Decision: `substancetest.gd` measures `input_lag` — ticks from the key going down to the bird first moving, against the sober baseline — and asserts it for the substances where it is separable. It also grows `_the_grid()`, which holds a **diagonal** under `grid_snap` and asserts the bird refuses to take it. 165 checks → 172.
+Why: `docs/HANDOFF.md` §4 named both as having no behavioural coverage in any gate. `input_lag` is the field whose four-second ramp made **eleven of the sixteen substances unplayable** while every gate stayed green; this file counted it as satisfying the design rule and asserted nothing about it.
+
+**Only two of the eleven laggards can be measured through motion, and that is a fact about `_wanted()`, not about the harness.** Drift is added to the stick AFTER the lag buffer is read, so under any drifting substance the bird is never still and "the first frame it moved" is frame one however stale the stick is. Measured: nine of eleven report 1 tick, and they are exactly the nine that drift. The other two land where the mechanism says they should — bars declares 0.10 and arrives 7 ticks after sober (0.117 s), robo declares 0.16 and arrives at 11 (0.183 s), each the declared value plus one to one and a half ticks of buffer rounding.
+
+**Two is enough, because the bug was in the shared mechanism.** There is no per-substance lag code: one buffer in `_wanted()` serves all eleven, so the four-second ramp would show as bars arriving at 240 ticks instead of 8. What two cannot catch is a wrong number in one `.tres`, and `selftest` covers that statically. The nine are **printed as not asserted, with the reason**, rather than silently skipped.
+
+**`grid_snap` needed a diagonal, and every existing channel holds forward.** A pure forward stick is already on an axis, so the snap is the identity and robo looked ordinary to all 22 channels. The check also **sets** the camera yaw rather than freezing whatever it found: `_raw_input()` rotates the stick before the snap, so the error is `|snappedf(a, PI/2) - a|` for `a = -PI/4 - yaw` — PI/4 at yaw 0 and **zero** at yaw -PI/4, where the diagonal already lies on a world axis. Measured 0.000 rad sober and **0.785 dosed**, which is PI/4 to three decimals.
+
+**The first version of the diagonal reported 1.746 rad**, more than a right angle of error from a mechanic that can only produce 45°. It took a max over the sample window and was catching the bird MID-TURN — `_reset()` leaves it facing wherever it last faced and robo halves the turn rate. The peak of a turn is not a bearing; the last valid sample is. Another entry for the list in `tools/probe_common.gd`.
+
+Both watched failing. Tripling the shared lag (`m.input_lag * 3.0`, the shape of the original bug) names bars at 20 ticks and robo at 33, with the allowed windows printed. Making the snap branch unreachable reports robo taking the diagonal at 0.000 rad and nothing else.
+Refs: `tools/substancetest.gd::_the_grid`, `_diagonal`, `LAG_TOL`, `GRID_CLEAN`, `GRID_SNAPPED`; `scripts/goose/goose_controller.gd::_wanted`.
+
 ## D-045 · 2026-08-19 · The last three placement numbers, and the one that was twice as bad as recorded
 Status: Decided (agent)
 Decision: Suburbia's island lamp collider drops 0.6 m onto the grass; the recycling bin's chevron badge is computed from the tub's taper instead of a literal; and **both** goose visuals are lifted onto the capsule's contact point by `goose_controller.gd::_stand_visual()`. `geomtest.gd` gains pass 3, which drives the model pref and asserts the lowest vertex lands on the contact point.
