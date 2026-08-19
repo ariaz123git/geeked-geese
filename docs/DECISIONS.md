@@ -69,6 +69,20 @@ IDs increment. Newest on top.
 
 ---
 
+## D-047 · 2026-08-19 · Something finally eats through the key
+Status: Decided (agent)
+Decision: `inputtest.gd` gains `_eat_test()`: the goose walks onto leg 1's infinite grass, holds `gg_eat` to three different charges, and releases. It asserts the charge arc is a clock, that each of the three doses scores the label its band deserves, that the substance goes active, that `stamina_restore` lands, and that walking off mid-hold drops the charge and scores nothing. 8 controller checks → 30.
+Why: `docs/HANDOFF.md` §4 named this precisely: *"Every harness reaches into `Subs.take()` directly, so `_tick_eat`'s charge arc, the sweet-spot band, the abort, the pickup's `consumed()` and the SWEET SPOT / OVERDOSE / BARELY ANYTHING scoring have never been driven by a key."* That is the game's core skill expression — `_tick_eat`'s own comment calls letting go at the right moment *"its only real input-timing test"* — and it is why `stamina_restore` could be dead in six `.tres` files with every gate green.
+
+**Grass, and the choice is load-bearing.** It is `infinite` in leg 1 so one pickup survives all three releases; it is in the tutorial shelf so it exists at leg 1; its band is wide (0.35–0.85) so three doses sit clear of both edges; and it restores 0.25 stamina.
+
+**The holds are to a CHARGE, not to a frame count, and the first draft got that wrong in a way worth keeping.** `_eat_charge += delta / charge_time` looks like 1/84 per frame at 60 Hz, and the first dose measures exactly that — 0.202 in 17 frames. The second and third came in at 0.545 and 0.838 where the frame count predicted 0.607 and 0.952, and the harness called the game broken. **Grass sets `time_scale` to 0.88.** Once the first dose lands every `delta` is 12% shorter, so the arc is still a clock — in GAME time, which is the only clock the player is in. Holding to a target is immune; the clock is then checked separately against game time accumulated the same way.
+
+**The stamina is set on the frame before the release, and that detail is the check.** `regen_ground` over a 91-frame hold adds more than the 0.25 being looked for, so a before/after spanning the whole hold would have passed on regen alone. Measured across the release frame: **+0.260** against a declared 0.25, the extra being two frames of regen.
+
+Watched failing twice. Killing the restore line — the exact shape of the bug that left it dead — reports all three doses moving stamina 0.010 instead of 0.25. Removing the band's floor reports the 0.202 dose scoring SWEET SPOT instead of BARELY ANYTHING, and nothing else. `goose_controller.gd` is byte-identical to HEAD after both.
+Refs: `tools/inputtest.gd::_eat_test`; `scripts/goose/goose_controller.gd::_tick_eat`; `Game.chaos_scored`, whose fourth argument is the only observable separating the three outcomes.
+
 ## D-046 · 2026-08-19 · The field that caused the worst bug in this project now has a gate
 Status: Decided (agent)
 Decision: `substancetest.gd` measures `input_lag` — ticks from the key going down to the bird first moving, against the sober baseline — and asserts it for the substances where it is separable. It also grows `_the_grid()`, which holds a **diagonal** under `grid_snap` and asserts the bird refuses to take it. 165 checks → 172.

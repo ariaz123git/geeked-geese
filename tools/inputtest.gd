@@ -73,6 +73,8 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_ok(flight.y > 0.5, "a run-up and a flap never reached State.FLY. The bird cannot take off.")
 	_ok(flight.x > 0.8, "the takeoff gained %.2f m of altitude. The flap does nothing." % flight.x)
 
+	await _eat_test(tree, goose)
+
 	var honked := await _honk_test(tree, main, goose)
 	print("[input] honk: chaos +%d" % honked)
 	_ok(honked > 0, "honking next to the cart corral scored nothing. The honk's physical presence is gone.")
@@ -106,6 +108,169 @@ static func run(tree: SceneTree, main: Node) -> void:
 		print("[input]   %s" % f)
 	tree.quit(1)
 
+
+
+## ═══════════════════════════════════════════════════════════════════════════
+## THE EATING VERB, THROUGH THE KEY THE PLAYER PRESSES
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## `docs/HANDOFF.md` §4: *"Every harness reaches into `Subs.take()` directly, so
+## `_tick_eat`'s charge arc, the sweet-spot band, the abort, the pickup's
+## `consumed()` and the SWEET SPOT / OVERDOSE / BARELY ANYTHING scoring have
+## never been driven by a key."* That is the game's CORE SKILL EXPRESSION — the
+## controller's own comment calls letting go at the right moment "its only real
+## input-timing test" — and it is the reason `stamina_restore` could be dead in
+## six `.tres` files with every gate green.
+##
+## GRASS, and the choice is load-bearing. It is `infinite` in leg 1 (the zone's
+## own comment says so, and says why: "the dose ARC — charge, release, overdose
+## — is the thing leg 1 has to teach"), so the same pickup survives all three
+## releases; it is in the tutorial shelf, so it is there at leg 1; its band is
+## wide (0.35–0.85) so the three doses are far apart; and it restores 0.25
+## stamina, which is the field nothing has ever been able to check behaviourally.
+##
+## THE HOLDS ARE TO A CHARGE, NOT TO A FRAME COUNT, and the first draft got this
+## wrong in a way worth keeping. `_eat_charge += delta / charge_time` looks like
+## 1/84 per frame at 60 Hz — and the first dose measures exactly that, 0.202 in
+## 17 frames. The second and third do not: they came in at 0.545 and 0.838 where
+## the frame count predicted 0.607 and 0.952, and the harness called the game
+## broken. **Grass sets `time_scale` to 0.88.** Once the first dose lands, every
+## `delta` the controller sees is 12% shorter, so the arc is still a clock — in
+## GAME time, which is the only clock the player is in. Holding until the charge
+## reaches a target is immune to that; the clock is then checked separately
+## against game time accumulated the same way.
+##
+## Targets 0.20 / 0.60 / 0.95 against a [0.35, 0.85] band: clear of both edges.
+static func _eat_test(tree: SceneTree, goose: CharacterBody3D) -> void:
+	var pick: Node3D = null
+	for n in tree.get_nodes_in_group("substance_source"):
+		var cand := n as Node3D
+		if cand == null or not is_instance_valid(cand):
+			continue
+		var sub: Object = cand.get("substance")
+		if sub != null and str(sub.get("id")) == "grass":
+			pick = cand
+			break
+	_ok(pick != null,
+		"leg 1 has no grass source to eat, so the eating verb was not exercised at all.")
+	if pick == null:
+		return
+	var res: Substance = pick.get("substance")
+
+	# WALK INTO IT. `SubstancePickup` is an Area3D whose `body_entered` calls
+	# `set_eat_target()`; nothing else sets `_eating`, so being in range is part
+	# of what is under test rather than something to fake.
+	_release_all()
+	goose.global_position = pick.global_position + Vector3.UP * 0.5
+	goose.velocity = Vector3.ZERO
+	var in_range := false
+	for _i in 30:
+		await tree.physics_frame
+		if goose.get("_eating") != null:
+			in_range = true
+			break
+	_ok(in_range,
+		("standing on the grass never set the goose's eat target. `body_entered` -> "
+		+ "`set_eat_target()` is the only path that arms the verb, so nothing below "
+		+ "this ran."))
+	if not in_range:
+		return
+
+	# EVERY LABEL THE DOSE SCORES. `Game.score()` emits `chaos_scored` with the
+	# label as its fourth argument, which is the only observable that separates
+	# the three outcomes — they all call `Subs.take()` and they all succeed.
+	var labels: Array = []
+	var watch := func(_amount: int, _total: int, _combo: int, label: String) -> void:
+		labels.append(label)
+	Game.chaos_scored.connect(watch)
+
+	for row in [[0.20, "BARELY ANYTHING"], [0.60, "SWEET SPOT"], [0.95, "OVERDOSE"]]:
+		var spec: Array = row
+		var target: float = spec[0]
+		var want: String = spec[1]
+		labels.clear()
+		var game_time := 0.0
+		var held := 0
+		Input.action_press("gg_eat")
+		for _f in 240:
+			await tree.physics_frame
+			# The clock the CONTROLLER is on. `Engine.time_scale` scales the delta
+			# handed to `_physics_process`, and grass sets it to 0.88.
+			game_time += TICK * Engine.time_scale
+			held += 1
+			if float(goose.get("_eat_charge")) >= target:
+				break
+		var charged: float = float(goose.get("_eat_charge"))
+		# Set the stamina ON THE FRAME BEFORE THE RELEASE, so the gain measured
+		# below is the restore and not a second of `regen_ground` — which over an
+		# 80-frame hold is larger than the restore being looked for, and would
+		# have satisfied a laxer check on its own.
+		goose.set("stamina", 0.20)
+		var before: float = float(goose.get("stamina"))
+		Input.action_release("gg_eat")
+		await tree.physics_frame
+		await tree.physics_frame
+		var after: float = float(goose.get("stamina"))
+
+		_ok(charged >= target,
+			("holding gg_eat for %d frames never reached a charge of %.2f (got %.3f). The "
+			+ "arc does not fill.") % [held, target, charged])
+
+		# THE ARC IS A CLOCK. A charge that saturated instantly would score SWEET
+		# SPOT on all three of these holds and look perfect.
+		var expect := game_time / res.charge_time
+		_ok(absf(charged - expect) <= 0.06,
+			("%d frames of gg_eat is %.3f s of game time and charge_time is %.2f s, so the "
+			+ "charge should be %.3f. It is %.3f. The dose arc is not a clock.")
+				% [held, game_time, res.charge_time, expect, charged])
+
+		var in_band: bool = charged >= res.sweet_min and charged <= res.sweet_max
+		var deserved := "SWEET SPOT" if in_band else ("OVERDOSE" if charged > res.sweet_max else "BARELY ANYTHING")
+		_ok(deserved == want,
+			("the harness aimed for %s and the charge landed at %.3f, which its band "
+			+ "[%.2f, %.2f] calls %s. The three targets no longer straddle the band — fix "
+			+ "the targets, not the game.") % [want, charged, res.sweet_min, res.sweet_max, deserved])
+		_ok(labels.has(want),
+			("a %.3f dose of grass scored %s, not %s. Its band is [%.2f, %.2f], and these "
+			+ "three labels are the game's whole readout of the only input-timing skill "
+			+ "it has.") % [charged, str(labels), want, res.sweet_min, res.sweet_max])
+
+		_ok(Subs.is_active(res.id),
+			"a %.3f dose of grass released through gg_eat left the substance inactive." % charged)
+
+		# stamina_restore, BEHAVIOURALLY. It was dead in six .tres files and
+		# nothing noticed, because it is applied at exactly this moment and no
+		# harness had ever reached this moment. `selftest` can only see that the
+		# field is named in the controller.
+		var gained := after - before
+		_ok(gained >= res.stamina_restore * 0.8 and gained <= res.stamina_restore * 1.2 + 0.03,
+			("grass declares stamina_restore %.2f and a dose through the key moved stamina "
+			+ "%.3f (%.2f -> %.2f) across the release frame. It is applied inside the "
+			+ "`if Subs.take(...)` branch of _tick_eat(), so this is that line.")
+				% [res.stamina_restore, gained, before, after])
+		print("[input] eat: %3d frames -> %.3f charge (%.3f s game time), %s, stamina +%.3f"
+			% [held, charged, game_time, str(labels), gained])
+	# AND THE ABORT. Walking off mid-hold has to drop the charge on the floor:
+	# `clear_eat_target()` nulls `_eating` and zeroes `_eat_charge` together, and
+	# a version of `_tick_eat` that trusted a stale charge left the dose loop
+	# ringing in the player's ears for the rest of the leg.
+	labels.clear()
+	var away := pick.global_position + Vector3(40.0, 0.5, 40.0)
+	Input.action_press("gg_eat")
+	for _f in 30:
+		await tree.physics_frame
+	goose.global_position = away
+	for _f in 20:
+		await tree.physics_frame
+	Input.action_release("gg_eat")
+	await tree.physics_frame
+	Game.chaos_scored.disconnect(watch)
+	_ok(float(goose.get("_eat_charge")) <= 0.001,
+		("walking out of range mid-hold left %.3f of charge on the bird. It has to be "
+		+ "dropped, or the next pickup starts part-charged.") % float(goose.get("_eat_charge")))
+	_ok(labels.is_empty(),
+		"walking away mid-hold still scored %s. An abort is not a dose." % str(labels))
+	print("[input] eat: abort mid-hold dropped the charge and scored nothing")
 
 static func _ok(cond: bool, msg: String) -> void:
 	_checks += 1

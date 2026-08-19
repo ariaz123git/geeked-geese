@@ -59,7 +59,7 @@ declared the wrong size.
 |---|---|---|
 | `--gate` | every `.gd` compiles and every resource loads, inside the booted project | 72 scripts |
 | `--selftest` | the game agrees with itself | **944 invariants** |
-| `--probe --inputtest` | the bird obeys a key | 8 checks |
+| `--probe --inputtest` | the bird obeys a key, **including the one that eats** | 30 checks |
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, and the seven differ | 14 measurements |
@@ -245,9 +245,8 @@ and each is a one-line revert. The share cooldown of 1.0 s is pacing (D-032).
 > the reasoning. The entries that are NOT struck are live.
 >
 > **Still open, in rough order of cost:** the results card quotes
-> un-multiplied rewards;
-> nothing drives the eating verb through the key the player presses; `migtest`'s
-> `lateral.half_cross` cannot fail independently; the failsafe arms after the
+> un-multiplied rewards; `migtest`'s `lateral.half_cross` cannot fail
+> independently; the failsafe arms after the
 > first zone is built; and the three BIG DOWN items, which need a render
 > or a judgement. **The placement list is empty** — all five are fixed and
 > `--geomtest` now has an assertion for each class.
@@ -369,6 +368,14 @@ is overwritten by the Almanac's own `_ready()`.
   the field that caused this project's most expensive bug — eleven of sixteen
   substances unplayable — and `substancetest` counts it as satisfying the design
   rule while asserting nothing about it. Same for `grid_snap`.
+- ~~**Nothing exercises the eating verb through the path the player uses.**~~
+  **FIXED, D-047** — `inputtest::_eat_test()` walks onto leg 1's grass, holds
+  `gg_eat` to three charges and releases, asserting the arc is a clock, that each
+  dose scores the label its band deserves, that the substance goes active, that
+  `stamina_restore` lands (**+0.260 measured against a declared 0.25**, across the
+  release frame so `regen_ground` cannot pay for it), and that an abort drops the
+  charge. 8 checks → 30. Original text:
+
 - **Nothing exercises the eating verb through the path the player uses.** Every
   harness reaches into `Subs.take()` directly, so `_tick_eat`'s charge arc, the
   sweet-spot band, the abort, the pickup's `consumed()` and the SWEET SPOT /
