@@ -42,7 +42,7 @@ Nothing answered prose *facts* rotting. Now `--doctest` does.
 | | |
 |---|---|
 | Engine | Godot 4.7.1, GL Compatibility renderer |
-| Code | 71 GDScript files (read the live count off `[gate] PASS — N scripts`) |
+| Code | 70 GDScript files (read the live count off `[gate] PASS — N scripts`) |
 | Zones built | 8 — retention pond / strip mall lot (one zone, two legs, **two shelves now**), suburbia, cottage country, the stopover, cut corn, truck stop, the 18th green |
 | Route legs | 7 flown + the arrival |
 | Substances | 16, all with models, control mutations, true codex facts and a HUD icon. **Leg 1 offers 3 of them**; every other leg offers its zone's full set |

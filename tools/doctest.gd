@@ -93,7 +93,7 @@ const SRC_MAIN := "res://scripts/core/main.gd"
 const VERIFY := "res://verify.ps1"
 
 ## THE RATCHET. `README_KIT.md` said CLAUDE.md was "under 200 lines on purpose";
-## it is 379, and nothing noticed because a line budget written in prose cannot
+## it was 379, and nothing noticed because a line budget written in prose cannot
 ## count. 200 is the target Anthropic's own guidance gives and it is where this
 ## should end up; the ceiling below is TODAY'S SIZE, so the file can shrink
 ## toward 200 and can never grow again.
@@ -101,7 +101,7 @@ const VERIFY := "res://verify.ps1"
 ## **Lower this number whenever you cut the file. Never raise it.** If a session
 ## needs to add a rule, it takes one out — which is the forcing function the
 ## budget exists to be.
-const CLAUDE_MD_CEILING := 379
+const CLAUDE_MD_CEILING := 374
 const CLAUDE_MD_TARGET := 200
 
 ## `docs/RECENT_FAILURES.md` holds at most this many. See `_the_failure_log()`
@@ -309,6 +309,15 @@ static func _live(key: String, main: Node) -> int:
 			return _feeltest_windows().size()
 		"claude_md_lines":
 			return _read_text(DOC_CLAUDE).split("\n").size()
+		"verify_steps":
+			# One `=== name ===` banner per gate in verify.ps1. This is the only
+			# honest count of "how many gates are there": `tool_flags` misses
+			# --loop-test, which is not a tool flag but is unarguably a gate.
+			# One `Pass "<name>"` verdict per gate. Counting the `=== name ===`
+			# banners instead would also catch the first-run asset import and
+			# the optional render step, neither of which is a gate; a step that
+			# can report PASS is exactly what a gate is.
+			return _count(_read_text(VERIFY), "Pass \"")
 		_:
 			return -1
 

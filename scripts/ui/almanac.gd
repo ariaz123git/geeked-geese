@@ -304,8 +304,6 @@ func _mechanics_text(res) -> String:
 		lines.append("No fall damage")
 	if bool(res.aggro_cats):
 		lines.append("Cats nearby go berserk")
-	if bool(res.no_early_exit):
-		lines.append("Cannot end early — you finish the ride")
 
 	var duration: float = res.duration
 	var comedown: float = res.comedown

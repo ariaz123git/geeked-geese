@@ -229,7 +229,6 @@ func _empty_mods() -> Dictionary:
 		"camera_detach": 0.0, "grid_snap": false, "hud_amnesia": false,
 		"hallucinate": 0.0, "no_fall_damage": false,
 		"scale_amp": 0.0, "scale_period": 7.0, "aggro_cats": false,
-		"no_early_exit": false,
 	}
 
 
@@ -262,7 +261,6 @@ func _aggregate() -> Dictionary:
 		m.camera_detach = maxf(m.camera_detach, r.camera_detach)
 		m.hallucinate = maxf(m.hallucinate, r.hallucinate)
 		m.aggro_cats = m.aggro_cats or r.aggro_cats
-		m.no_early_exit = m.no_early_exit or r.no_early_exit
 		if r.scale_amp > m.scale_amp:
 			m.scale_amp = r.scale_amp
 			m.scale_period = r.scale_period

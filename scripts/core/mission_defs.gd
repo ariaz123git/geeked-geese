@@ -171,27 +171,6 @@ static func _strip_mall() -> Array:
 			# every pair in the game satisfies it, so the player picks.
 			"cond": {"type": &"label", "labels": [], "target": 4, "when": {"subs_min": 2}},
 		},
-		{
-			"id": &"no_brakes",
-			"kind": PRIMARY,
-			"from_leg": 3,
-			"text": "Wreck {n} things inside ten seconds",
-			"hint": "any {n}. go.",
-			"done_text": "Ten seconds. Gone.",
-			"reward": 400,
-			# Leg-3 escalation is a CONSTRAINT, not a bigger number: same verb,
-			# now with a clock on it. Pushes the player from wandering to routing.
-			"cond": {"type": &"window", "labels": [], "target": 6, "window": 10.0},
-		},
-		{
-			"id": &"sustained_campaign",
-			"kind": PRIMARY,
-			"from_leg": 5,
-			"text": "Get a {n}x chain going and hold it",
-			"done_text": "{n}x. The lot is a write-off.",
-			"reward": 450,
-			"cond": {"type": &"stat", "stat": &"peak_combo", "op": &"gte", "value": 10.0},
-		},
 
 		# ── BONUS ───────────────────────────────────────────────────────────
 		{
@@ -223,15 +202,6 @@ static func _strip_mall() -> Array:
 			# a wobbling formation later. Making the tempting option expensive
 			# is what stops "optional" from meaning "obviously do it".
 			"cond": {"type": &"label", "labels": ["SHARED WITH THE FLOCK"], "prefix": false, "target": 2},
-		},
-		{
-			"id": &"variety_pack",
-			"kind": BONUS,
-			"from_leg": 4,
-			"text": "Wreck {n} different kinds of thing",
-			"done_text": "Nothing in this lot is safe from you.",
-			"reward": 350,
-			"cond": {"type": &"unique", "set": &"labels", "target": 6},
 		},
 
 		# ── HIDDEN (zone-flavoured) ─────────────────────────────────────────
@@ -317,16 +287,24 @@ static func _suburbia() -> Array:
 			"reward": 400,
 			"cond": {"type": &"window", "labels": [], "target": 6, "window": 10.0},
 		},
-		{
-			"id": &"low_flying_aircraft",
-			"kind": PRIMARY,
-			"from_leg": 5,
-			"text": "Land {n} hits without ever landing",
-			"done_text": "{n} hits, feet never down.",
-			"reward": 450,
-			"cond": {"type": &"label", "labels": [], "target": 4, "when": {"airborne": true}},
-		},
 
+		# MOVED HERE FROM `_strip_mall` on 2026-08-18. It was authored with
+		# `from_leg: 3` in a zone ROUTE only ever plays on legs 1 and 2, so
+		# the ten-second-window constraint `mission.gd`'s escalation comment
+		# promises at leg 3 did not exist anywhere in the game. Suburbia IS
+		# leg 3.
+		{
+			"id": &"no_brakes",
+			"kind": PRIMARY,
+			"from_leg": 3,
+			"text": "Wreck {n} things inside ten seconds",
+			"hint": "any {n}. go.",
+			"done_text": "Ten seconds. Gone.",
+			"reward": 400,
+			# Leg-3 escalation is a CONSTRAINT, not a bigger number: same verb,
+			# now with a clock on it. Pushes the player from wandering to routing.
+			"cond": {"type": &"window", "labels": [], "target": 6, "window": 10.0},
+		},
 		# ── BONUS ───────────────────────────────────────────────────────────
 		{
 			"id": &"boing",
@@ -363,15 +341,6 @@ static func _suburbia() -> Array:
 			"done_text": "The flock is now your problem.",
 			"reward": 300,
 			"cond": {"type": &"label", "labels": ["SHARED WITH THE FLOCK"], "prefix": false, "target": 2},
-		},
-		{
-			"id": &"variety_pack",
-			"kind": BONUS,
-			"from_leg": 4,
-			"text": "Wreck {n} different kinds of thing",
-			"done_text": "This whole street hates you.",
-			"reward": 350,
-			"cond": {"type": &"unique", "set": &"labels", "target": 6},
 		},
 
 		# ── HIDDEN (zone-flavoured) ─────────────────────────────────────────

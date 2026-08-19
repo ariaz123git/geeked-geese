@@ -466,6 +466,14 @@ static func _the_cats(tree: SceneTree, subs: Node, res: Substance) -> void:
 ## caller can prove the substance was still on the bird when the last channel
 ## was read, rather than assuming it.
 static func _fingerprint(tree: SceneTree, goose: CharacterBody3D, subs: Node) -> Dictionary:
+	# THE ACTORS ARE HELD FOR THE WHOLE FINGERPRINT. See
+	# `probe_common.gd::hold_actors()` lesson 6 for why retaking stopped
+	# being enough: a cat camped on the pad made four consecutive sober runs
+	# disagree on bearing while `turnrate` and `climb` were bit-identical in
+	# all four. Everything measured in here is the controller answering the
+	# stick, where a shove is noise. `_the_cats()` runs OUTSIDE this and
+	# with the cats live, because there the cats are the subject.
+	COMMON.hold_actors(tree, true)
 	var out := {
 		"speed": 0.0, "offaxis": 0.0, "driftmag": 0.0, "turnrate": 0.0,
 		"climb": 0.0, "size": 0.0, "idle": 0.0, "power": 1.0, "active": true,
@@ -686,6 +694,9 @@ static func _fingerprint(tree: SceneTree, goose: CharacterBody3D, subs: Node) ->
 		if goose.velocity.y < 0.0 and float(out.climb) > 0.01:
 			break
 
+	# Let the zone go again. Every early `return` above would have to do the
+	# same, which is why there are none: this function has exactly one exit.
+	COMMON.hold_actors(tree, false)
 	return out
 
 

@@ -207,6 +207,25 @@ static func corn() -> Array:
 			"cond": {"type": &"label", "labels": ["HONK"], "prefix": false, "target": 10},
 		},
 
+		# MOVED HERE FROM `mission_defs.gd::_strip_mall` on 2026-08-18, and it is
+		# the only chain-length objective in the game. It was authored with
+		# `from_leg: 5` in a zone `ROUTE` plays on legs 1 and 2 ONLY, so the
+		# chain-length constraint `mission.gd`'s escalation comment promises at
+		# leg 5 was unreachable and nothing else supplied it.
+		#
+		# The cut corn rather than the Stopover, which is the other leg-5+
+		# candidate: the Stopover is the run's one recovery beat (`par_scale`
+		# 0.55, two required primaries) and a 10x chain primary fights the whole
+		# point of it. Leg 6 is an open field with a combine and the highest prop
+		# density in the back half. Design call, D-034.
+		{
+			"id": &"sustained_campaign",
+			"kind": PRIMARY,
+			"text": "Get a {n}x chain going and hold it",
+			"done_text": "{n}x. The field is a write-off.",
+			"reward": 450,
+			"cond": {"type": &"stat", "stat": &"peak_combo", "op": &"gte", "value": 10.0},
+		},
 		# ── BONUS ───────────────────────────────────────────────────────────
 		{
 			"id": &"bale_out",

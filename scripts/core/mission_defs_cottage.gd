@@ -213,7 +213,10 @@ static func cottage() -> Array:
 		{
 			"id": &"night_flight",
 			"kind": BONUS,
-			"from_leg": 5,
+			# 4: `cottage` is played on leg 4 alone. At 5 this bonus — the
+			# compound mastery one, airborne AND aggressive AND on a live pair —
+			# was authored and could never appear.
+			"from_leg": 4,
 			"text": "Land {n} hits airborne, on two things",
 			"hint": "two at once. three is a nap.",
 			"done_text": "Airborne, chemically, at night. Sure.",

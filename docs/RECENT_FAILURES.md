@@ -91,11 +91,18 @@ calls `randomize()`, so the cats' spawn positions come off the same stream: a
 change with nothing to do with cats moved every cat. Any edit to any zone builder
 can do this to any harness that measures in that zone, and the failure will look
 like a regression in whatever the harness measures.
-**Retires when:** the probes seed their own deterministic RNG stream, or the zone
-builders take a seed, so that a build's actor layout is a function of the seed
-rather than of how many `randf()` calls happened to precede it. The retake loop
-added to `substancetest.gd` treats the symptom for one harness; it does not
-retire this.
+**Mostly retired, 2026-08-18 (D-027):** `probe_common.gd::hold_actors()` freezes
+every `cat` and `npc` for the duration of a controller measurement, so the
+ACTOR half of this cannot bite a harness any more — sober noise went from four
+consecutive disturbed runs to **0.000 on every channel with zero retakes**, and
+`catnip` still sees 7 of 7 cats in frenzy because `_the_cats()` runs outside
+the hold.
+**Retires when:** the STATIC half is closed too. `hold_actors()` cannot freeze a
+shopping cart that was re-rolled into the measuring pad, and no probe checks for
+one. The fix is the original: the zone builders take a seed, so a build's layout
+is a function of that seed rather than of how many `randf()` calls happened to
+precede it — at which point `find_dry_ground()` can also reject a pad with a
+rigid body on it and know the answer will not change under it.
 
 ### F-003 · 2026-08-18 · `add_child()` during `main._ready()` fails silently and hands back an empty node
 **Symptom:** the first version of the leg-1 shelf check built the strip mall at

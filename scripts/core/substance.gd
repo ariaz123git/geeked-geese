@@ -76,8 +76,6 @@ class_name Substance
 @export var scale_period: float = 7.0
 ## Cats within earshot go berserk. Doesn't touch you at all — that's the joke.
 @export var aggro_cats: bool = false
-## You cannot end this early. Toad slime. You bought the whole ride.
-@export var no_early_exit: bool = false
 ## How many tolerance points one dose adds. Nicotine is 3 — that's the point.
 @export var tolerance_gain: int = 1
 
@@ -166,7 +164,6 @@ func resolve(dose: float, tolerance: int) -> Dictionary:
 		"scale_amp": scale_amp * good,
 		"scale_period": scale_period,
 		"aggro_cats": aggro_cats,
-		"no_early_exit": no_early_exit,
 		"fx_mode": fx_mode,
 		"fx_strength": fx_strength * bad,
 		"honk_pitch": honk_pitch,

@@ -272,56 +272,72 @@ eight zone builders" was the argument against, and **nobody had counted it.**
 godot --headless --path . -- --probe --glidetest 2>&1 | grep '^\[glide\]'
 ```
 
-It finds every static box collider whose top face is big enough for the goose
-capsule (≥ 0.75 m²), keeps the ones above 1.5 m, and asks, for each ordered pair,
-whether the higher one can reach the lower one **by gliding alone** — no flap, no
-dive, no thermal, because the ratio has no effect on climbing.
+It finds every static box collider whose top face the goose capsule fits on,
+keeps the ones above 1.5 m, and asks, for each ordered pair, whether the higher
+one can reach the lower one **by gliding alone** — no flap, no dive, no thermal,
+because the ratio has no effect on climbing.
 
-**168 standable surfaces across the seven zones, 113 of them elevated.**
+> **THE FIRST VERSION OF THIS TABLE WAS WRONG, AND IT WAS COMMITTED.** It read
+> 42 of 113 surfaces today rising to 86 at 3:1, and it said "suburbia is the
+> whole decision" on the strength of that zone going 0 → 16. **Both were
+> artefacts of the instrument counting the four invisible boundary walls every
+> zone rings itself with** — 80 m long, 1 m thick, 13 m up, with nothing beside
+> them, so they read as enormous glide platforms and as the most dangerous drops
+> in the game, in all seven zones at once. The tell was in the output and I did
+> not read it: every zone reported *exactly* four hazardous surfaces, and legs 1
+> and 3 named the same position. The corrected numbers are below, and they argue
+> close to the opposite. `tools/glidetest.gd` now prints what every walk threw
+> away, on every run, which is the line that would have caught it in one glance.
+
+**134 standable surfaces across the seven zones, 84 of them elevated.**
 
 | glide | elevated surfaces reachable by glide | vs today |
 |---|---|---|
-| **0.85 : 1** (today) | **42 of 113 — 37%** | — |
-| 1.5 : 1 | 68 — 60% | **+26** |
-| 2.0 : 1 | 79 — 70% | **+37** |
-| 3.0 : 1 | 86 — 76% | **+44** |
+| **0.85 : 1** (today) | **21 of 84 — 25%** | — |
+| 1.5 : 1 | 25 — 30% | **+4** |
+| 2.0 : 1 | 27 — 32% | **+6** |
+| 3.0 : 1 | 31 — 37% | **+10** |
 
-Per zone, and this is where the number stops being an average:
+Per zone:
 
 | leg | zone | elevated | 0.85 | 1.5 | 2.0 | 3.0 |
 |---|---|---|---|---|---|---|
-| 1/2 | the pond / strip mall lot | 9 | 4 | 4 | 4 | 4 |
-| 3 | **suburbia** | 21 | **0** | 11 | 13 | **16** |
-| 4 | cottage country | 38 | 20 | 27 | 30 | 34 |
-| 5 | the stopover | 9 | 3 | 5 | 5 | 5 |
-| 6 | the cut corn | 8 | 4 | 4 | 4 | 4 |
-| 7 | the truck stop | 28 | 11 | 17 | 23 | 23 |
+| 1/2 | the pond / strip mall lot | 5 | 1 | 1 | 1 | 2 |
+| 3 | suburbia | 17 | 0 | 1 | 1 | 1 |
+| 4 | **cottage country** | 32 | **18** | 18 | 20 | **23** |
+| 5 | the stopover | 5 | 1 | 2 | 2 | 2 |
+| 6 | the cut corn | 4 | 0 | 1 | 1 | 1 |
+| 7 | the truck stop | 21 | 1 | 2 | 2 | 2 |
 
-**Two findings the average hides.**
+**What the corrected numbers actually say, which is not what the argument
+against assumed.**
 
-**Suburbia is the whole decision.** Not one of its 21 elevated surfaces is
-glide-reachable from another today — the longest glide available in the zone is
-**0.0 m** — and at 3:1 sixteen of them are. Suburbia is the leg
-`CAMPAIGN_SPEC.md` §2.3 introduces height on ("the roof, the trampoline-as-stairs,
-the fenced backyards"), and it is built entirely on the assumption that getting
-between roofs costs flaps. Widening the glide does not adjust that zone; it
-deletes its premise.
+**Widening the glide to 3:1 opens ten surfaces.** Not "trivialises traversal" —
+ten, across seven zones, and four of those arrive already at 1.5:1. The zones
+are 80 m across and the tall geometry is sparse and far apart; a 3:1 glide from
+a 10 m roof travels 30 m, which in most of these zones lands on asphalt rather
+than on another roof.
 
-**Legs 1, 2 and 6 do not care at all.** Flat ground with a building on it: 4
-reachable at every ratio tested. The pond, the lot and the corn field would not
-notice a 3:1 glide, which means the cost is not spread across the campaign — it
-is concentrated in exactly the three zones (3, 4, 7) built around verticality.
+**Cottage country is the only zone with a connected canopy**, and it is
+connected *already*: 18 of its 32 elevated surfaces are glide-reachable at
+today's 0.85, against 0 or 1 everywhere else. That is the tree line, and it is
+the one place where the ratio is doing load-bearing work today.
 
-**The counts are ceilings.** Straight-line reach, no obstacles between, and a
-yawed box measured by its axis-aligned footprint — every approximation errs
-toward *reachable*, deliberately, so the number cannot understate the risk. The
-header of `tools/glidetest.gd` lists all five.
+**Suburbia's roofs are isolated at every ratio tested** — 0 at 0.85, 1 at 3:1.
+The leg `CAMPAIGN_SPEC.md` §2.3 builds around height is exactly the leg a wider
+glide does not change, because its houses are further apart than they are tall.
 
-**D-006 is still Open (human) and this does not close it.** It says what
-changing the glide costs: 37% → 76% of the game's elevated geometry becoming
-reachable without a flap, and one zone losing its premise entirely. Whether that
-is a price worth paying for the rooftop fantasy is taste, and taste is not an
-agent's.
+**The counts are still ceilings.** Straight-line reach, no obstacles between,
+and a yawed box measured by its axis-aligned footprint — every approximation
+errs toward *reachable*, deliberately, so the number cannot understate the risk.
+The header of `tools/glidetest.gd` lists all six, including the three tries it
+took to tell a wall from a roof.
+
+**D-006 is still Open (human) and this does not close it.** What it now says is
+that the cost of widening the glide is **much smaller than the argument against
+it assumed** — ten surfaces at 3:1, concentrated in a zone that is already
+connected. Whether the rooftop fantasy is worth ten surfaces is taste, and taste
+is not an agent's.
 
 ### 5.2 Any 20 m glide arrives at 20.9 m/s, and `hard_landing_speed` is 13.0
 
@@ -360,14 +376,21 @@ number to argue about. Three consequences worth stating in the same breath:
 | **A 20 m glide arrives at 20.9 m/s** | 2.7× the threshold speed, and 2.6× the threshold height |
 | **One flap lifts 1.73 m** | so the threshold is **4.4 flaps of height**, which is the unit the player actually reasons in |
 
-**What is still missing, and it is a job rather than a judgement:** how many
-surfaces in each built zone actually sit more than 7.68 m above their nearest
-lower neighbour. That is the same walk as D-006's reachability diff (`HANDOFF`
-§3 item 1) and it should be done in the same pass, because both questions are
-answered by the same enumeration of every walkable surface in every zone. If the
-answer is "three roofs and the atrium", D-005 is a curiosity. If it is "every
-roof in suburbia and every beam level in BIG DOWN", it is a design problem on
-44% of the shelf.
+**And the count that was missing is now in, off the same walk** (`--glidetest`,
+because enumerating every standable surface twice would be two copies of the
+same walk):
+
+> **One surface in the entire game has no soft way down.** It is in leg 1, its
+> gentlest descent is **10.0 m**, and it arrives at 14.8 m/s against the 13.0
+> threshold. Every other standable surface in all seven zones has something
+> within 4 m horizontally to step down onto first.
+
+That is a much smaller answer than the framing implied, and it is the useful
+one: **D-005 is a curiosity, not a design problem.** The unavoidable-faceplant
+scenario needs a surface with no gentler neighbour, and the built game has one.
+The 20 m glide that arrives at 20.9 m/s is a descent the player *chooses* by
+gliding past the gentle route, which is a different thing from being trapped
+on a roof by 44% of the shelf.
 
 **Not closed, and an agent must not close it.** The height is arithmetic; whether
 an unavoidable faceplant off a two-storey roof is funny or unfair is taste.

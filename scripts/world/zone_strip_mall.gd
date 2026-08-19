@@ -58,6 +58,23 @@ const PICKUP_LIFT := 0.15
 ## asphalt whose top is y = 0.0. Anything standing in the grass anchors here.
 const VERGE_Y := 0.01
 
+## THE POND, AS A CONSTANT, BECAUSE THREE THINGS NEED TO AGREE ABOUT IT.
+##
+## `_pond()` builds it, the cattail ring is sized off it, and `_props()` has
+## to keep the lawn signs out of it. Those were three separate literals, and
+## the third one did not exist at all: **9 lawn signs were placed uniformly
+## over x [-30, 30] * z [-30, -18], of which 27.1% of the area is inside the
+## 11 m water cylinder** — 2.4 signs in the pond on an average run, measured
+## over 2,000,000 samples. The campaign gate (`main.gd --loop-test`) now counts
+## LAWN SIGN props inside POND_RADIUS on the zone the DIRECTOR built and fails
+## the run if any is wet, reading the geometry off these constants.
+const POND_CENTRE := Vector3(-24, 0, -22)
+const POND_RADIUS := 11.0
+
+## Outside the cattail ring (r 11.2–12.6), which is where dry land actually
+## starts. A sign at r = 11.5 is standing in the reeds, not on the verge.
+const POND_CLEAR := 13.0
+
 ## ───────────────────────────────────────────────────────────────────────────
 ## THE SHELF, AND WHY LEG 1 IS NOT LEG 2
 ## ───────────────────────────────────────────────────────────────────────────
@@ -281,6 +298,27 @@ static func shelf_for_leg(leg: int) -> Dictionary:
 ## that second construction path is now the `endless` argument, because a leg
 ## filter is only as good as its narrowest choke point and two of them is one
 ## too many.
+## A point in the given XZ rectangle that is clear of the pond.
+##
+## Rejection sampling with a hard cap and a DETERMINISTIC fallback: an
+## unbounded `while` here would hang the zone build if the rectangle ever
+## ended up entirely inside the water, and a zone builder that can hang is a
+## worse bug than a sign in a pond. 24 tries against a 73% dry area misses
+## with probability 0.27^24, which is about 1 in 10^14.
+func _dry_xz(x0: float, x1: float, z0: float, z1: float) -> Vector2:
+	for _try in 24:
+		var p := Vector2(randf_range(x0, x1), randf_range(z0, z1))
+		if p.distance_to(Vector2(POND_CENTRE.x, POND_CENTRE.z)) >= POND_CLEAR:
+			return p
+	# Every try was wet. Push the last sample radially out to the clear ring
+	# rather than returning something in the water.
+	var c := Vector2(POND_CENTRE.x, POND_CENTRE.z)
+	var away := Vector2(x0 - c.x, z0 - c.y)
+	if away.length() < 0.01:
+		away = Vector2(1.0, 0.0)
+	return c + away.normalized() * POND_CLEAR
+
+
 func _source(pos: Vector3, res: Substance, size := 0.5, endless := false) -> void:
 	if res == null:
 		return
@@ -357,7 +395,7 @@ func _ground() -> void:
 func _pond() -> void:
 	## The suburban stormwater retention pond: true natural habitat of the
 	## modern Canada goose, and where the whole game starts.
-	var centre := Vector3(-24, 0, -22)
+	var centre := POND_CENTRE
 
 	var mi := MeshInstance3D.new()
 	var pm := CylinderMesh.new()
@@ -412,7 +450,7 @@ func _pond() -> void:
 	# at the half-height the old decal boxes needed.
 	for i in 26:
 		var a := randf_range(0, TAU)
-		var r := randf_range(11.2, 12.6)
+		var r := randf_range(POND_RADIUS + 0.2, POND_CLEAR - 0.4)
 		_model_at(&"cattail", centre + Vector3(cos(a) * r, 0.0, sin(a) * r),
 			randf_range(0, TAU), {}, randf_range(0.82, 1.18))
 
@@ -671,9 +709,21 @@ func _props() -> void:
 	for i in 5:
 		_prop(Vector3(-30 + i * 3.0, 0.6, 22.4), Vector3(1.0, 1.2, 0.8),
 			Color(0.14, 0.32, 0.58), 8.0, 40, "RECYCLING")
-	# Lawn signs
+	# Lawn signs, on the LAWN.
+	#
+	# The sampling window x [-30, 30] * z [-30, -18] overlaps the retention
+	# pond, and 27.1% of its area is inside the 11 m water cylinder — so about
+	# 2.4 of these 9 signs stood in the water on an average run, in the first
+	# zone the player ever sees. Measured by sampling the two shapes, not
+	# estimated. Rejection-sampled against POND_CLEAR now, so the signs land on
+	# grass and the number of them stays 9.
 	for i in 9:
-		_prop(Vector3(randf_range(-30, 30), 0.6, randf_range(-30, -18)),
+		# ONE sample, held. Calling `_dry_xz()` once per axis would draw two
+		# independent dry points and use x from one and z from the other, and
+		# the pair is not guaranteed to be dry — which is the original bug with
+		# extra steps.
+		var sign_xz := _dry_xz(-30.0, 30.0, -30.0, -18.0)
+		_prop(Vector3(sign_xz.x, 0.6, sign_xz.y),
 			Vector3(1.1, 0.8, 0.08), Color(0.92, 0.86, 0.20), 2.0, 25, "LAWN SIGN")
 
 
@@ -695,20 +745,6 @@ func mission_zone_id() -> StringName:
 
 func zone_title() -> String:
 	return "LEG %d — STRIP MALL LOT" % Flock.leg
-
-
-## Challenge list consumed by scripts/ui/objectives.gd. The "match" key is a
-## chaos-score label; the director advances the objective whenever that label
-## is scored, so no prop has to know objectives exist.
-func objectives() -> Array:
-	return [
-		{"id": &"cart_carnage", "text": "Wreck 8 shopping carts", "target": 8, "reward": 250, "match": "CART"},
-		{"id": &"honk_patrol", "text": "Honk at anything, 12 times", "target": 12, "reward": 180, "match": "HONK"},
-		{"id": &"sweet_spots", "text": "Nail 4 doses in the sweet spot", "target": 4, "reward": 300, "match": "SWEET SPOT"},
-		{"id": &"vehicular", "text": "Bounce off 4 parked minivans", "target": 4, "reward": 200, "match": "VEHICLE"},
-		{"id": &"cat_army", "text": "Get the cats to do 6 hits for you", "target": 6, "reward": 275, "match": "CAT ATTACK"},
-		{"id": &"faceplant", "text": "Faceplant once, drunk", "target": 1, "reward": 150, "match": "FACEPLANT"},
-	]
 
 
 func _cats() -> void:

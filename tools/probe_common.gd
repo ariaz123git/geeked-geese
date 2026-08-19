@@ -201,6 +201,54 @@ static func find_dry_ground(tree: SceneTree, goose: CharacterBody3D, tag: String
 	return _dry
 
 
+## Hold the zone's live actors still, or let them go again. Returns the number
+## held, so a caller can print it and a reader can tell a quiet measurement from
+## a lucky one.
+##
+## ═══════════════════════════════════════════════════════════════════════════
+## LESSON 6. THE ZONE DOES NOT STOP FOR A MEASUREMENT, AND RETAKING IS NOT
+## ALWAYS ENOUGH.
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## Lesson 1 says the zone is alive. The remedy written for it was to RETAKE a
+## disturbed measurement, and `feeltest` and `substancetest` both do. On
+## 2026-08-18 that stopped working: four consecutive sober fingerprints came
+## back with off-axis errors of 0.775, 0.138, 0.462 and 1.211 rad while
+## `turnrate` and `climb` were bit-identical (28.27, 1.73) in every one of them.
+## The controller was perfect. **A cat was camped on the pad**, so the
+## disturbance was continuous rather than occasional and no number of retakes
+## could find a quiet window.
+##
+## It started because a change to the LAWN SIGNS moved the cats: `main._ready()`
+## calls `randomize()` and every prop placement draws from the same stream, so
+## editing any zone builder re-rolls every actor position downstream of it. That
+## is `docs/RECENT_FAILURES.md` F-002 and it will happen again.
+##
+## **WHAT MAY AND MAY NOT BE HELD.** `HANDOFF` §4 is right that "a measurement
+## taken in a dead world is measuring a different game" — so this is not for
+## gameplay metrics. It is for the channels that measure THE CONTROLLER'S
+## RESPONSE TO THE STICK, where a cat is noise and not signal: how fast the bird
+## reaches top speed, whether it goes where it is pointed, how high one flap
+## lifts it. Anything that measures the WORLD — `substancetest::_the_cats()`
+## most obviously — must run with the actors live, and does.
+static func hold_actors(tree: SceneTree, held: bool) -> int:
+	var n := 0
+	for group in ["cat", "npc"]:
+		for a in tree.get_nodes_in_group(group):
+			var node := a as Node
+			if node == null or not is_instance_valid(node):
+				continue
+			node.process_mode = (Node.PROCESS_MODE_DISABLED if held
+				else Node.PROCESS_MODE_INHERIT)
+			# A disabled CharacterBody3D keeps whatever velocity it had, so it
+			# would resume mid-lunge. Park it.
+			var body := node as CharacterBody3D
+			if body != null and held:
+				body.velocity = Vector3.ZERO
+			n += 1
+	return n
+
+
 static func release_all() -> void:
 	for a in ["gg_forward", "gg_back", "gg_left", "gg_right", "gg_flap", "gg_dive", "gg_honk"]:
 		if InputMap.has_action(a):

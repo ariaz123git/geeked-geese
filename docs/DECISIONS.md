@@ -69,6 +69,64 @@ IDs increment. Newest on top.
 
 ---
 
+## D-034 · 2026-08-18 · Six unreachable objectives: three deleted, two moved, one re-gated
+Status: Decided (agent — the two homes are design calls and revertible)
+Decision: `selftest.gd::_the_objectives_are_reachable()` fails the build if an objective's leg gate excludes every leg `ROUTE` plays its zone on. It found **six**, and each was resolved on evidence rather than by lowering the gate:
+
+| objective | was | resolution |
+|---|---|---|
+| `variety_pack` (strip_mall) | `from_leg 4`, zone plays 1–2 | **deleted** — cottage, stopover, corn and truckstop all declare it, which is exactly the "from leg 4 onward" the gate asks for |
+| `variety_pack` (suburbia) | `from_leg 4`, zone plays 3 | **deleted**, same reason |
+| `low_flying_aircraft` (suburbia) | `from_leg 5`, zone plays 3 | **deleted** — corn declares it and corn is leg 6, the band `mission.gd`'s escalation comment reserves the no-touching-the-ground constraint for |
+| `night_flight` (cottage) | `from_leg 5`, zone plays 4 | **re-gated to 4** — unique, and night is cottage's own flavour |
+| `no_brakes` (strip_mall) | `from_leg 3`, zone plays 1–2 | **moved to suburbia** — unique, and `mission.gd` promises the ten-second-window constraint at leg 3, which IS suburbia |
+| `sustained_campaign` (strip_mall) | `from_leg 5`, zone plays 1–2 | **moved to corn** — the game's ONLY chain-length objective, and the leg-5 constraint it was meant to supply existed nowhere |
+
+Why: `for_zone()`'s leg filter is correct; the DATA described legs the zones never reach. The gates read as run-progression numbers copied into each zone's block, which is why three of the six turned out to be redundant copies rather than mis-gated originals — lowering all six would have duplicated content that already appears at the right leg elsewhere. **The two homes are the judgement calls.** `sustained_campaign` went to the cut corn rather than the Stopover because the Stopover is the run's one recovery beat (`par_scale` 0.55, two required primaries) and a 10x chain primary fights the whole point of it; leg 6 is an open field with the highest prop density in the back half. Corn goes from 6 primaries to 7, which leaves `required_primaries(6)` at 4.
+Refs: `tools/selftest.gd::_the_objectives_are_reachable`; `scripts/core/mission_defs.gd`; `scripts/core/mission_defs_corn.gd`; `scripts/core/mission_defs_cottage.gd`.
+
+## D-033 · 2026-08-18 · Nine lawn signs are placed on the lawn
+Status: Decided (agent)
+Decision: Leg 1's lawn signs are rejection-sampled clear of the pond, the pond's centre and radius are constants the builder and the checker share, and `main.gd --loop-test` fails the run if any LAWN SIGN prop lands inside the water.
+Why: The signs were sampled uniformly over x [-30, 30] × z [-30, -18]. **27.1% of that rectangle is inside the 11 m water cylinder** — measured over 2,000,000 samples, not estimated — so **2.4 of the 9 signs stood in the pond on an average run**, in the first zone the player ever sees. The canary that disables the rejection put 3 in the water on leg 1 and 2 on leg 2, which is the predicted average landing where it should. The rejection has a hard 24-try cap and a deterministic fallback, because a zone builder that can hang is a worse bug than a sign in a pond.
+Refs: `scripts/world/zone_strip_mall.gd::_dry_xz`; `scripts/core/main.gd` shelf census.
+
+## D-032 · 2026-08-18 · The share verb has a cooldown and only pays when it moves something
+Status: Decided (agent — the 1.0 s is a pacing number and revertible)
+Decision: `Flock.dose_flock()` returns how many birds it actually moved; `gg_share` pays only when that is non-zero, and is rate-limited by `SHARE_COOLDOWN := 1.0`.
+Why: The verb paid **75 chaos and a combo link on every key press**, with no cooldown and no check that the dose landed. Once every bird sits at intox 1.0 the dose is a no-op — `clampf` eats it — and the player was still paid, forever, for a keypress that did nothing. The honk beside it has had a 0.22 s cooldown since it was written for exactly this reason. **1.0 s rather than 0.22** because the share is the bigger action: at 0.32 a press, a sober flock saturates in four, so this turns saturating the flock from four frames into four seconds — a decision instead of a mash — while leaving `share_the_wealth` (two shares) comfortably reachable. That number is pacing and a human may want it elsewhere; the two guards are not. `tools/inputtest.gd::_share_test` presses the key and counts SCORING EVENTS rather than chaos — the first version asserted an amount and failed on a correct build at 92, because `Game.score()` multiplies by the live combo. Watched failing on both guards at once: 3 fires instead of 1, and 1 fire instead of 0.
+Refs: `scripts/goose/goose_controller.gd::_unhandled_input`; `scripts/core/flock_state.gd::dose_flock`; `tools/inputtest.gd`.
+
+## D-031 · 2026-08-18 · The parser can stall on an undefined escape, and that is now a check
+Status: Decided (agent)
+Decision: `selftest.gd::_bad_escape()` scans every `.gd` for a backslash inside a string literal that is not one of GDScript's escapes, and fails the build naming the file and the character. `CLAUDE.md`'s hang section is rewritten to name **two** causes instead of one.
+Why: `CLAUDE.md` documented the silent `--gate` stall — no output at all, no error, no exit — and attributed it to a local name reused inside one function. **That is not the only cause.** A RegEx written with `\*` in it stalled the gate with no repeated name anywhere in the file; the identical pattern written as a character class compiled in 25 s. One change, two runs, same file. The symptom is indistinguishable from a hung machine, which is why it is a check and not a paragraph — 71 new invariants, one per script, and watched failing on a deliberately bad file. **Named limit:** the scan only runs once the project boots, so the gate can still stall on the offending file before the scan reports it. It catches the second one, and the message tells you what to look for.
+Refs: `tools/selftest.gd::_bad_escape`; `CLAUDE.md`.
+
+## D-030 · 2026-08-18 · An overlay owns its own CanvasLayer, and no two share one
+Status: Decided (agent)
+Decision: `main.gd::_build_overlays()` no longer assigns `.layer` to anything it did not build itself; every overlay script sets its own in `_ready()`. `selftest.gd::_the_layers()` asserts that no two scripts under `scripts/ui` declare the same layer and that `main.gd` assigns none except `restart_prompt`, which it builds.
+Why: `main.gd` set a layer immediately before `add_child()`, and `add_child()` runs the widget's `_ready()`, which sets it again. Seven of the eight agreed and were dead duplicates. The eighth did not: main said `almanac.layer = 20`, `almanac.gd` says 40, and **40 winning is the only reason the Almanac works** — it is opened FROM the pause menu at 30, so at 20 it would have rendered underneath the menu that opened it and read as a dead keypress. A contradiction resolved correctly by accident is still a contradiction. Watched failing on both halves: restoring the `almanac.layer = 20` line, and giving the control card the Almanac's 40.
+Refs: `scripts/core/main.gd::_build_overlays`; `tools/selftest.gd::_the_layers`.
+
+## D-029 · 2026-08-18 · `Substance.no_early_exit` is deleted, not wired
+Status: Decided (agent)
+Decision: The export, its `resolve()` key, its aggregation in `substance_manager.gd`, its Almanac line and the seven `.tres` entries are gone. `selftest.gd::_the_control_keys()` now fails if any key in `CONTROL_KEYS` is read only under `scripts/ui`.
+Why: **D-018's test is "can it be honestly connected", and this one cannot.** `stamina_restore` was wired because it connected in one statement at the site the dose lands; `float_height` was deleted because there was no water surface to connect it to. `no_early_exit` is the second shape: there is **no verb in single-player that ends a trip**, so the flag described nothing, and `almanac.gd` printed *"Cannot end early — you finish the ride"* for acid and toad slime as though the other fourteen could be ended early. They cannot; nothing can. The only place the verb exists is `MULTIPLAYER_SPEC.md`'s "SOBER UP", and multiplayer is explicitly not next — that spec now records the deletion so it does not reference a field that is gone. **The worse half:** the key was in `selftest`'s `CONTROL_KEYS`, the list a substance satisfies the design rule with, so a future substance could have satisfied *"never only a number that goes up"* by setting a boolean that drew a sentence in a menu. That hole is what the new invariant closes; watched failing by putting the key back.
+Refs: `scripts/core/substance.gd`; `scripts/ui/almanac.gd`; `tools/selftest.gd::_the_control_keys`; `docs/MULTIPLAYER_SPEC.md`.
+
+## D-028 · 2026-08-18 · A reporting probe is held to a gate’s standard
+Status: Decided (agent)
+Decision: `tools/glidetest.gd` reports rather than asserts — D-005 and D-006 are the human’s — but it now **fails the run** on two things about ITSELF: every zone must drop exactly four boundary barriers and keep at least three standable surfaces, and `docs/FEEL_TARGETS.md` §5.1 must still publish the totals this run measures. It also prints what every walk threw away, per zone, per run.
+Why: Its first published run counted the four invisible boundary walls every zone rings itself with — 80 m long, 1 m thick, 13 m up — as glide platforms **and** as the most dangerous drops in the game, and the resulting table went into `FEEL_TARGETS.md` §5.1 and was committed. It said 42 of 113 surfaces reachable today rising to 86 at 3:1, and "suburbia is the whole decision"; the true figures are **21 of 84 rising to 31**, and suburbia goes 0 → 1. **The conclusion was close to inverted.** The tell was in the output and unread: every zone reported *exactly* four hazardous surfaces and legs 1 and 3 named the same position. Three filters were tried — area (a wall’s top is 40 m²), capsule fit (it is a metre thick), and visibility, which was the dangerous one: `zone_suburbia.gd::_hide_meshes()` hides a body’s graybox "wherever the visual is replaced by a model that spans several colliders at once (the fence run, the trampoline’s ring of legs, **the roof plateau**)", so it discarded 73 of 158 surfaces including every landable roof. Shape works: nothing meant to be stood on is 30 m long and under 2 m wide. **A probe that publishes a number into a decision document is a gate whether or not it calls itself one.**
+Refs: `tools/glidetest.gd`; `docs/FEEL_TARGETS.md` §5.1 and §5.2.
+
+## D-027 · 2026-08-18 · The zone’s actors are held still for controller measurements, and only those
+Status: Decided (agent)
+Decision: `probe_common.gd::hold_actors()` disables every node in the `cat` and `npc` groups for the duration of a controller measurement. `feeltest` holds them for its whole run; `substancetest` holds them for each fingerprint and releases them, so `_the_cats()` still measures live cats. The retakes in both files **stay**.
+Why: `HANDOFF` §4 warned that "a measurement taken in a dead world is measuring a different game", and that is right for gameplay metrics — which is why the hold is scoped to the channels that measure the CONTROLLER answering the stick, where a cat at 2.6 m/s is noise and not signal. Retaking was the previous remedy and it stopped working: **four consecutive sober fingerprints came back with off-axis errors of 0.775, 0.138, 0.462 and 1.211 rad while `turnrate` and `climb` were bit-identical (28.27, 1.73) in every one.** A cat was camped on the pad, so the disturbance was continuous and no number of retakes could find a quiet window. It started because editing the LAWN SIGNS moved the cats — `main._ready()` calls `randomize()` and every placement draws from one stream, so any zone-builder edit re-rolls every actor downstream (F-002). After the hold: sober noise **0.000 on every channel, zero retakes**, and `catnip` still measures 7 of 7 cats in frenzy, which is the proof the scoping is right. `feeltest` also gained a start-from-rest guard after one run measured `time_to_top` 0.17 s against an analytic `waddle_speed / waddle_accel` of 0.21; two runs since are bit-identical at 0.20 / 0.59 / 0.30.
+Refs: `tools/probe_common.gd::hold_actors` (lesson 6); `tools/substancetest.gd::_fingerprint`; `tools/feeltest.gd::run`.
+
 ## D-026 · 2026-08-18 · `CLAUDE.md` has a line ratchet, and it can only go down
 Status: Decided (agent)
 Decision: `tools/doctest.gd::CLAUDE_MD_CEILING` fails the build if `CLAUDE.md` exceeds its current length. **To add a rule, take one out.** The target is 200; the ceiling starts at 379 and every session that cuts the file lowers it.

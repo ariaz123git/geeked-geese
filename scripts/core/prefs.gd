@@ -98,6 +98,24 @@ func _on_save_timeout() -> void:
 		save_prefs()
 
 
+## FLUSH ON THE WAY OUT, OR THE LAST CHANGE IS THE ONE THAT IS LOST.
+##
+## Writes are debounced through a one-shot `SAVE_DEBOUNCE` timer so that
+## dragging a slider does not rewrite the file every frame. That is right,
+## and it has a tail: **any setting changed within SAVE_DEBOUNCE of quitting
+## never reached disk.** Turn the music down and close the game — which is
+## exactly the order a person does those two things in — and the game comes
+## back loud.
+##
+## `_exit_tree()` runs on a clean shutdown, including `get_tree().quit()` and
+## the window close button. It cannot help with a crash, and nothing can:
+## the alternative is writing on every keystroke, which is the thrash the
+## debounce exists to prevent.
+func _exit_tree() -> void:
+	if _dirty:
+		save_prefs()
+
+
 ## Master always lives on bus 0. SFX/Music buses may not exist yet in every
 ## project build, so those are looked up by name and skipped if missing —
 ## this can never crash a build that hasn't wired its audio buses up yet.

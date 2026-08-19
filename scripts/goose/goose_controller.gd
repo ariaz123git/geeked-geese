@@ -84,6 +84,13 @@ var cam: Node3D
 
 var _flap_cd := 0.0
 var _flap_anim := 0.0
+
+## Seconds between shares. `honk.gd::COOLDOWN` is 0.22 for a verb that costs
+## nothing; this one doses the whole flock and is paid 75 chaos, so it gets a
+## real one. At 0.32 per press a sober flock saturates in four presses, which
+## this turns from four frames into four seconds.
+const SHARE_COOLDOWN := 1.0
+var _share_cd := 0.0
 var _tumble_t := 0.0
 var _water_bodies := 0
 var _drift := Vector2.ZERO
@@ -328,6 +335,7 @@ func _physics_process(delta: float) -> void:
 	_age_buffer(delta)
 	var m: Dictionary = Subs.mods
 	_flap_cd = maxf(0.0, _flap_cd - delta)
+	_share_cd = maxf(0.0, _share_cd - delta)
 	_tick_size(delta, m)
 
 	if state == State.TUMBLE:
@@ -473,10 +481,8 @@ func _tick_fly(delta: float, m: Dictionary) -> void:
 
 	if Input.is_action_pressed("gg_flap") and _flap_cd <= 0.0 and stamina > 0.04:
 		_flap(m)
-	else:
-		_flap_anim = maxf(0.0, _flap_anim - delta * 2.2)
-		if not diving:
-			stamina = minf(1.0, stamina + regen_glide * delta)
+	elif not diving:
+		stamina = minf(1.0, stamina + regen_glide * delta)
 
 
 func _flap(m: Dictionary) -> void:
@@ -871,6 +877,19 @@ func _tick_footsteps(delta: float) -> void:
 const BANK_PER_RATE := 0.183
 
 func _animate(delta: float) -> void:
+	# THE WING BEAT DECAYS HERE, NOT IN _tick_fly, AND THAT IS THE FIX.
+	#
+	# `_flap_anim` was decayed inside `_tick_fly`'s else-branch, so it only
+	# ever came back down while the bird was FLYING. `_launch(m, 0.45)` — the
+	# "pathetic, funny little hop" a standing flap gives you — sets it to 1.0
+	# and leaves `state` at GROUND, because 0.45 is under the 0.6 that enters
+	# FLY. So one hop on the spot left the wings beating at full rate for the
+	# rest of the leg, and nothing in the game ever brought them down.
+	#
+	# `_animate()` runs every physics frame in every state, which is where a
+	# purely cosmetic decay belongs. The one frame of decay between `_flap()`
+	# setting 1.0 and this running is 0.037 at 60 Hz.
+	_flap_anim = maxf(0.0, _flap_anim - delta * 2.2)
 	if visual and visual.has_method("animate"):
 		var gs := Vector2(velocity.x, velocity.z).length() / maxf(waddle_speed, 0.1)
 		visual.animate(delta, _flap_anim, gs, state == State.FLY)
@@ -896,11 +915,27 @@ func _unhandled_input(e: InputEvent) -> void:
 		honker.do_honk(pitch)
 	elif e.is_action_pressed("gg_share"):
 		# Share what you're on with the flock. Fun now, expensive in the air.
-		if not Subs.actives.is_empty():
-			Flock.dose_flock(0.32)
-			Game.score(75, "SHARED WITH THE FLOCK", global_position)
-			Juice.burst(global_position + Vector3.UP * 0.6,
-				Subs.primary_tint(), 10, &"sparkle")
+		#
+		# TWO GUARDS, AND BOTH WERE MISSING. This paid 75 chaos and a combo
+		# link on EVERY press: no cooldown, and no check that the dose landed.
+		# The honk next to it has had a 0.22 s cooldown since it was written,
+		# for exactly this reason (`honk.gd::COOLDOWN`).
+		#
+		#   * `dose_flock()` now returns how many birds it moved, and a press
+		#     that moved none pays nothing. At 0.32 a bird saturates in four
+		#     presses, after which `clampf` ate the dose and the player was
+		#     still being paid — free chaos, forever, for a keypress that did
+		#     not do anything.
+		#   * SHARE_COOLDOWN makes saturating the flock a four-second
+		#     commitment instead of four frames. The objective asks for two
+		#     shares (`share_the_wealth`), so it stays comfortably reachable.
+		if not Subs.actives.is_empty() and _share_cd <= 0.0:
+			var moved := Flock.dose_flock(0.32)
+			_share_cd = SHARE_COOLDOWN
+			if moved > 0:
+				Game.score(75, "SHARED WITH THE FLOCK", global_position)
+				Juice.burst(global_position + Vector3.UP * 0.6,
+					Subs.primary_tint(), 10, &"sparkle")
 
 
 # ---------------------------------------------------------------- blackout

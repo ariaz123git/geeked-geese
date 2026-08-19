@@ -91,13 +91,25 @@ func set_dd(index: int) -> void:
 
 
 ## Share what you're on with the flock. Great for chaos, terrible for the flight.
-func dose_flock(amount: float) -> void:
+## Returns HOW MANY BIRDS IT ACTUALLY MOVED, which is the whole point.
+##
+## The share verb paid 75 chaos and a combo link on every press with no
+## check that anything happened. Once every bird sits at intox 1.0 the dose
+## is a no-op — `clampf` eats it — and the player was still being paid for
+## it, forever, for free. A verb that pays for doing nothing is not a
+## decision.
+func dose_flock(amount: float) -> int:
+	var moved := 0
 	for i in birds.size():
 		var b := birds[i]
 		if not b.alive or b.is_dd:
 			continue
+		var before: float = b.intox
 		b.intox = clampf(b.intox + amount, 0.0, 1.0)
-		bird_dosed.emit(i, amount)
+		if b.intox > before + 0.0001:
+			moved += 1
+			bird_dosed.emit(i, amount)
+	return moved
 
 
 func dose_bird(index: int, amount: float) -> void:

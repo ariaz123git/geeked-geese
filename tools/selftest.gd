@@ -44,7 +44,7 @@ const CONTROL_KEYS := [
 	"input_lag", "drift", "flap_mult", "gravity_mult", "turn_mult",
 	"ragdoll_landings", "cannot_idle", "time_scale", "smash_through",
 	"camera_detach", "grid_snap", "hud_amnesia", "hallucinate",
-	"no_fall_damage", "scale_amp", "aggro_cats", "no_early_exit",
+	"no_fall_damage", "scale_amp", "aggro_cats",
 ]
 
 ## Zone ids for each ROUTE leg, in order. Collected once by _the_objectives()
@@ -66,9 +66,13 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_titles(main)
 	_the_substances(main)
 	_the_shelf(main)
+	_the_layers()
+	_the_control_keys()
 	_the_substance_fields()
 	_the_overdose()
 	_the_objectives(main)
+	# AFTER _the_objectives(), which is what fills _route_zone_ids.
+	_the_objectives_are_reachable(main)
 	_the_overrides(main)
 	_the_defs_are_wired()
 	_the_labels_are_emitted()
@@ -329,6 +333,51 @@ static func _the_files() -> void:
 	_ok(scripts.size() > 0, "the file sweep found no scripts at all — the walk is broken")
 	_ok(resources.size() > 0, "the file sweep found no scenes or resources at all")
 
+	# ── AN INVALID ESCAPE HANGS THE PARSER, WITH NO OUTPUT AT ALL ───────
+	#
+	# `CLAUDE.md` documents the silent `--gate` stall — no "compiling N
+	# scripts...", no error, no exit — and attributes it to a local name reused
+	# inside one function. THAT IS NOT THE ONLY CAUSE. On 2026-08-18 the gate
+	# went silent again with no repeated name anywhere in the file. The edit
+	# had built a RegEx pattern containing \* , and \* is not a GDScript escape
+	# sequence at all. Rewriting the identical pattern with a character class
+	# instead compiled in 25 s. One change, two runs, same file.
+	#
+	# It is an easy mistake and an expensive diagnosis, because the symptom is
+	# indistinguishable from a hung machine — which is exactly why this is a
+	# check and not a paragraph. Every .gd is scanned for a backslash inside a
+	# string literal that is not one of the escapes GDScript defines.
+	# A DEBOUNCED WRITE NEEDS A FLUSH, and `prefs.gd` went the life of the
+	# project without one. Writes go through a one-shot SAVE_DEBOUNCE timer
+	# so a dragged slider does not rewrite the file every frame — correct,
+	# and it means **any setting changed within SAVE_DEBOUNCE of quitting
+	# never reached disk.** Turn the music down, close the game, come back
+	# loud. `music.gd` has had an `_exit_tree()` since it was written and
+	# `prefs.gd` never did, which is the same two-files-one-rule shape as
+	# the water guard in the substance harness.
+	#
+	# A FLOOR, and named as one: this proves the flush is WIRED, not that it
+	# writes the right bytes. Proving that needs a real process exit and a
+	# re-read, which no gate here can do.
+	var prefs_src := _read_text("res://scripts/core/prefs.gd")
+	_ok(prefs_src.contains("func _exit_tree"),
+		"scripts/core/prefs.gd debounces its writes through a timer and defines no _exit_tree(), so any setting changed in the last SAVE_DEBOUNCE seconds before quitting is lost.")
+	_ok(prefs_src.split("func _exit_tree")[-1].contains("save_prefs"),
+		"scripts/core/prefs.gd has an _exit_tree() that never calls save_prefs(). The flush is present and does nothing.")
+	for spath in scripts:
+		var sf := FileAccess.open(spath, FileAccess.READ)
+		if sf == null:
+			continue
+		var body := sf.get_as_text()
+		sf.close()
+		var bad := _bad_escape(body)
+		_ok(bad == "",
+			("%s uses the escape sequence backslash-%s inside a string literal, and GDScript "
+			+ "does not define it. An unknown escape can make the parser STALL SILENTLY — no "
+			+ "output, no error, no exit — which is indistinguishable from a hung machine. "
+			+ "Write it as a character class instead, or double the backslash.") % [spath, bad])
+
+
 	for path in resources:
 		var f := FileAccess.open(path, FileAccess.READ)
 		if f == null:
@@ -394,6 +443,13 @@ static func _quoted_after(line: String, key: String) -> String:
 ## A double-quote as a named constant, so no string literal in this file has to
 ## contain an escaped one.
 const QUOTE := '"'
+
+## Companions to QUOTE, and they exist for the reason QUOTE does: this file
+## scans every script for stray backslashes and quotes, so it must not spell
+## any of them inline in a literal and match itself.
+const TICK := "'"
+const BACKSLASH := "\\"
+const NEWLINE := "\n"
 
 
 ## THE OVERDOSE BRANCH, WHICH NO GATE HAD EVER LOOKED AT.
@@ -671,6 +727,50 @@ static func _the_docs() -> void:
 			+ "session reads about the size of this project.") % [claimed, scripts.size()])
 
 
+## The first undefined escape sequence used inside a string literal in `src`,
+## or "" if there is none. Tracks string state properly rather than grepping:
+## a backslash in a comment is prose, and a doubled backslash is a legal
+## escaped backslash that must not be read as the start of another escape.
+##
+## The escapes GDScript defines, from the language reference: n t r a b f v,
+## both quote characters, the backslash itself, uXXXX and UXXXXXXXX, plus a
+## trailing backslash for line continuation. Anything else can stall the
+## parser with no output — see `_the_files()`.
+static func _bad_escape(src: String) -> String:
+	const LEGAL := "ntrabfvuU"
+	var i := 0
+	var n := src.length()
+	var quote := ""
+	while i < n:
+		var ch := src[i]
+		if quote == "":
+			if ch == "#":
+				while i < n and src[i] != NEWLINE:
+					i += 1
+				continue
+			if ch == QUOTE or ch == TICK:
+				quote = ch
+			i += 1
+			continue
+		if ch == quote:
+			quote = ""
+			i += 1
+			continue
+		if ch != BACKSLASH:
+			i += 1
+			continue
+		if i + 1 >= n:
+			return "<end of file>"
+		var nxt := src[i + 1]
+		if nxt == NEWLINE:
+			i += 2
+			continue
+		if nxt != BACKSLASH and nxt != QUOTE and nxt != TICK and LEGAL.find(nxt) < 0:
+			return nxt
+		i += 2
+	return ""
+
+
 ## The contents of `tool_flags := [ ... ]` in main.gd, as a list of "--flag".
 static func _tool_flags(src: String) -> Array[String]:
 	var out: Array[String] = []
@@ -734,6 +834,150 @@ static func _the_titles(main: Node) -> void:
 
 
 # ─────────────────────────────────────────────────────── the substance data
+
+## A CONTROL MUTATION HAS TO REACH THE CONTROLLER, NOT A LABEL.
+##
+## `CONTROL_KEYS` is the list a substance can satisfy the design rule with —
+## *"a substance must never be only a number that goes up"* — so a key in it
+## that nothing acts on is a hole straight through that rule. `no_early_exit`
+## sat in the list for the life of the project: exported, aggregated through
+## `_aggregate()`, and read by exactly one thing, `almanac.gd`, which printed
+## **"Cannot end early — you finish the ride"**. There is no verb in
+## single-player that ends a trip, so the line told the player about an option
+## the other fifteen substances do not have either. A substance could have
+## satisfied the whole design rule by setting a boolean that drew a sentence.
+## Deleted in D-029; this is what stops the next one.
+##
+## The test is deliberately "read outside `scripts/ui/`" rather than "read by
+## `goose_controller.gd`": `aggro_cats` is a legitimate control mutation that
+## the GOOSE never reads — `cat.gd` does — and `substancetest::_the_cats()`
+## measures it on the cats for exactly that reason.
+static func _the_control_keys() -> void:
+	var scripts: Array[String] = []
+	var resources: Array[String] = []
+	_walk_files("res://", scripts, resources)
+	for key in CONTROL_KEYS:
+		var used_in: Array[String] = []
+		for path in scripts:
+			if path.begins_with("res://scripts/ui/") or path.begins_with("res://tools/"):
+				continue
+			if path == "res://scripts/core/substance.gd":
+				continue   # the declaration is not a use
+			if _read_text(path).contains(str(key)):
+				used_in.append(path)
+		_ok(not used_in.is_empty(),
+			("CONTROL_KEYS names \"%s\" and nothing outside scripts/ui and tools reads it. A "
+			+ "substance could satisfy the design rule — never only a number that goes up — by "
+			+ "setting a field that only draws a line in the Almanac. That is what no_early_exit "
+			+ "did until D-029.") % key)
+
+## ────────────────────────────────── objectives that can never appear
+
+## AN OBJECTIVE GATED PAST ITS OWN ZONE IS AUTHORED CONTENT NOBODY WILL EVER
+## SEE.
+##
+## `mission_defs.gd` entries carry `from_leg` / `until_leg`, and `for_zone()`
+## filters on them — but a zone is only played on the legs `ROUTE` gives it.
+## `strip_mall` runs at legs 1 and 2 and had three objectives gated at 3, 4
+## and 5; `suburbia` runs at leg 3 alone and had two gated at 4 and 5. **Five
+## authored objectives, including the game's only chain-length primary, that
+## no player could ever be offered.** Nothing said so, because the filter is
+## correct — it is the DATA that describes a leg the zone never reaches.
+##
+## Reuses `_route_zone_ids`, which `_the_objectives()` already collects, so no
+## zone is instantiated twice for this.
+static func _the_objectives_are_reachable(main: Node) -> void:
+	var defs := load("res://scripts/core/mission_defs.gd")
+	if defs == null or _route_zone_ids.is_empty():
+		_ok(false, "the objective reachability check could not read the route — it has gone blind")
+		return
+
+	# zone id -> every leg ROUTE actually plays it on.
+	var legs_of := {}
+	for i in _route_zone_ids.size():
+		var zid: StringName = _route_zone_ids[i]
+		if not legs_of.has(zid):
+			legs_of[zid] = []
+		legs_of[zid].append(i + 1)
+
+	for zid2 in legs_of.keys():
+		var legs: Array = legs_of[zid2]
+		# The union of what for_zone() offers across every leg this zone is
+		# played on. Anything declared for the zone and absent from the union is
+		# gated outside its own life.
+		var offered := {}
+		for leg in legs:
+			for e in defs.for_zone(zid2, int(leg)):
+				offered[str(e.get("id", "?"))] = true
+		# Everything the zone declares at all, found by asking for a leg range
+		# wide enough to clear any gate anyone would write.
+		var declared := {}
+		for leg2 in range(1, 40):
+			for e2 in defs.for_zone(zid2, leg2):
+				declared[str(e2.get("id", "?"))] = true
+		for oid in declared.keys():
+			_ok(offered.has(oid),
+				("mission_defs declares \"%s\" for zone \"%s\", and its leg gate excludes every leg "
+				+ "ROUTE plays that zone on (%s). It is authored content no player can ever be "
+				+ "offered.") % [oid, zid2, str(legs)])
+
+## ────────────────────────────────────────────── the overlay stack
+
+## EVERY OVERLAY OWNS ITS OWN LAYER, AND NO TWO MAY SHARE ONE.
+##
+## `main.gd::_build_overlays()` used to set a layer on each overlay right
+## before `add_child()` — and `add_child()` runs the widget's `_ready()`,
+## which sets it again. Seven of the eight agreed, so seven were dead
+## duplicates. The eighth did not: main said `almanac.layer = 20` and
+## `almanac.gd` says 40. **40 won, which is the only reason the Almanac
+## works** — it is opened FROM the pause menu at 30, so at 20 it would have
+## rendered underneath the menu that opened it and read as a dead keypress.
+## A contradiction that happens to be resolved the right way is still a
+## contradiction, and nothing was checking it.
+##
+## Two rules, both mechanical:
+##   1. `main.gd` does not assign `.layer` to anything it did not build
+##      itself. One owner per number.
+##   2. No two overlay scripts declare the same layer. A tie is resolved by
+##      tree order, which is not a thing anyone reasons about correctly.
+static func _the_layers() -> void:
+	var dir := DirAccess.open("res://scripts/ui")
+	_ok(dir != null, "res://scripts/ui is unreadable, so the overlay stack cannot be checked")
+	if dir == null:
+		return
+	var seen := {}
+	var re := RegEx.new()
+	# `layer = 30` or `const LAYER := 32`, at any indent. Deliberately also
+	# matches `fx_layer.layer = 1` — a nested CanvasLayer competes for the same
+	# numbers as everything else and a collision there is just as silent.
+	re.compile("(?m)^[\\t ]*(?:const LAYER :=|[a-z_]*\\.?layer =) *([0-9]+)")
+	dir.list_dir_begin()
+	var fname := dir.get_next()
+	while fname != "":
+		if fname.ends_with(".gd"):
+			var body := _read_text("res://scripts/ui/" + fname)
+			for m in re.search_all(body):
+				var n := int(m.get_string(1))
+				_ok(not seen.has(n),
+					("scripts/ui/%s and %s both draw on CanvasLayer %d. Which one covers the "
+					+ "other is decided by tree order, which nobody reasons about correctly.")
+						% [fname, seen.get(n, "?"), n])
+				seen[n] = fname
+		fname = dir.get_next()
+	dir.list_dir_end()
+	_ok(seen.size() >= 6,
+		"found only %d CanvasLayer declarations under scripts/ui — this check has gone blind, fix the parse" % seen.size())
+
+	# And the director does not get a second opinion.
+	var main_src := _read_text(SRC_MAIN)
+	var re2 := RegEx.new()
+	re2.compile("(?m)^[\\t ]*([a-z_]+)\\.layer = ([0-9]+)")
+	for m2 in re2.search_all(main_src):
+		var who := m2.get_string(1)
+		_ok(who == "restart_prompt",
+			("main.gd sets %s.layer = %s, and %s's own _ready() sets it too — whichever runs "
+			+ "last wins silently. The widget owns its layer; the only exception is "
+			+ "restart_prompt, which main.gd builds itself.") % [who, m2.get_string(2), who])
 
 ## ────────────────────────────────────────────────────────── the leg-1 shelf
 

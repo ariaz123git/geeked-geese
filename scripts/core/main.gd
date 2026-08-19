@@ -142,19 +142,27 @@ func _ready() -> void:
 func _build_overlays() -> void:
 	pause_menu = preload("res://scripts/ui/pause_menu.gd").new()
 	pause_menu.name = "PauseMenu"
-	# The HUD sits on layer 2. Overlays must be above it or the score, clock and
-	# objectives bleed straight through the menu backdrop.
-	pause_menu.layer = 30
+	# NO `layer =` IN THIS FUNCTION, AND THAT IS THE FIX.
+	#
+	# Every overlay script already sets its own layer in `_ready()`, which
+	# runs on `add_child()` — so every assignment here was either a duplicate
+	# or a silent loser. `almanac.layer = 20` was the loser: `almanac.gd`
+	# sets 40, so the 20 never took effect, and if it ever HAD the Almanac
+	# would have opened underneath the pause menu (30) that opens it.
+	#
+	# The stack, owned one file each, checked by
+	# `tools/selftest.gd::_the_layers()`:
+	#   1  hud.gd fx    2  hud     3  mission_hud   25 briefing
+	#   28 results      30 pause   32 roster        40 almanac
+	#   41 control card 44 restart prompt (built here, so it keeps its own)
 	add_child(pause_menu)
 
 	almanac = preload("res://scripts/ui/almanac.gd").new()
 	almanac.name = "Almanac"
-	almanac.layer = 20
 	add_child(almanac)
 
 	control_card = preload("res://scripts/ui/control_card.gd").new()
 	control_card.name = "ControlCard"
-	control_card.layer = 41
 	add_child(control_card)
 
 	# Briefing is added AFTER the pause menu on purpose: Godot delivers _input in
@@ -165,21 +173,14 @@ func _build_overlays() -> void:
 	# briefing (every path that opens one awaits the other).
 	briefing = preload("res://scripts/ui/briefing.gd").new()
 	briefing.name = "Briefing"
-	briefing.layer = 25
 	add_child(briefing)
 
 	results = preload("res://scripts/ui/results_screen.gd").new()
 	results.name = "Results"
-	# 28: above the HUD, mission HUD and briefing; below the pause menu.
-	results.layer = 28
 	add_child(results)
 
 	roster = preload("res://scripts/ui/flock_roster.gd").new()
 	roster.name = "FlockRoster"
-	# 32: above the pause menu (30) because it is opened FROM it, and above the
-	# results card (28) because a loss is announced right after one. Below the
-	# control card (41), which is the only thing that outranks everything.
-	roster.layer = 32
 	add_child(roster)
 
 	restart_prompt = _build_restart_prompt()
@@ -400,7 +401,6 @@ func _load_zone() -> void:
 
 	mission_hud = preload("res://scripts/ui/mission_hud.gd").new()
 	mission_hud.name = "MissionHUD"
-	mission_hud.layer = 3
 	add_child(mission_hud)
 
 	var zid: StringName = &"generic"
@@ -1203,6 +1203,7 @@ func _probe_if_headless() -> void:
 		# leg, and a census that re-counted the same leg would silently
 		# overwrite the first reading with the second.
 		var shelf_census := {}
+		var pond_wet := {}
 		var censused_ids := {}
 		while ticks < 4200:
 			ticks += 1
@@ -1224,6 +1225,29 @@ func _probe_if_headless() -> void:
 						if sres != null:
 							seen[sres.get("id")] = true
 					shelf_census[Flock.leg] = seen.size()
+					# AND NOTHING THAT BELONGS ON THE LAWN MAY BE IN THE POND.
+					#
+					# Leg 1's nine lawn signs were sampled uniformly over a
+					# rectangle 27.1% of whose area is inside the 11 m water
+					# cylinder — about 2.4 signs standing in the pond on an
+					# average run, in the first zone the player ever sees.
+					# Rejection sampling fixes it; this is what proves it, on
+					# the zone the director built, with the pond geometry read
+					# off the same constants the builder obeys.
+					var zconsts: Dictionary = current.get_script().get_script_constant_map()
+					if zconsts.has("POND_CENTRE") and zconsts.has("POND_RADIUS"):
+						var pc: Vector3 = zconsts["POND_CENTRE"]
+						var pr: float = float(zconsts["POND_RADIUS"])
+						var wet := 0
+						for pn in current.get_children():
+							if str(pn.get("label")) != "LAWN SIGN":
+								continue
+							var xz := Vector2(pn.global_position.x - pc.x,
+								pn.global_position.z - pc.z)
+							if xz.length() < pr:
+								wet += 1
+						if wet > 0:
+							pond_wet[Flock.leg] = wet
 			if ticks % 400 == 0:
 				print("[loop] t=", ticks, " phase=", Game.phase, " current=",
 					current.name if (current and is_instance_valid(current)) else "<none>",
@@ -1285,6 +1309,8 @@ func _probe_if_headless() -> void:
 		print("[loop] shelf census:", census_line)
 
 		var shelf_fails: Array[String] = []
+		for wet_leg in pond_wet.keys():
+			shelf_fails.append("leg %d built %d LAWN SIGN props inside the retention pond. They are sampled over a rectangle that overlaps the water; the placement has to reject wet points." % [int(wet_leg), int(pond_wet[wet_leg])])
 		var full_shelf: int = Subs.library.size()
 		var tutorial_size: int = int(load("res://scripts/world/zone_strip_mall.gd")
 			.get_script_constant_map().get("TUTORIAL_SHELF", []).size())

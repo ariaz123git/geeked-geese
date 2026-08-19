@@ -77,6 +77,26 @@ static func run(tree: SceneTree, main: Node) -> void:
 	print("[input] honk: chaos +%d" % honked)
 	_ok(honked > 0, "honking next to the cart corral scored nothing. The honk's physical presence is gone.")
 
+	# Read the cooldown off the instance's script rather than repeating it.
+	# `preload()` on a file that declares `class_name` resolves to the TYPE,
+	# not to a Script value, so `get_script_constant_map()` on it is a parse
+	# error: "Cannot call non-static function ... on the class Goose directly."
+	var share_cd: float = float(goose.get_script()
+		.get_script_constant_map().get("SHARE_COOLDOWN", 0.0))
+	var shared := await _share_test(tree, main, goose)
+	print("[input] share: 3 presses in 6 frames fired %d time(s); a press with the flock saturated fired %d"
+		% [shared.x, shared.y])
+	_ok(shared.x > 0,
+		"three share presses fired the verb zero times. It is dead, not merely rate-limited.")
+	_ok(shared.x == 1,
+		("three share presses inside a %.2f s cooldown fired the verb %d times. It pays 75 x combo "
+		+ "every time, so without the cooldown the key is free chaos on repeat.")
+			% [share_cd, shared.x])
+	_ok(shared.y == 0,
+		("sharing with every bird already at intox 1.0 fired the verb %d time(s). The dose is a "
+		+ "no-op there — clampf eats it — so the player is paid for a keypress that did nothing.")
+			% shared.y)
+
 	if _fails.is_empty():
 		print("[input] PASS — %d controller checks" % _checks)
 		tree.quit(0)
@@ -122,7 +142,7 @@ static func _settle(tree: SceneTree, goose: CharacterBody3D) -> void:
 
 
 static func _release_all() -> void:
-	for a in ["gg_forward", "gg_back", "gg_left", "gg_right", "gg_flap", "gg_dive", "gg_honk"]:
+	for a in ["gg_forward", "gg_back", "gg_left", "gg_right", "gg_flap", "gg_dive", "gg_honk", "gg_share"]:
 		if InputMap.has_action(a):
 			Input.action_release(a)
 
@@ -185,6 +205,83 @@ static func _takeoff_test(tree: SceneTree, goose: CharacterBody3D) -> Vector2:
 			flew = 1.0
 	_release_all()
 	return Vector2(peak, flew)
+
+## THE SHARE VERB, AND THE TWO WAYS IT USED TO PAY FOR NOTHING.
+##
+## `gg_share` doses the whole flock and scores 75 chaos. It had no cooldown
+## and no check that the dose landed, so mashing it paid 75 a press forever —
+## and once every bird sat at intox 1.0 the dose was a no-op that still paid.
+## Both are fixed in `goose_controller.gd::_unhandled_input`; this is what
+## proves it, by pressing the key.
+##
+## COUNTS SCORING EVENTS, NOT CHAOS. The first version asserted that three
+## presses paid no more than 75 and it failed on a correct build at 92:
+## `Game.score()` multiplies by the live combo, so one share is worth 75 x
+## whatever chain the run is on. The amount is not the thing being tested —
+## how many times the verb FIRED is — so this counts `chaos_scored` emissions
+## carrying the share label.
+##
+## Returns [fires_on_mash, fires_when_saturated] as a Vector2i.
+static func _share_test(tree: SceneTree, main: Node, goose: CharacterBody3D) -> Vector2i:
+	await _settle(tree, goose)
+	var game := main.get_node_or_null("/root/Game")
+	var subs := main.get_node_or_null("/root/Subs")
+	if game == null or subs == null:
+		return Vector2i(-1, -1)
+
+	# The verb needs something to share. Any substance will do.
+	var res = subs.get_substance(&"grass")
+	if res == null:
+		return Vector2i(-1, -1)
+	subs.take(res, 0.5)
+	for _i in 4:
+		await tree.physics_frame
+
+	# Sober the flock first, so the first share definitely has room to land.
+	for b in Flock.birds:
+		b.intox = 0.0
+
+	# THREE PRESSES IN SIX FRAMES. One should fire.
+	var fires := [0]
+	var tally := func(_amount: int, _total: int, _combo: int, label: String) -> void:
+		if label == "SHARED WITH THE FLOCK":
+			fires[0] += 1
+	game.chaos_scored.connect(tally)
+	for _i in 3:
+		var ev := InputEventAction.new()
+		ev.action = "gg_share"
+		ev.pressed = true
+		Input.parse_input_event(ev)
+		await tree.physics_frame
+		var up := InputEventAction.new()
+		up.action = "gg_share"
+		up.pressed = false
+		Input.parse_input_event(up)
+		await tree.physics_frame
+	var mashed: int = int(fires[0])
+
+	# Now saturate the flock and wait out the cooldown. A press that moves
+	# nothing must pay nothing.
+	for b2 in Flock.birds:
+		b2.intox = 1.0
+	for _i in 80:
+		await tree.physics_frame
+	fires[0] = 0
+	var ev2 := InputEventAction.new()
+	ev2.action = "gg_share"
+	ev2.pressed = true
+	Input.parse_input_event(ev2)
+	for _i in 6:
+		await tree.physics_frame
+	var up2 := InputEventAction.new()
+	up2.action = "gg_share"
+	up2.pressed = false
+	Input.parse_input_event(up2)
+	var saturated: int = int(fires[0])
+	game.chaos_scored.disconnect(tally)
+
+	subs.call("reset_for_new_leg")
+	return Vector2i(mashed, saturated)
 
 
 ## Honk and see whether the world reacted. Returns the chaos gained.

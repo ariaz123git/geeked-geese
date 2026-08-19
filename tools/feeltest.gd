@@ -86,11 +86,22 @@ static func run(tree: SceneTree, main: Node) -> void:
 		tree.quit(1)
 		return
 
+	# HOLD THE ZONE STILL FOR ALL OF IT. Every metric in this file measures
+	# the CONTROLLER answering the stick, so a cat at 2.6 m/s is noise in
+	# every one of them. The retakes below stay — they still catch a rolling
+	# cart, which `hold_actors()` does not touch — but they stopped being
+	# sufficient on 2026-08-18, when a cat camped on the pad and four
+	# consecutive sober runs disagreed on bearing while turn rate and climb
+	# were bit-identical. `probe_common.gd::hold_actors()` lesson 6.
+	var held := COMMON.hold_actors(tree, true)
+	print("[feel] %d actors held still for the measurements" % held)
+
 	await _ground_tests(tree, goose)
 	await _flight_tests(tree, goose)
 	await _stamina_tests(tree, goose)
 	await _latency_tests(tree, goose)
 
+	COMMON.hold_actors(tree, false)
 	_report()
 	if _fails.is_empty():
 		var asserted := 0
@@ -197,10 +208,24 @@ static func _ground_tests(tree: SceneTree, goose: CharacterBody3D) -> void:
 			top = maxf(top, s)
 		Input.action_release("gg_forward")
 
-		if top <= cap and _wet_ticks == wet_before:
+		# AND THE RAMP HAS TO START FROM REST, or `time_to_top` is measured
+		# from partway up it. One run reported 0.17 s against an analytic
+		# `waddle_speed / waddle_accel` of 0.21: the bird still carried
+		# velocity from the previous channel, so 0.95 x top arrived three
+		# ticks early. A clean ramp is 0.33 m/s per tick — 20 m/s^2 at 60 Hz
+		# — and its first sample is one tick of that, not a third of the way
+		# up. `_settle()` normally leaves the bird still; this is what says
+		# so rather than assuming it.
+		var started_at: float = samples[0] if not samples.is_empty() else 0.0
+		var rest_cap: float = float(goose.get("waddle_accel")) * TICK * 1.5
+		if top <= cap and _wet_ticks == wet_before and started_at <= rest_cap:
 			break
-		print("[feel] walk attempt %d disturbed (top %.2f m/s against a %.2f cap) — retaking"
-			% [attempts, top, cap])
+		if started_at > rest_cap:
+			print("[feel] walk attempt %d began at %.2f m/s, not from rest (one tick of "
+				+ "waddle_accel is %.2f) — retaking" % [attempts, started_at, rest_cap])
+		else:
+			print("[feel] walk attempt %d disturbed (top %.2f m/s against a %.2f cap) — retaking"
+				% [attempts, top, cap])
 		# The retry must not inherit the discarded attempt's wet ticks either.
 		_wet_ticks = wet_before
 

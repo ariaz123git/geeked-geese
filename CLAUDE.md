@@ -64,10 +64,10 @@ project. Source and rationale: `tools/gate.gd`.
 input-lag bug that made *eleven of the sixteen substances unplayable* — the bird
 obeying four-second-old input — passed the compile gate, passed the whole
 headless campaign run, and would have passed any review that did not press a
-key. There are now eight gates, and one script that runs all of them:
+key. There are now 9 gates, and one script that runs all of them:
 
 ```
-.\verify.ps1                                       # all eight. -Quick skips the slow three
+.\verify.ps1                                       # all of them. -Quick skips the slow three
 godot --headless --path . -- --gate                # it compiles
 godot --headless --path . -- --selftest            # it agrees with itself
 godot --headless --path . -- --probe --inputtest   # the bird obeys
@@ -158,35 +158,30 @@ check `docs/GODOT_4.7_RULES.md`. If it is not there, fetch
 `deg2rad`/`rad2deg` · `SCREEN_TEXTURE` in shaders · the `.shader` extension ·
 `Tween` as a node · `ResourceSaver.save(path, res)` (args swapped in 4.x)
 
-### A local name reused in one function can HANG the parser, with no output
+### The parser can HANG on an edit, with no output at all
 
-**Symptom: `--gate` prints nothing at all — not even `[gate] compiling N
+**Symptom: `--gate` prints nothing — not even `[gate] compiling N
 scripts...` — and never exits.** Not an error, not a crash. Silence.
+**Two causes are known, both found here, both confirmed by bisecting a single
+edit:**
 
-It happened twice in one session, both times within a minute of an edit:
+1. **A local name reused inside one function scope.**
+   `substancetest.gd::_fingerprint()` grew a second `var prev`;
+   `selftest.gd::_the_files()` declared `var f`/`var text` in two loops.
+   Renaming fixed both, and `previous`, `prevd`, `d`, `step` and `delta_v`
+   all compile in the identical position. **Never reuse a local name inside
+   one function here.**
+2. **An escape sequence GDScript does not define, inside a string literal.**
+   A RegEx written `"\*\*([0-9]+)"` hung it; the same pattern written
+   `"[*][*]([0-9]+)"` compiled in 25 s. **`selftest.gd::_bad_escape()` now
+   scans every script for this** — but a scan only runs once the project
+   boots, so the gate can still stall on the file before it reports.
 
-- `tools/substancetest.gd::_fingerprint()` already declared `var prev` for its
-  turn measurement; a second `var prev` was added lower down in the same
-  function.
-- `tools/selftest.gd::_the_files()` declared `var f` and `var text` in one loop
-  and then again in the next loop in the same function.
-
-Both were fixed by renaming (`last_pos`, `f2`/`text2`) and both were confirmed by
-bisection: the same edit with a different local name compiles in 25 s, and with
-the reused name never finishes. Reproduced twice for `prev`, and `previous`,
-`prevd`, `d`, `step` and `delta_v` all pass in the identical position.
-
-**A minimal two-`var prev` file does NOT hang** — with or without `await` it
-gives the clean `Parse Error: There is already a variable named "prev" declared
-in this scope.` So the root cause is not established and this is not a claim
-about Godot in general. What is established is the rule and the diagnosis:
-
-> **Never reuse a local name inside one function scope in this project.** If the
-> gate goes silent, the last edit is the suspect — bisect it, and look for a
-> name you have already used higher up in the same function.
-
-`git` is the tool for that, which is why the safety net matters: `git stash push
-<file>` and re-run the gate isolates it in one step.
+Neither root cause is established and neither is a claim about Godot in
+general — a minimal two-`var prev` file gives the clean parse error. What is
+established is the diagnosis: **if the gate goes silent, the last edit is the
+suspect.** `git stash push <file>` and re-run isolates it in one step, which
+is what the safety net is for.
 
 ### The single most common way this codebase breaks
 

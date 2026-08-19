@@ -100,6 +100,7 @@ C-016  | 2026-08-18 | wav_files        | " .wav files."        | README.md
 C-017  | 2026-08-18 | sfx_clips        | " SFX and "           | CLAUDE.md, docs/ARCHITECTURE.md, README.md
 C-018  | 2026-08-18 | surface_textures | " textures and 16"    | CLAUDE.md
 C-019  | 2026-08-18 | music_stems      | " music stems from"   | README.md
+C-020  | 2026-08-18 | verify_steps     | " gates, and one script" | CLAUDE.md
 ```
 
 ---

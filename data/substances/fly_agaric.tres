@@ -37,7 +37,6 @@ no_fall_damage = false
 scale_amp = 1.5
 scale_period = 7.5
 aggro_cats = false
-no_early_exit = false
 tolerance_gain = 1
 fx_mode = 6
 fx_strength = 1.0
