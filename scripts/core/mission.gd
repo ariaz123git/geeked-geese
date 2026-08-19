@@ -1098,7 +1098,20 @@ func _complete(obj: Dictionary) -> void:
 			label = "BONUS OBJECTIVE"
 		elif kind == Kind.HIDDEN:
 			label = "HIDDEN"
+		# WHAT IT PAID, NOT WHAT IT ASKED FOR. `Game.score()` multiplies by
+		# `chaos_mult` and the combo chain, so the amount that reached `chaos` is
+		# not `reward` — it is anything from `reward` to several times it. The
+		# results card itemises the MULTIPLIED chaos figure ("includes N from
+		# objectives"), and it was quoting the raw rewards, so the itemisation was
+		# smaller than the thing it claimed to be part of and got further out the
+		# better the player chained. `docs/HANDOFF.md` §4.
+		#
+		# Read off `Game.chaos` across the call rather than recomputing the
+		# multiplier here: a second copy of that arithmetic is a second thing to
+		# keep in step, and this one cannot drift.
+		var before: int = int(_game.chaos)
 		_game.score(reward, label)
+		obj["paid"] = int(_game.chaos) - before
 
 	var fl: Dictionary = obj.get("flock", {})
 	if _flock != null and not fl.is_empty():
@@ -1247,12 +1260,16 @@ func evaluate_leg() -> Dictionary:
 		var kind: int = int(obj.kind)
 		var id: StringName = obj.id
 		if bool(obj.done):
+			# `paid` is what `Game.score()` actually added to `chaos`, set in
+			# `_complete()`. It falls back to the raw reward only for an objective
+			# marked done without going through that path, which nothing does today.
+			var paid: int = int(obj.get("paid", int(obj.reward)))
 			if kind == Kind.HIDDEN:
 				hidden.append(id)
-				hidden_bonus += int(obj.reward)
+				hidden_bonus += paid
 			else:
 				completed.append(id)
-				obj_bonus += int(obj.reward)
+				obj_bonus += paid
 		elif kind != Kind.HIDDEN:
 			missed.append(id)
 

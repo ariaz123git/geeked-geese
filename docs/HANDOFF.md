@@ -58,7 +58,7 @@ declared the wrong size.
 | gate | proves | count |
 |---|---|---|
 | `--gate` | every `.gd` compiles and every resource loads, inside the booted project | 72 scripts |
-| `--selftest` | the game agrees with itself | **944 invariants** |
+| `--selftest` | the game agrees with itself | **948 invariants** |
 | `--probe --inputtest` | the bird obeys a key, **including the one that eats** | 30 checks |
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
@@ -244,8 +244,7 @@ and each is a one-line revert. The share cooldown of 1.0 s is pacing (D-032).
 > them is why the fix is what it is and deleting it would cost the next reader
 > the reasoning. The entries that are NOT struck are live.
 >
-> **Still open, in rough order of cost:** the results card quotes
-> un-multiplied rewards; `migtest`'s `lateral.half_cross` cannot fail
+> **Still open, in rough order of cost:** `migtest`'s `lateral.half_cross` cannot fail
 > independently; the failsafe arms after the
 > first zone is built; and the three BIG DOWN items, which need a render
 > or a judgement. **The placement list is empty** — all five are fixed and
@@ -311,6 +310,10 @@ leg 5+.
 ~~**The results card's short-landing clock is derived from the NEXT leg's base**~~ **FIXED, D-040** — wrong on four of seven legs; leg 1 by a full minute. Original text:,
 but landing short replays the CURRENT leg. Add a `short_zone_base` beside
 `next_zone_base` in `evaluate_leg()`'s result.
+
+~~**The results card's CHAOS note quotes un-multiplied objective rewards**~~
+**FIXED, D-048** — `_complete()` records what `Game.score()` actually paid and
+`evaluate_leg()` sums that. Original text:
 
 **The results card's CHAOS note quotes un-multiplied objective rewards** while
 claiming they are the amounts inside the multiplied chaos figure.

@@ -69,6 +69,16 @@ IDs increment. Newest on top.
 
 ---
 
+## D-048 · 2026-08-19 · An itemisation has to be in the same currency as the thing it itemises
+Status: Decided (agent)
+Decision: `Mission._complete()` records `paid` — the movement in `Game.chaos` across its `Game.score()` call — and `evaluate_leg()` sums that instead of the raw `reward` fields. `selftest::_the_itemisation()` drives one objective through `_complete()` at combo 7 and asserts the two agree.
+Why: The results card prints *"includes N from objectives"* under a CHAOS figure that is fully combo-multiplied, and N was the sum of the raw `reward` exports. Every objective actually pays `reward × chaos_mult × (1 + 0.12 × (combo - 1))`, so the itemisation was **smaller than its own share of the total, and got further out the better the player chained** — backwards from what a scoreboard is for. `docs/HANDOFF.md` §4 recorded it.
+
+**Read off `Game.chaos` across the call rather than recomputing the multiplier.** A second copy of that arithmetic in `mission.gd` is a second thing to keep in step with `game.gd`; a delta cannot drift. `_combo_milestone()` was checked and only shakes and sparkles, so the delta is the objective's payout and nothing else.
+
+**The check runs at combo 7, and that is the whole check.** At combo 1 the multiplier is 1.0 and raw and paid are identical, so a check without a combo passes on the broken code — the same trap `_the_result_clocks()` avoids by demanding two legs whose clocks differ. Watched failing by setting `paid = reward`: *"recorded `paid` as 100 and Game.chaos moved by 172"*, which is 100 × 1.72 exactly.
+Refs: `scripts/core/mission.gd::_complete`, `evaluate_leg`; `tools/selftest.gd::_the_itemisation`; `scripts/ui/results_screen.gd` CHAOS note.
+
 ## D-047 · 2026-08-19 · Something finally eats through the key
 Status: Decided (agent)
 Decision: `inputtest.gd` gains `_eat_test()`: the goose walks onto leg 1's infinite grass, holds `gg_eat` to three different charges, and releases. It asserts the charge arc is a clock, that each of the three doses scores the label its band deserves, that the substance goes active, that `stamina_restore` lands, and that walking off mid-hold drops the charge and scores nothing. 8 controller checks → 30.

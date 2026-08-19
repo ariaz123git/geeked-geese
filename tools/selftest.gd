@@ -67,6 +67,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_substances(main)
 	_the_shelf(main)
 	_the_layers()
+	_the_itemisation(main)
 	_the_hitstops()
 	_the_primitives_are_closed()
 	_the_control_keys()
@@ -1013,6 +1014,68 @@ static func _the_result_clocks(main: Node) -> void:
 ## shared by exactly two faces. Count the edges that are not, and a watertight
 ## primitive scores zero. The vertices come back duplicated per face, so edges
 ## are keyed on quantised POSITIONS rather than indices.
+
+## ────────────────────────────────────────── the card itemises what was PAID
+
+## AN ITEMISATION HAS TO BE IN THE SAME CURRENCY AS THE THING IT ITEMISES.
+##
+## The results card prints "includes N from objectives" under a CHAOS figure
+## that is fully combo-multiplied, and N was the sum of the RAW `reward` fields.
+## Every objective actually pays `reward × chaos_mult × (1 + 0.12 × (combo - 1))`
+## through `Game.score()`, so the itemisation was smaller than its own share of
+## the total — and got further out the better the player chained, which is
+## exactly backwards from what a scoreboard is for.
+##
+## `_complete()` now records `paid` across the `Game.score()` call and
+## `evaluate_leg()` sums that. This drives one objective through `_complete()`
+## WITH A COMBO RUNNING, because at combo 1 the multiplier is 1.0 and the raw
+## and paid values are identical — a check without a combo would pass on the
+## broken code, which is the same trap `_the_result_clocks()` avoids by
+## demanding two legs with different clocks.
+static func _the_itemisation(main: Node) -> void:
+	var mission := main.get_node_or_null("/root/Mission")
+	var game := main.get_node_or_null("/root/Game")
+	_ok(mission != null and game != null,
+		"Mission or Game is missing, so the results card's itemisation cannot be checked")
+	if mission == null or game == null:
+		return
+	var kinds: Dictionary = mission.get_script().get_script_constant_map().get("Kind", {})
+	_ok(kinds.has("BONUS"),
+		"could not read Mission.Kind, so this check has gone blind")
+	if not kinds.has("BONUS"):
+		return
+
+	var was_combo: int = int(game.combo)
+	var was_chaos: int = int(game.chaos)
+	var was_leg_chaos: int = int(game.leg_chaos)
+	var was_timer: float = float(game.combo_timer)
+
+	# BONUS, not PRIMARY: a primary completion can trip `primaries_completed`
+	# and the leg-end cascade behind it. Not HIDDEN either — that one emits
+	# `hidden_revealed`, which the Almanac listens to.
+	game.combo = 6
+	var probe := {
+		"id": &"__itemisation_probe", "kind": int(kinds["BONUS"]),
+		"reward": 100, "done": false, "flock": {},
+	}
+	var before: int = int(game.chaos)
+	mission.call("_complete", probe)
+	var moved: int = int(game.chaos) - before
+
+	_ok(moved > 100,
+		("a 100-point objective completed at combo 7 moved chaos by %d. If the multiplier "
+		+ "is not applied there is nothing here for the itemisation to be wrong ABOUT, and "
+		+ "this check proves nothing — fix Game.score() first.") % moved)
+	_ok(int(probe.get("paid", -1)) == moved,
+		("Mission._complete() recorded `paid` as %d and Game.chaos moved by %d. The results "
+		+ "card itemises a combo-multiplied CHAOS figure, so it has to quote what was paid, "
+		+ "not what was asked for.") % [int(probe.get("paid", -1)), moved])
+
+	game.combo = was_combo
+	game.chaos = was_chaos
+	game.leg_chaos = was_leg_chaos
+	game.combo_timer = was_timer
+
 static func _the_primitives_are_closed() -> void:
 	var lpb := load("res://scripts/goose/lowpoly_builder.gd")
 	if lpb == null:
