@@ -69,6 +69,13 @@ IDs increment. Newest on top.
 
 ---
 
+## D-042 · 2026-08-18 · The substance gate doses inside each substance's own band
+Status: Decided (agent)
+Decision: `substancetest.gd::_dose_for(res)` returns `clampf(DOSE, res.sweet_min, res.sweet_max)`, and every substance is asserted **not** to resolve `overdosed`.
+Why: `DOSE = 0.6`'s own comment claimed it was *"inside the sweet band of every substance in the shelf, so `resolve()` returns quality 1.0"*. It was not. Acid's `sweet_max` is 0.55 and percs' is 0.58, so **two of the shelf were measured on the `overdosed` branch for the life of the gate** — where `resolve()` sets `bad = 1.6` and scales quality by `1.0 + (dose - sweet_max) * 1.5`. Every number the gate printed for those two was the substance at 1.6× its declared badness, and the printout never said so. Acid's measured drift moves 0.518 → 0.406 with the clamp in place.
+**Clamping rather than choosing one universally-legal dose**, because inside the band the position does not matter: `resolve()` sets `quality = 1.0` anywhere between the bounds, so a clamped 0.45 and a clamped 0.55 resolve identically. A single universal dose works *today* — the shelf-wide legal band is **[0.45, 0.55]**, from nitrous' `sweet_min` and acid's `sweet_max` — but it is ten hundredths wide and the next substance could close it silently. Watched failing by removing the clamp: it names acid and percs and nothing else.
+Refs: `tools/substancetest.gd`; `scripts/core/substance.gd::resolve`.
+
 ## D-041 · 2026-08-18 · Every placement group draws from its own seeded stream
 Status: Decided (agent) — **retires F-002**
 Decision: `zone_strip_mall.gd` and `zone_suburbia.gd` gain `_rng(tag)`, which returns a `RandomNumberGenerator` seeded by `hash("<zone>|<leg>|<tag>")`. Every build-time placement group — cats, people, props, cattails, parking, trees, garbage — draws from its own stream. `glidetest.gd::_the_layout_is_seeded()` builds **every zone twice with 137 global `randf()` calls burned in between** and requires every actor to land in the same place.

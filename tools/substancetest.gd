@@ -45,9 +45,24 @@ const COMMON := preload("res://tools/probe_common.gd")
 
 const TICK := 1.0 / 60.0
 
-## The dose every measurement uses. Inside the sweet band of every substance in
-## the shelf, so `resolve()` returns quality 1.0 and the numbers below are the
-## substance at its stated strength rather than at some partial dose.
+## The dose every measurement AIMS for. **It is clamped into each substance's
+## own band by `_dose_for()` before it is used, and that is not a detail.**
+##
+## This constant's comment used to claim it was "inside the sweet band of every
+## substance in the shelf, so `resolve()` returns quality 1.0" — and it was not.
+## Acid's `sweet_max` is 0.55 and percs' is 0.58, so **two of the shelf were
+## measured on the `overdosed` branch the whole time**, where `resolve()` sets
+## `bad = 1.6` and scales `quality` by `1.0 + (dose - sweet_max) * 1.5`. Every
+## number this gate printed for acid and percs was a substance at 1.6x its
+## declared badness, and the printout never said so.
+##
+## Clamping per substance rather than picking one universally-legal dose,
+## because **inside the band the position does not matter**: `resolve()` sets
+## `quality = 1.0` anywhere between `sweet_min` and `sweet_max`, so a clamped
+## 0.45 and a clamped 0.55 resolve to identical values. A single universal dose
+## would work today — the shelf-wide legal band is [0.45, 0.55], from nitrous'
+## `sweet_min` and acid's `sweet_max` — but it is ten hundredths wide and the
+## next substance could close it without anyone noticing.
 const DOSE := 0.6
 
 ## Smallest change in `turn_mult` the 180-degree measurement can honestly tell
@@ -214,6 +229,10 @@ static func run(tree: SceneTree, main: Node) -> void:
 	tree.quit(1)
 
 
+## `DOSE`, pulled into this substance's sweet band. See the constant.
+static func _dose_for(res: Substance) -> float:
+	return clampf(DOSE, res.sweet_min, res.sweet_max)
+
 static func _ok(cond: bool, msg: String) -> void:
 	_checks += 1
 	if not cond:
@@ -246,7 +265,15 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 	# Read the resolved values, not the raw exports: `resolve()` is where dose
 	# quality and tolerance are applied, and it is the resolved dictionary the
 	# aggregator and then the controller actually see.
-	var r: Dictionary = res.resolve(DOSE, 0)
+	var dose := _dose_for(res)
+	var r: Dictionary = res.resolve(dose, 0)
+	# THE CHECK THAT WOULD HAVE CAUGHT THE OLD BUG. If the clamp ever stops
+	# landing in band, every number below is a substance at 1.6x its declared
+	# badness and the gate has been lying about two of them for months.
+	_ok(not bool(r.overdosed),
+		("%s is being measured at dose %.2f, which is OUTSIDE its sweet band "
+		+ "[%.2f, %.2f] — resolve() sets bad = 1.6 there, so every channel below is "
+		+ "the substance at 1.6x its declared badness.") % [id, dose, res.sweet_min, res.sweet_max])
 
 	var want_turn: float = float(r.turn_mult)
 	var want_flap: float = float(r.flap_mult)
@@ -280,8 +307,8 @@ static func _one(tree: SceneTree, goose: CharacterBody3D, subs: Node,
 
 	# 2. DOSE IT AND MEASURE THE BIRD.
 	await _sober_up(tree, goose, subs)
-	var took: bool = bool(subs.take(res, DOSE))
-	_ok(took, "%s: Subs.take() refused a %.2f dose on a clean slate" % [id, DOSE])
+	var took: bool = bool(subs.take(res, dose))
+	_ok(took, "%s: Subs.take() refused a %.2f dose on a clean slate" % [id, dose])
 	if not took:
 		return
 	for _i in 40:
@@ -422,7 +449,7 @@ static func _the_bread(tree: SceneTree, subs: Node, res: Substance) -> void:
 		return
 
 	# BEFORE: the other substance goes down fine.
-	var before_ok: bool = bool(subs.take(other, DOSE))
+	var before_ok: bool = bool(subs.take(other, _dose_for(other)))
 	_ok(before_ok,
 		("%s could not be taken on a clear stack, so the %s test below would pass for the "
 		+ "wrong reason.") % [other.id, res.id])
@@ -431,7 +458,7 @@ static func _the_bread(tree: SceneTree, subs: Node, res: Substance) -> void:
 		await tree.physics_frame
 
 	# DOSE THE BREAD.
-	_ok(bool(subs.take(res, DOSE)), "%s could not be taken at all." % res.id)
+	_ok(bool(subs.take(res, _dose_for(res))), "%s could not be taken at all." % res.id)
 	for _i in 4:
 		await tree.physics_frame
 	_ok(bool(subs.mods.get("blocks_dosing", false)),
@@ -440,13 +467,13 @@ static func _the_bread(tree: SceneTree, subs: Node, res: Substance) -> void:
 			% res.id)
 
 	# THE ACTUAL CLAIM: nothing else goes down while you are full.
-	var blocked: bool = not bool(subs.take(other, DOSE))
+	var blocked: bool = not bool(subs.take(other, _dose_for(other)))
 	_ok(blocked,
 		("with %s active, %s was still accepted. \"You are full\" is the whole of what this "
 		+ "substance does, and CAMPAIGN_SPEC §2.1 builds the tutorial on it.") % [res.id, other.id])
 
 	# AND IT MAY TOP ITSELF UP, or a second slice is silently thrown away.
-	_ok(bool(subs.take(res, DOSE)),
+	_ok(bool(subs.take(res, _dose_for(res))),
 		"%s refused its own top-up, so a second slice is eaten for nothing." % res.id)
 
 	# AND IT WEARS OFF. A block that never lifts is a soft-lock, not a lesson.
@@ -455,7 +482,7 @@ static func _the_bread(tree: SceneTree, subs: Node, res: Substance) -> void:
 		await tree.physics_frame
 	_ok(not bool(subs.mods.get("blocks_dosing", false)),
 		"%s left blocks_dosing set after the actives were cleared, which is a soft-lock." % res.id)
-	_ok(bool(subs.take(other, DOSE)),
+	_ok(bool(subs.take(other, _dose_for(other))),
 		"%s could not be taken after %s cleared. The block does not lift." % [other.id, res.id])
 	subs.call("reset_for_new_leg")
 	print("[subs] %-14s blocks dosing: %s refused while full, accepted after" % [res.id, other.id])
@@ -493,7 +520,7 @@ static func _the_cats(tree: SceneTree, subs: Node, res: Substance) -> void:
 			before += 1
 	_ok(before == 0, "%d of %d cats were already in a frenzy before the catnip landed" % [before, cats.size()])
 
-	subs.call("take", res, DOSE)
+	subs.call("take", res, _dose_for(res))
 	for _i in 12:
 		await tree.physics_frame
 	var during := 0

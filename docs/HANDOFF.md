@@ -61,7 +61,7 @@ declared the wrong size.
 | `--selftest` | the game agrees with itself | **944 invariants** |
 | `--probe --inputtest` | the bird obeys a key | 8 checks |
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
-| `--probe --substancetest` | all seventeen substances bite | 148 checks |
+| `--probe --substancetest` | all seventeen substances bite | 165 checks |
 | `--probe --migtest` | the flight answers the stick, and the seven differ | 14 measurements |
 | `--probe --rolltest` | the credit roll travels |  |
 | `--doctest` | **the documents still tell the truth** | 190 claims |
@@ -243,8 +243,8 @@ and each is a one-line revert. The share cooldown of 1.0 s is pacing (D-032).
 > them is why the fix is what it is and deleting it would cost the next reader
 > the reasoning. The entries that are NOT struck are live.
 >
-> **Still open, in rough order of cost:** the substance gate doses acid and
-> percs on the overdose branch; the results card quotes un-multiplied rewards;
+> **Still open, in rough order of cost:** the results card quotes
+> un-multiplied rewards;
 > `input_lag` and `grid_snap` still have no behavioural coverage; nothing
 > drives the eating verb through the key the player presses; `migtest`'s
 > `lateral.half_cross` cannot fail independently; the failsafe arms after the
@@ -284,6 +284,8 @@ makes six substances materially more punishing at tolerance and no instrument in
 this project can evaluate that. Note also that `gravity_mult` below 1.0 is
 genuinely ambiguous — floatier is a traversal *benefit* and a control
 *impairment* — so that one is a design call, not arithmetic.
+
+~~**`substancetest`'s `DOSE = 0.6` is an OVERDOSE for acid and percs**~~ **FIXED, D-042** — `_dose_for()` clamps into each substance's own band and every substance is asserted not to resolve `overdosed`. Original text:
 
 **`substancetest`'s `DOSE = 0.6` is an OVERDOSE for acid and percs**, which
 contradicts the constant's own comment (*"inside the sweet band of every
