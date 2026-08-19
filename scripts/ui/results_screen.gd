@@ -372,7 +372,12 @@ func _gather(result: Dictionary, zone_title: String) -> Dictionary:
 ## through `Mission.clamp_zone_seconds()` so there is one owner of the range;
 ## the literals are only reached if this card is driven without the autoload.
 func _short_clock(result: Dictionary) -> float:
-	var base := _df(result, "next_zone_base", _df(result, "next_zone_seconds", 180.0))
+	# `short_zone_base`, not `next_zone_base`: landing short REPLAYS THIS LEG,
+	# and this leg's clock is not the next one's. Leg 1 is 240 s against leg 2's
+	# 180, so the old reading advertised a 120 s retry of a 240 s zone. The
+	# fallback chain keeps the card drivable without the autoload.
+	var base := _df(result, "short_zone_base",
+		_df(result, "next_zone_base", _df(result, "next_zone_seconds", 180.0)))
 	var raw := base - 60.0 + _df(result, "zone_time_modifier", 0.0)
 	if _mission != null and _mission.has_method("clamp_zone_seconds"):
 		return float(_mission.clamp_zone_seconds(raw))

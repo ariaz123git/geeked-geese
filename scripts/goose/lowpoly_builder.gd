@@ -224,6 +224,25 @@ func _max_radius(outline: PackedVector3Array, centre: Vector3) -> float:
 
 
 ## A faceted wedge: a polygon that tapers to a ridge line. Good for tails.
+##
+## THE RIDGE HAS TWO ENDS AND THIS USED TO CLOSE ONE.
+##
+## The fan switches tip halfway round the base, so the ridge line `tip_a` ->
+## `tip_b` meets the base at TWO seams: once where the switch happens, and
+## once where the loop wraps. Only the wrap was closed. With a 4-gon base:
+##
+##   j=0 (b0,b1,tip_a)  j=1 (b1,b2,tip_a)  j=2 (b2,b3,tip_b)  j=3 (b3,b0,tip_b)
+##   closing tri (tip_a, tip_b, b0)          <- the wrap seam, closed
+##   nothing at all around b2                 <- the switch seam, OPEN
+##
+## So every wedge in the project shipped with a triangular hole in it: both
+## ears on the cat and on the Ranger's retriever, and the human's nose. On a
+## closed model a hole reads as a dark facet rather than as a hole, which is
+## why it survived a render pass — `CLAUDE.md`'s note that an inside-out mesh
+## "shades plausibly" is the same trap.
+##
+## `tri()` orients itself against `inside`, so the vertex order below does
+## not need to match the other seam's.
 func wedge(base: PackedVector3Array, tip_a: Vector3, tip_b: Vector3, inside: Vector3, col) -> void:
 	var n := base.size()
 	for j in n:
@@ -232,6 +251,10 @@ func wedge(base: PackedVector3Array, tip_a: Vector3, tip_b: Vector3, inside: Vec
 		var t: Vector3 = tip_a if float(j) < float(n) * 0.5 else tip_b
 		tri(a, b, t, _resolve(col, (a + b + t) / 3.0), inside)
 	tri(tip_a, tip_b, base[0], _resolve(col, (tip_a + tip_b) * 0.5), inside)
+	# The switch seam: the first base vertex that belongs to the tip_b half.
+	var mid := int(ceil(float(n) * 0.5)) % n
+	if mid != 0:
+		tri(tip_a, tip_b, base[mid], _resolve(col, (tip_a + tip_b) * 0.5), inside)
 
 
 ## A convex box from 8 corners, for limbs and blocky detail.

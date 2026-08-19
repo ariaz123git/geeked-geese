@@ -69,6 +69,20 @@ IDs increment. Newest on top.
 
 ---
 
+## D-040 · 2026-08-18 · The results card's short-landing clock is THIS leg's
+Status: Decided (agent — a bug fix, not a balance change)
+Decision: `evaluate_leg()` returns `short_zone_base` beside `next_zone_base`, derived from `leg_seconds(leg)` rather than `leg_seconds(leg + 1)`, and `results_screen.gd::_short_clock()` reads it. `selftest.gd::_the_result_clocks()` drives all seven legs and asserts both.
+Why: The card quotes two futures — *make the crossing and the next leg is X*, *land short and it is Y* — and **landing short does not advance the leg**. `main.gd::_on_migration_done()` only increments on `made_it`, so the player replays the leg they just flew out of. Both numbers came from the NEXT leg's clock. The canary that restores the old derivation fails on **four of the seven legs**, which is every leg whose clock differs from its neighbour's: leg 1 is 240 s against leg 2's 180, so failing flight 1 was advertised as a **120-second retry of a 240-second zone** — a full minute wrong, at the exact moment the player is deciding whether to risk the crossing.
+The check asserts one thing about itself first: that at least one adjacent pair of legs has different clocks. Without that it would pass on the broken code too, and a route flattened to one clock would silently make it decorative.
+Refs: `scripts/core/mission.gd::evaluate_leg`; `scripts/ui/results_screen.gd::_short_clock`; `tools/selftest.gd::_the_result_clocks`.
+
+## D-039 · 2026-08-18 · A wedge closes both ends of its ridge, and a primitive is checked by Euler
+Status: Decided (agent)
+Decision: `LowPolyBuilder.wedge()` emits the missing seam triangle. `selftest.gd::_the_primitives_are_closed()` counts boundary edges — edges adjacent to an odd number of faces — and asserts a wedge leaves exactly its base ring open and nothing more.
+Why: The fan switches from `tip_a` to `tip_b` halfway round the base, so the ridge meets the base at TWO seams; only the wrap was closed. **Every wedge in the project shipped with a triangular hole**: both of the cat's ears, both of the Ranger retriever's, and the human's nose. Measured both ways on the same file: with the seam open a wedge leaves `sides + 3` boundary edges (7, 8, 9 for a 4-, 5- and 6-gon) and with it closed exactly `sides` — those three edges are the missing triangle.
+**And it survived a render pass, which is the part worth keeping.** A hole in a closed model does not read as a hole, it reads as one dark facet — exactly the way `CLAUDE.md` says an inside-out mesh "shades plausibly". *Looking at a picture is necessary and it is not sufficient.* The Euler count is the part that is sufficient, and `box()` is asserted alongside as the control: if the watertight primitive ever reports open edges then the COUNTER is broken and the wedge result beside it is worthless.
+Refs: `scripts/goose/lowpoly_builder.gd::wedge`; `tools/selftest.gd::_the_primitives_are_closed`.
+
 ## D-038 · 2026-08-18 · The hitstop budget is a table, not a count in a comment
 Status: Decided (agent)
 Decision: `juice.gd::HITSTOP_SITES` lists every `Juice.hitstop()` in the game as `[path, seconds, strength, what]`, and `selftest.gd::_the_hitstops()` fails the build if the code and the table disagree **in either direction**.

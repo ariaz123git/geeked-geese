@@ -1320,6 +1320,16 @@ func evaluate_leg() -> Dictionary:
 	# one function, so the promise and the payout cannot drift apart again.
 	var next_base := leg_seconds(leg + 1)
 	var next_seconds := clamp_zone_seconds(next_base + modifier)
+	# AND THE SHORT-LANDING CLOCK IS A DIFFERENT LEG'S.
+	#
+	# The card quotes two futures: "make the crossing and the next leg is
+	# X", and "land short and it is Y". Landing short does NOT advance the
+	# leg — `main.gd::_on_migration_done()` only increments on `made_it` — so
+	# the player replays THIS one. The card was deriving both from
+	# `leg_seconds(leg + 1)`, so on every leg whose clock differs from the
+	# next one it promised the wrong number: leg 1 is 240 and leg 2 is 180,
+	# so failing flight 1 was advertised as a 120 s retry of a 240 s zone.
+	var short_base := leg_seconds(leg)
 
 	var flock_note := ""
 	if not passed:
@@ -1369,6 +1379,9 @@ func evaluate_leg() -> Dictionary:
 		# to be 3:00 on the card too, which was wrong on exactly the legs the
 		# promise itself was wrong on.
 		"next_zone_base": next_base,
+		# The clock a SHORT landing replays, which is this leg's and not the
+		# next one's. See `short_base` above.
+		"short_zone_base": short_base,
 		"flock_note": flock_note,
 	}
 	return result

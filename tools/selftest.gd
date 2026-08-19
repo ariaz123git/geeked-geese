@@ -68,6 +68,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_shelf(main)
 	_the_layers()
 	_the_hitstops()
+	_the_primitives_are_closed()
 	_the_control_keys()
 	_the_substance_fields()
 	_the_overdose()
@@ -86,6 +87,11 @@ static func run(tree: SceneTree, main: Node) -> void:
 	# Awaited: it lets the tree run for 20 frames, which is the only way a third
 	# `Engine.time_scale` writer can be seen at all. `run()` is a coroutine
 	# because of this one check, and `main.gd` awaits it.
+	# LAST OF THE SYNCHRONOUS CHECKS. It calls `Mission.begin_leg()` seven
+	# times, which resets the autoload's objective state — harmless because
+	# the process quits straight after, and wrong if anything that reads
+	# Mission runs after it.
+	_the_result_clocks(main)
 	await _the_time_scale(tree)
 
 	if _fails.is_empty():
@@ -921,6 +927,160 @@ static func _the_objectives_are_reachable(main: Node) -> void:
 				("mission_defs declares \"%s\" for zone \"%s\", and its leg gate excludes every leg "
 				+ "ROUTE plays that zone on (%s). It is authored content no player can ever be "
 				+ "offered.") % [oid, zid2, str(legs)])
+
+## ─────────────────────────────────────────── the two clocks the card promises
+
+## THE RESULTS CARD PROMISES TWO FUTURES AND ONE OF THEM WAS THE WRONG LEG.
+##
+## It quotes "make the crossing and the next leg is X" and "land short and it
+## is Y". Landing short does **not** advance the leg —
+## `main.gd::_on_migration_done()` only increments on `made_it` — so the player
+## replays THIS one. Both numbers were derived from `leg_seconds(leg + 1)`.
+##
+## On every leg whose clock differs from the next one's that is a lie to the
+## player at the exact moment they are deciding whether to risk the crossing.
+## Leg 1 is 240 s and leg 2 is 180, so failing flight 1 was advertised as a
+## 120 s retry of a 240 s zone — a full minute wrong.
+static func _the_result_clocks(main: Node) -> void:
+	var mission := main.get_node_or_null("/root/Mission")
+	if mission == null:
+		_ok(false, "Mission autoload missing, so the results card's clocks cannot be checked")
+		return
+	var route: Array = main.get_script().get_script_constant_map().get("ROUTE", [])
+	if route.is_empty():
+		_ok(false, "could not read ROUTE to check the results card's clocks")
+		return
+
+	# At least one pair of adjacent legs must differ, or this check would pass
+	# on the broken code too. Leg 1 (240) against leg 2 (180) is that pair, and
+	# if the route is ever flattened to one clock this says so rather than
+	# quietly becoming decorative.
+	var differ := false
+	for i in route.size() - 1:
+		if not is_equal_approx(float(main.leg_seconds(i + 1)), float(main.leg_seconds(i + 2))):
+			differ = true
+			break
+	_ok(differ,
+		("every leg in ROUTE has the same clock, so this check cannot tell the short-landing "
+		+ "clock from the next-leg clock and proves nothing. It needs one adjacent pair that "
+		+ "differs — leg 1 is 240 and leg 2 is 180 today."))
+
+	_ok(mission.has_method("begin_leg") and mission.has_method("evaluate_leg"),
+		"Mission lost begin_leg/evaluate_leg, so this check has gone blind")
+	if not (mission.has_method("begin_leg") and mission.has_method("evaluate_leg")):
+		return
+	for leg in range(1, route.size() + 1):
+		# `evaluate_leg()` reads Mission's CURRENT leg rather than taking one, so
+		# each leg has to be started before it can be evaluated. The zone id does
+		# not matter here — only the clock arithmetic is under test — but it has
+		# to be a real one or the objective set falls through to the generic.
+		mission.begin_leg(_route_zone_ids[leg - 1] if leg <= _route_zone_ids.size()
+			else &"strip_mall", leg)
+		var r: Dictionary = mission.evaluate_leg()
+		_ok(not r.is_empty(), "evaluate_leg() returned nothing for leg %d" % leg)
+		if r.is_empty():
+			continue
+		_ok(r.has("short_zone_base"),
+			("evaluate_leg(%d) returns no `short_zone_base`, so the card falls back to the NEXT "
+			+ "leg's clock for a landing that replays THIS one.") % leg)
+		if not r.has("short_zone_base"):
+			continue
+		_ok(is_equal_approx(float(r.short_zone_base), float(main.leg_seconds(leg))),
+			("evaluate_leg(%d).short_zone_base is %.0f and leg %d is %.0f s. Landing short "
+			+ "replays this leg, so that is the clock the card has to quote.")
+				% [leg, float(r.short_zone_base), leg, float(main.leg_seconds(leg))])
+		_ok(is_equal_approx(float(r.next_zone_base), float(main.leg_seconds(leg + 1))),
+			("evaluate_leg(%d).next_zone_base is %.0f and leg %d is %.0f s.")
+				% [leg, float(r.next_zone_base), leg + 1, float(main.leg_seconds(leg + 1))])
+
+## ─────────────────────────────────────────────────── watertight primitives
+
+## A SOLID HAS NO HOLES IN IT, AND ONE OF THESE DID.
+##
+## `LowPolyBuilder.wedge()` fans a base polygon to a ridge line, switching from
+## `tip_a` to `tip_b` halfway round. That ridge meets the base at TWO seams —
+## where the switch happens and where the loop wraps — and only the wrap was
+## closed. Every wedge in the project therefore shipped with a triangular hole:
+## both ears on the cat, both on the Ranger's retriever, and the human's nose.
+##
+## **It survived a render pass**, which is the part worth keeping. A hole in a
+## closed model does not read as a hole; it reads as one dark facet, exactly
+## the way `CLAUDE.md` says an inside-out mesh "shades plausibly". Looking at a
+## picture is necessary and it is not sufficient, and this is the arithmetic
+## that is.
+##
+## THE TEST IS EULER, NOT EYESIGHT. In a closed triangle mesh every edge is
+## shared by exactly two faces. Count the edges that are not, and a watertight
+## primitive scores zero. The vertices come back duplicated per face, so edges
+## are keyed on quantised POSITIONS rather than indices.
+static func _the_primitives_are_closed() -> void:
+	var lpb := load("res://scripts/goose/lowpoly_builder.gd")
+	if lpb == null:
+		_ok(false, "lowpoly_builder.gd did not load")
+		return
+
+	# A 4-gon base and a ridge above it: the shape a cat's ear is.
+	for sides in [4, 5, 6]:
+		var b = lpb.new()
+		var base := PackedVector3Array()
+		for i in sides:
+			var a := TAU * float(i) / float(sides)
+			base.append(Vector3(cos(a) * 0.5, 0.0, sin(a) * 0.5))
+		b.wedge(base, Vector3(-0.15, 0.6, 0.0), Vector3(0.15, 0.6, 0.0),
+			Vector3(0.0, 0.1, 0.0), Color.WHITE)
+		var open_edges := _boundary_edges(b.commit())
+		# THE BASE RING IS SUPPOSED TO BE OPEN. A wedge is an ear or a nose: it
+		# glues onto a head, so its base has no cap and contributes exactly
+		# `sides` boundary edges. Anything MORE than that is a hole in the shell.
+		# Measured both ways on the same file: with the switch seam unclosed this
+		# returns sides + 3 (7, 8, 9 for a 4-, 5- and 6-gon), and with it closed it
+		# returns exactly sides (4, 5, 6). Those three edges are the missing
+		# triangle.
+		_ok(open_edges == sides,
+			("LowPolyBuilder.wedge() on a %d-gon base leaves %d boundary edges and should leave "
+			+ "%d — the base ring and nothing else. The ridge meets the base at TWO seams and "
+			+ "both have to be closed; %d extra means one is open. A hole in a closed model reads "
+			+ "as one dark facet rather than as a hole, so a render will not tell you.")
+				% [sides, open_edges, sides, open_edges - sides])
+
+	# The box is the control: if this ever reports open edges the COUNTER is
+	# broken, not the builder, and the wedge result above means nothing.
+	var bx = lpb.new()
+	bx.box(Vector3.ZERO, Vector3(0.5, 0.5, 0.5), Color.WHITE)
+	var box_open := _boundary_edges(bx.commit())
+	_ok(box_open == 0,
+		("LowPolyBuilder.box() reports %d open edges. A box is watertight by construction, so "
+		+ "this is the edge counter failing and every wedge result beside it is worthless.")
+			% box_open)
+
+
+## Edges adjacent to an odd number of faces in a non-indexed triangle mesh.
+static func _boundary_edges(mesh: ArrayMesh) -> int:
+	if mesh == null or mesh.get_surface_count() == 0:
+		return -1
+	var arrays: Array = mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var counts := {}
+	var tri_total := verts.size() / 3
+	for t in tri_total:
+		var p := [verts[t * 3], verts[t * 3 + 1], verts[t * 3 + 2]]
+		for e in 3:
+			var u: Vector3 = p[e]
+			var v: Vector3 = p[(e + 1) % 3]
+			counts[_edge_key(u, v)] = counts.get(_edge_key(u, v), 0) + 1
+	var odd := 0
+	for k in counts.keys():
+		if int(counts[k]) % 2 == 1:
+			odd += 1
+	return odd
+
+
+## Order-independent key for an edge, quantised because the builder emits a
+## fresh vertex per face and float equality across those is not guaranteed.
+static func _edge_key(u: Vector3, v: Vector3) -> String:
+	var a := "%.4f,%.4f,%.4f" % [u.x, u.y, u.z]
+	var b := "%.4f,%.4f,%.4f" % [v.x, v.y, v.z]
+	return (a + "|" + b) if a < b else (b + "|" + a)
 
 ## ────────────────────────────────────────────────── the hitstop budget
 
