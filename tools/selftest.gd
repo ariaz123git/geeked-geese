@@ -67,6 +67,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_substances(main)
 	_the_shelf(main)
 	_the_layers()
+	_the_hitstops()
 	_the_control_keys()
 	_the_substance_fields()
 	_the_overdose()
@@ -920,6 +921,64 @@ static func _the_objectives_are_reachable(main: Node) -> void:
 				("mission_defs declares \"%s\" for zone \"%s\", and its leg gate excludes every leg "
 				+ "ROUTE plays that zone on (%s). It is authored content no player can ever be "
 				+ "offered.") % [oid, zid2, str(legs)])
+
+## ────────────────────────────────────────────────── the hitstop budget
+
+## THE ONE RULE THAT WAS A COUNT IN A COMMENT, AND WAS WRONG BY THREE.
+##
+## `juice.gd` opens with three rules it calls "not negotiable", and the first
+## said **"HITSTOP HAS EXACTLY FIVE CALL SITES in the whole game"** and named
+## them. There were eight. The three it did not name — the Ranger's HAZED, a
+## storey of BIG DOWN's glass, and the truck stop's diner window — are each
+## argued at length where they sit, so the SITES were fine and the RULE had
+## rotted. A number in a comment cannot notice a fourth caller.
+##
+## So the rule is a table now, and this is what makes it a rule. The check is
+## symmetric on purpose: a call the table does not list fails, and a row with
+## no call fails too. A table that can quietly describe a site somebody
+## deleted is the same rot wearing the other shoe.
+static func _the_hitstops() -> void:
+	var juice := load("res://scripts/core/juice.gd")
+	if juice == null:
+		_ok(false, "juice.gd did not load, so the hitstop budget cannot be checked")
+		return
+	var table: Array = juice.get_script_constant_map().get("HITSTOP_SITES", [])
+	_ok(table.size() >= 4,
+		"juice.gd::HITSTOP_SITES has %d rows — this check has gone blind, fix the parse" % table.size())
+
+	# What the table says, as a bag of "path|seconds|strength".
+	var declared := {}
+	for row in table:
+		var r: Array = row
+		var key := "%s|%.2f|%.2f" % [str(r[0]), float(r[1]), float(r[2])]
+		declared[key] = declared.get(key, 0) + 1
+
+	# What the code does.
+	var found := {}
+	var scripts: Array[String] = []
+	var resources: Array[String] = []
+	_walk_files("res://", scripts, resources)
+	var re := RegEx.new()
+	re.compile("Juice\\.hitstop\\(\\s*(-?[0-9.]+)\\s*,\\s*(-?[0-9.]+)\\s*\\)")
+	for path in scripts:
+		if path.begins_with("res://tools/"):
+			continue
+		var rel := path.replace("res://", "")
+		for m in re.search_all(_read_text(path)):
+			var key2 := "%s|%.2f|%.2f" % [rel, float(m.get_string(1)), float(m.get_string(2))]
+			found[key2] = found.get(key2, 0) + 1
+
+	for k in found.keys():
+		_ok(declared.has(k) and int(declared[k]) == int(found[k]),
+			("Juice.hitstop is called %d time(s) as `%s` and juice.gd::HITSTOP_SITES declares it "
+			+ "%d. Nothing the player can trigger more than a few times a minute may freeze the "
+			+ "frame; if this one is right, add the row and write down what it is for.")
+				% [int(found[k]), k, int(declared.get(k, 0))])
+	for k2 in declared.keys():
+		_ok(found.has(k2),
+			("juice.gd::HITSTOP_SITES declares `%s` and no call site matches it. A table that can "
+			+ "describe a hitstop somebody deleted is the same rot as a count that cannot see a "
+			+ "new one.") % k2)
 
 ## ────────────────────────────────────────────── the overlay stack
 

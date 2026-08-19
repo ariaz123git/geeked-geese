@@ -69,6 +69,13 @@ IDs increment. Newest on top.
 
 ---
 
+## D-038 · 2026-08-18 · The hitstop budget is a table, not a count in a comment
+Status: Decided (agent)
+Decision: `juice.gd::HITSTOP_SITES` lists every `Juice.hitstop()` in the game as `[path, seconds, strength, what]`, and `selftest.gd::_the_hitstops()` fails the build if the code and the table disagree **in either direction**.
+Why: `juice.gd` opens with three rules it calls *"not negotiable"*, and the first said **"HITSTOP HAS EXACTLY FIVE CALL SITES in the whole game"** and named them. **There were eight.** The three it did not name — the Ranger's HAZED, a storey of BIG DOWN's glass, and the truck stop's diner window — are each argued at length where they sit, several of them explicitly against this very rule. So the SITES were fine and the RULE had rotted: a count in a comment cannot notice a fourth caller. That is `CLAUDE.md`'s banner failure mode, in the file most emphatic about not having it.
+The check is symmetric on purpose: a call the table does not list fails, and a row with no call fails too — a table that can quietly describe a hitstop somebody deleted is the same rot wearing the other shoe. Both watched failing. **And the second canary found a limit in the check itself:** moving a declared 0.04 to 0.045 PASSED, because the comparison keys on two decimal places. Every value in the table is written to two places and there is no reason for a third, but the limit is now written down rather than discovered later.
+Refs: `scripts/core/juice.gd`; `tools/selftest.gd::_the_hitstops`; `docs/HANDOFF.md` §4, which proposed exactly this.
+
 ## D-037 · 2026-08-18 · Bread is built, and it is a substance rather than a special case
 Status: Decided (agent — the numbers are pacing and revertible; the mechanism is not)
 Decision: `data/substances/bread.tres`, a seventeenth substance. `duration 20`, `chaos_mult 0.5`, every motion multiplier neutral, and one new export: **`blocks_dosing`**. While it is up, `Subs.take()` refuses everything else, the dose arc will not charge, and the HUD says FULL. It is on leg 1's `TUTORIAL_SHELF`, on the verge by the water, with a lawn sign beside it that is scenery rather than a chaos prop — wrecking the notice is a different joke from ignoring it.

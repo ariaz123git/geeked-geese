@@ -92,10 +92,19 @@ extends Node
 ##
 ## Three rules that follow from the table and are not negotiable:
 ##
-##   1. HITSTOP HAS EXACTLY FIVE CALL SITES in the whole game (blackout, tumble,
-##      prop break, hard landing, goose lost). Nothing the player can trigger
-##      more than a few times a minute may freeze the frame. If you are adding a
-##      sixth, you are almost certainly wrong.
+##   1. HITSTOP HAS EXACTLY THE CALL SITES IN `HITSTOP_SITES` BELOW, and
+##      `tools/selftest.gd::_the_hitstops()` fails the build if the code and
+##      that table disagree. Nothing the player can trigger more than a few
+##      times a minute may freeze the frame. If you are adding one, you are
+##      probably wrong — and if you are right, you add a row here in the same
+##      commit and write down what it is for.
+##
+##      **This rule used to say "EXACTLY FIVE CALL SITES" and there were
+##      eight.** All three extra ones are argued at length where they sit, so
+##      the sites were fine and the RULE was the thing that had rotted — a
+##      count in a comment cannot notice a fourth caller. That is the failure
+##      mode `CLAUDE.md`'s banner is about, in the file that is most emphatic
+##      about not having it.
 ##   2. Anything the player can retrigger faster than once a second lives in
 ##      tier 0 or 1. A routine cart-bump is 0.06 — about 5% of the peak — and
 ##      that ratio is the whole point: the blackout has to be twenty times the
@@ -104,6 +113,29 @@ extends Node
 ##      handoff) get light, particles and colour, never shake. Spending shake on
 ##      a success weakens both readings.
 ##
+## EVERY HITSTOP IN THE GAME, and what it is for. Rows are
+## `[path, seconds, strength, what]` and the order does not matter; the check
+## compares the SET. A site in the code and not here fails, and a row here
+## with no call site fails too — a table that can quietly describe a call that
+## was deleted is the same rot in a new place.
+##
+## Sorted by strength, which is also the tier order the table above argues.
+##
+## The check keys on two decimal places, so two sites 0.005 apart would read as
+## the same row. Every value here is written to two places and there is no
+## reason for a third — but that is why, and a canary that moved 0.04 to 0.045
+## passed when it should not have.
+const HITSTOP_SITES := [
+	["scripts/world/boss_ranger.gd", 0.04, 0.40, "HAZED — the Ranger takes control away"],
+	["scripts/goose/goose_controller.gd", 0.05, 0.55, "hard landing"],
+	["scripts/world/boss_big_down.gd", 0.05, 0.70, "a storey of glass goes at once"],
+	["scripts/migration/migration.gd", 0.06, 0.75, "a goose is lost — the only permanent loss in a run"],
+	["scripts/world/zone_truckstop.gd", 0.06, 0.80, "the diner window"],
+	["scripts/world/chaos_prop.gd", 0.07, 0.80, "a prop breaks — the headline verb"],
+	["scripts/goose/goose_controller.gd", 0.09, 1.00, "the faceplant"],
+	["scripts/goose/goose_controller.gd", 0.11, 1.00, "blackout — the peak of the whole budget"],
+]
+
 ## Everything above is pre-pref; screen_shake and fx_intensity scale it, and at
 ## 0 the whole table collapses to nothing, which is the point of the sliders.
 
