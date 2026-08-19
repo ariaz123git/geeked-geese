@@ -1,9 +1,12 @@
 # HANDOFF — current state
 
 **Updated:** end of the long session that split leg 1 from leg 2, gave the seven
-flights seven shapes, built bread, and grew the gate count from eight to eleven
-— including three that check things nobody had ever checked: this repo's own
-prose, its WAV files, and whether a model is the size its table says.
+flights seven shapes, built bread, and grew the gate count from eight to twelve.
+Its second half spent itself entirely on **things that were wrong and could not
+be seen** — six pickups inside solids, two goose models standing underground, a
+scoreboard itemising a multiplied number with unmultiplied parts, the eating
+verb never once pressed, and a deadline armed after the thing most likely to
+hang. Every one of them is now an assertion.
 
 > **How this file works.** `CLAUDE.md` holds the *rules* — they rarely change.
 > This file holds the *state* — it changes every session. Read this first, then
@@ -32,11 +35,39 @@ of the code, sitting in a markdown file, that nothing loaded.**
   twenty seconds.
 
 **And the instruments grew faster than the game did, on purpose.** Eight gates
-became eleven, the invariant count went 619 → 944, and the three new ones each
-close a category nothing could see before: the DOCS (`--doctest`), the AUDIO
-(`--audiotest`), and the GEOMETRY (`--geomtest`). Between them they found seven
-stale facts, a bed that only loops because of a runtime patch, and eleven props
-declared the wrong size.
+became twelve and the invariant count went 619 → 953. The new ones each close a
+category nothing could see before: the DOCS (`--doctest`), the AUDIO
+(`--audiotest`), the GEOMETRY (`--geomtest`) and the gate table itself
+(`verify.ps1` step 12). Between them they found seven stale facts, a bed that
+only loops because of a runtime patch, eleven props declared the wrong size, and
+two gate counts this repo had been quoting wrong for a session.
+
+**The second half of the session is a list of things that were WRONG, not of
+things that were missing.** Nine of them, each found by an instrument built to
+look for it and each now carrying the assertion that would have caught it:
+
+- **Six substance pickups had their model inside a solid** — two berry sources at
+  the centreline of a tree trunk, grass 0.5 m inside the cottage's west wall, a
+  thermos in a truck cab, a coffee cup in a fuel dispenser. Five are one bug: a
+  pickup written at a prop's ANCHOR as though the anchor were its SURFACE.
+- **Both goose models stood underground** — 101 mm on the lowpoly bird and 180 mm
+  on the classic one, on every frame the bird was still. The recorded estimate
+  was "5–10 cm" and named only one of the two.
+- **The substance gate had been measuring acid and percs at 1.6× their declared
+  badness** for its whole life, on `resolve()`'s overdose branch.
+- **`input_lag` — the field whose four-second ramp made eleven substances
+  unplayable — had no behavioural coverage in any gate.** Now measured, and the
+  nine that cannot be measured this way say so and say why.
+- **The eating verb had never been driven by a key**, which is why
+  `stamina_restore` could be dead in six `.tres` files with every gate green.
+- **The results card itemised a combo-multiplied CHAOS figure with raw rewards**,
+  so the itemisation drifted further out the better the player chained.
+- **The headless deadline was armed after the first zone was built**, which is
+  the largest body of code in the project and the likeliest thing to hang.
+- **The table that lists the gates was checked by none of them**, and two of its
+  counts were stale. It is now checked by the script that runs them.
+- **`grid_snap` was invisible to all 22 substance channels** because every one of
+  them holds forward, and a forward stick is already on an axis.
 
 | | |
 |---|---|
@@ -64,7 +95,7 @@ declared the wrong size.
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, and the seven differ | 14 measurements |
 | `--probe --rolltest` | the credit roll travels |  |
-| `--doctest` | **the documents still tell the truth** | 195 claims |
+| `--doctest` | **the documents still tell the truth** | 196 claims |
 | `--audiotest` | **the WAVs are what their names claim** | 246 over 68 files |
 | `--probe --geomtest` | **a model is the size its table says, nothing edible is buried in a solid, and the bird stands ON the ground** | 56 over 15 kinds, 74 pickups |
 | `--probe --loop-test` | seven legs, seven flights and the ending | + the shelf census |
@@ -193,46 +224,56 @@ Everything measurable is yours."*
 
 ### Ranked, for an agent
 
-1. **Retire F-002 properly.** `hold_actors()` fixed the ACTOR half; the static
-   half is open. A shopping cart re-rolled onto the measuring pad still cannot
-   be frozen and nothing checks for one. The fix is the original: **give the
-   zone builders a seed**, so a build's layout is a function of that seed rather
-   than of how many `randf()` calls happened to precede it — at which point
-   `find_dry_ground()` can reject a pad with a rigid body on it and know the
-   answer will not change under it.
+1. **Give `verify.ps1` a per-step wall-clock timeout.** Found the hard way this
+   session and written up in §4: a `main.gd` that will not parse hangs the
+   whole script forever, and **the in-engine failsafe cannot help because it
+   lives in `main.gd` too**. One helper — `Start-Process -PassThru
+   -RedirectStandardOutput`, `WaitForExit(ms)`, `Kill()` — applied to twelve
+   invocations. It is a refactor of the file that runs everything, which is why
+   it was not done in the same commit as the bug that revealed it.
 
-2. **Retire F-001 properly.** Every step of `verify.ps1` now fails on
+2. **Retire F-001 properly.** Every step of `verify.ps1` fails on
    `SCRIPT ERROR`; the remaining half is the leak itself. Two things were tried
    and measured — `Music._exit_tree()` **does** run, and an equivalent in
    `sfx.gd` left the count at exactly 17 — so the holder is not the autoload
    caches. The remaining candidate is the AudioServer's playbacks.
 
-3. **The Ranger's leg 6 exam** — `BOSS_DESIGN.md` §2.1.4. D-013 records the real
+3. **`migtest`'s `lateral.half_cross` cannot fail independently** of
+   `full_cross`; it is derived from the same drive rather than measured. The
+   last un-addressed gate gap in §4.
+
+4. **The Ranger's leg 6 exam** — `BOSS_DESIGN.md` §2.1.4. D-013 records the real
    blocker as the propane cannon's bang, which is a human one.
 
-4. **Cut `CLAUDE.md` toward 200.** It is at 373 against a ratchet that only goes
-   down, and the biggest remaining block is the architecture description —
-   which is derivable from `docs/ARCHITECTURE.md`, a file that exists.
+5. **Cut `CLAUDE.md` toward 200.** It is at 373 against a ratchet that only goes
+   down — which bit this session: a needed addition was refused at 376 and had
+   to be paid for by tightening two existing paragraphs. The biggest remaining
+   block is the architecture description, which is derivable from
+   `docs/ARCHITECTURE.md`, a file that exists.
 
-5. **The remaining per-flight fields.** `ROUTE_DATA.md` §1.3 also gives each
+6. **The remaining per-flight fields.** `ROUTE_DATA.md` §1.3 also gives each
    flight a `sky`, a `ground` and a `put_down` flag, and §5 a
    max-birds-lost-per-flight of 2. Per D-017 none should be copied into
    `FLIGHTS` until the code that reads it exists.
-
-6. **The placement arithmetic still in §4** — leg 6's double-double inside the
-   grain truck's cab, suburbia's island lamp collider 0.6 m too high, the
-   recycling bin's chevron floating 8.6 cm, the lowpoly goose's feet 5–10 cm
-   under the collider. Each has both numbers already.
 
 7. **Convert a zone to a real `.tscn`.** Still accepted debt, and still a
    candidate for being retired as a decision rather than carried as a task,
    since everything it buys needs a human in the editor.
 
+**Retired since the last handoff:** F-002 (D-041, per-group seeded streams), the
+whole placement-arithmetic list (D-043, D-045), the `input_lag`/`grid_snap`
+coverage gap (D-046), the eating-verb gap (D-047), the results card (D-048) and
+the failsafe ordering (D-049).
 ### Recorded, decided without measuring, and revertible
 `stamina_restore` pays out (D-018). Leg 1's shelf is four substances (D-022,
 D-037). Bread's `charge_time`, sweet band and zero `stamina_restore` are mine
 and each is a one-line revert. The share cooldown of 1.0 s is pacing (D-032).
 `sustained_campaign` lives in the cut corn now, which is a design call (D-034).
+Fallen fruit lands 1.1 m from a trunk on the side away from the water, and leg
+6's thermos sits 1.60 m along the cab's local -x (D-043) — the distances are
+arithmetic, the directions are mine. The cottage grass patch moved 1.6 m west
+rather than onto the porch (D-045). Both goose models are lifted onto the
+capsule's contact point rather than the bird being made shorter (D-045).
 
 ---
 
