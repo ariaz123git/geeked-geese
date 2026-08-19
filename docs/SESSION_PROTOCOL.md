@@ -31,7 +31,7 @@ stopped being the useful framing. **Rules age. State and decisions are dated.**
 
 ## Starting
 
-1. **Run `.\verify.ps1` before touching anything.** Nine gates, about four
+1. **Run `.\verify.ps1` before touching anything.** Eleven gates, about six
    minutes. You need to know whether you inherited a green tree — if it is red
    when you arrive, that is the first thing to say and the first thing to fix.
 2. **Read HANDOFF §1–§4**, then skim **DECISIONS** for anything `Open (human)`.
@@ -109,6 +109,22 @@ twice in one session. If the gate goes silent, the last edit is the suspect:
 rewrote the *definition* into `static func COMMON.release_all()`, which the gate
 reported only as "Could not preload resource script".
 
+**An undefined escape sequence in a string literal stalls the parser too.** The
+documented cause of a silent `--gate` was a reused local name; it is not the
+only one. A RegEx written with `\*` in it hung the gate with no output at all,
+and the identical pattern written as a character class compiled in 25 s.
+`selftest` now scans every script for this — but the scan only runs once the
+project boots, so the gate can still stall on the offending file before the
+scan gets to report it.
+
+**A geometry walk will count the invisible boundary walls unless you stop it.**
+Every zone rings itself with four hidden 80 × 1 m walls. The first version of
+`glidetest` called them the most dangerous drops in the game, in all seven
+zones at once, and published the wrong answer into a decision document. **The
+tell was in its own output**: every zone reported *exactly* four, and two of
+them named the same position. If a per-zone number comes out identical across
+seven different zones, it is not a finding.
+
 **Kill stray Godot processes before diagnosing a hang.** A killed run can leave a
 process holding the project, and the next gate looks like it is stalling when it
 is only queued behind a corpse.
@@ -122,17 +138,31 @@ Playtesting, deciding what is funny, and judging whether the game is fun — see
 entries in `docs/DECISIONS.md` marked **Open (human)** are the current list, and
 it is short on purpose: right now it is the glide ratio (**D-006**), the
 hard-landing threshold (**D-005**), the truck stop's closing beat (**D-007**),
-and whether tolerance should stop softening penalties (**D-019**). Two of the
-four now carry a measured cost without being closed — see below.
+whether tolerance should stop softening penalties (**D-019**), and — new —
+whether eleven mis-declared prop footprints should be corrected at the cost of
+rescaling those models non-uniformly (**D-036**). Two of the five now carry a
+measured cost without being closed — see below.
 
 **Never fabricate a judgement about how something feels.** Report what you
 measured, or say you decided without measuring and why. Never claim you played it.
 
-**But an open decision can be given its NUMBER without being closed, and that is
-the most useful thing an agent can do here.** D-006 sat open for two sessions
-behind an uncounted claim — *"it would silently invalidate every 'the goose
-cannot reach that' assumption in eight zone builders"*. `tools/glidetest.gd`
-counted it in one pass: 42 of 113 elevated surfaces glide-reachable today, 86 at
-3:1, and the whole cost concentrated in three zones with suburbia going from 0
-to 16. The decision is exactly as open as it was; the human now has the price
-tag. **Look for the uncounted claim inside every open decision.**
+**But an open decision can be given its NUMBER without being closed, and that
+is the most useful thing an agent can do here.** D-006 sat open for two
+sessions behind an uncounted claim — *"it would silently invalidate every
+'the goose cannot reach that' assumption in eight zone builders"*.
+`tools/glidetest.gd` counted it: **21 of 84 elevated surfaces are
+glide-reachable today and 31 at 3:1** — ten more, across seven zones, with
+cottage country already carrying eighteen of them. D-005 came off the same
+walk: **one** surface in the whole game has no soft way down. Neither decision
+moved an inch; the human now has the price tag for both. **Look for the
+uncounted claim inside every open decision.**
+
+> **AND THE FIRST VERSION OF THAT COUNT WAS WRONG, WHICH IS THE OTHER HALF OF
+> THE LESSON.** It read 42 of 113 rising to 86, and said suburbia was the whole
+> decision — close to the opposite conclusion — because the walk was counting
+> the four invisible boundary walls every zone builds. Those numbers were
+> committed into `FEEL_TARGETS.md` before anyone noticed. **A number is not
+> better than prose merely for being a number.** What makes it better is that a
+> number can be checked, and the check is not optional: `glidetest` now prints
+> what every walk discarded, asserts its own filter, and fails if the document
+> stops matching what it measures.

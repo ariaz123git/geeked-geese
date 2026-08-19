@@ -1,14 +1,14 @@
 # HANDOFF — current state
 
-**Updated:** end of the session that gave leg 1 a different game from leg 2,
-gave each of the seven flights its own shape, turned the repo's own prose into
-something a gate can fail on, and finally put a number on the glide.
+**Updated:** end of the long session that split leg 1 from leg 2, gave the seven
+flights seven shapes, built bread, and grew the gate count from eight to eleven
+— including three that check things nobody had ever checked: this repo's own
+prose, its WAV files, and whether a model is the size its table says.
 
 > **How this file works.** `CLAUDE.md` holds the *rules* — they rarely change.
 > This file holds the *state* — it changes every session. Read this first, then
 > `docs/DECISIONS.md`, then CLAUDE.md. **Update the four ⟳ sections at the end of
-> every session.** If it goes stale it is worse than useless, because the next
-> session will trust it.
+> every session.**
 >
 > **Numbers in this file are checked.** `tools/doctest.gd` recomputes them from
 > the booted project on every `verify.ps1` run — see `docs/CLAIMS.md`. If you
@@ -18,53 +18,58 @@ something a gate can fail on, and finally put a number on the glide.
 
 ## ⟳ 1. Where the project is right now
 
-**The campaign is built, measured, and — as of this session — it is no longer
-the same game twice.** Two things that the design documents had specified and
-the code had never implemented are now implemented, and both had the same
-shape: a spec table written in the language of the code, sitting in a markdown
-file, that nothing loaded.
+**The campaign is built and it is no longer the same game twice.** Three things
+the design documents specified and the code had never implemented are now
+implemented, and all three had the same shape: **a spec written in the language
+of the code, sitting in a markdown file, that nothing loaded.**
 
-- **Legs 1 and 2 were 420 seconds of the same place with the same sixteen
-  substances.** Leg 1 now offers three. The first rise of the escalation curve
-  exists.
-- **All seven interstitial flights were the same 85-second crossing.** Each now
-  has its own duration, opening quiet, hazard density and mix, and flight 1
-  cannot take a bird.
+- Legs 1 and 2 were 420 seconds of the same place with the same sixteen
+  substances. **Leg 1 now offers four**, and one of them is bread.
+- All seven interstitial flights were the same 85-second crossing. **Each now
+  has its own shape**, and flight 1 cannot take a bird.
+- Bread — `CAMPAIGN_SPEC.md` §2.1's "the obvious food is the trap", specced since
+  the campaign was — **is built**, and it removes the game's main verb for
+  twenty seconds.
 
-And the third thing is why this file now has a header telling you its numbers
-are checked: a survey found **seven** live stale facts across four root
-documents — three different texture counts in three files, a design bible
-reading "2 zones" against eight, a README calling the built stopover "the last
-placeholder in the route", and `CLAUDE.md`'s own line budget exceeded by 90%.
-`docs/DECISIONS.md` was this project's answer to prose *decisions* rotting.
-Nothing answered prose *facts* rotting. Now `--doctest` does.
+**And the instruments grew faster than the game did, on purpose.** Eight gates
+became eleven, the invariant count went 619 → 944, and the three new ones each
+close a category nothing could see before: the DOCS (`--doctest`), the AUDIO
+(`--audiotest`), and the GEOMETRY (`--geomtest`). Between them they found seven
+stale facts, a bed that only loops because of a runtime patch, and eleven props
+declared the wrong size.
 
 | | |
 |---|---|
 | Engine | Godot 4.7.1, GL Compatibility renderer |
 | Code | 72 GDScript files (read the live count off `[gate] PASS — N scripts`) |
-| Zones built | 8 — retention pond / strip mall lot (one zone, two legs, **two shelves now**), suburbia, cottage country, the stopover, cut corn, truck stop, the 18th green |
+| Zones built | 8 — retention pond / strip mall lot (one zone, two legs, **two shelves**), suburbia, cottage country, the stopover, cut corn, truck stop, the 18th green |
 | Route legs | 7 flown + the arrival |
-| Substances | 16, all with models, control mutations, true codex facts and a HUD icon. **Leg 1 offers 3 of them**; every other leg offers its zone's full set |
+| Substances | **17.** Leg 1 offers 4 (berries, double-double, grass, **bread**); every other leg offers its zone's full set |
 | Flights | **7, and no two alike.** Hazards per crossing: 3.9 · 12.7 · 21.3 · 44.1 · 9.3 · 39.1 · 70.4. Flight 1 is `lethal: false` |
 | Bosses | 2 — the Ranger (leg 3) and BIG DOWN (the back half of leg 7) |
 | Assets | 40 textures (23 + 17 substance icons), 46 sounds (39 SFX + 7 zone ambience beds), 22 music stems — all procedurally generated |
 | Autoloads | 10 (see `docs/ARCHITECTURE.md` §2 for the order and why it matters) |
-| Gates | **11**: compile, invariants (862), controller (8), feel (22 metrics, 13 asserted), substances (135 over 16), flight (14), credit roll, claims (190), **audio (246 over 68 files)**, **footprints (45 over 15 kinds)**, full campaign. `.\verify.ps1`, about six minutes |
-| Docs that check themselves | `--doctest` — every number in `docs/CLAIMS.md`'s table, `feeltest.gd`'s 13 windows against `FEEL_TARGETS.md`'s arguments, `CLAUDE.md`'s line ceiling, and the five-entry cap on `docs/RECENT_FAILURES.md`. Plus `selftest::_the_docs()`, which seeded the idea |
-| Decisions | `docs/DECISIONS.md` — **26 entries.** Four are `Open (human)` and must not be closed by an agent: D-005, D-006, D-007, D-019. Seven new this session, D-020 to D-026 |
+| Gates | **11.** `.\verify.ps1`, about six minutes |
+| Decisions | `docs/DECISIONS.md` — **40 entries.** Five are `Open (human)` and must not be closed by an agent: D-005, D-006, D-007, D-019, **D-036** |
+| Failure log | `docs/RECENT_FAILURES.md` — 3 of a hard cap of 5. An entry leaves only by becoming a check |
 
-### What is new this session, in one line each
-Leg 1 is a tutorial shelf (D-022) · seven flights have seven shapes (D-023) ·
-the documents are gated (D-024) · the failure log is capped and evicted by
-conversion (D-025) · `CLAUDE.md` has a downward-only line ratchet (D-026) ·
-bread is specced and deliberately unbuilt (D-020) · the tutorial shelf must
-offer one lag-free control (D-021).
+### The eleven gates, and what each one is the only thing that can see
+
+| gate | proves | count |
+|---|---|---|
+| `--gate` | every `.gd` compiles and every resource loads, inside the booted project | 72 scripts |
+| `--selftest` | the game agrees with itself | **944 invariants** |
+| `--probe --inputtest` | the bird obeys a key | 8 checks |
+| `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
+| `--probe --substancetest` | all seventeen substances bite | 148 checks |
+| `--probe --migtest` | the flight answers the stick, and the seven differ | 14 measurements |
+| `--probe --rolltest` | the credit roll travels |  |
+| `--doctest` | **the documents still tell the truth** | 190 claims |
+| `--audiotest` | **the WAVs are what their names claim** | 246 over 68 files |
+| `--probe --geomtest` | **a model is the size its table says** | 45 over 15 kinds |
+| `--probe --loop-test` | seven legs, seven flights and the ending | + the shelf census |
 
 ### What is specced but not built
-- **Bread** — `CAMPAIGN_SPEC.md` §2.1's fourth leg-1 item and the thesis of the
-  whole game. **D-020**, with the reason it is a shelf-wide change rather than a
-  one-`if` one.
 - **The Ranger's leg 6 exam** (`BOSS_DESIGN.md` §2.1.4). D-013 records the real
   blocker as a sound no agent can hear.
 - **Multiplayer** (`MULTIPLAYER_SPEC.md`) — and it should not be next.
@@ -74,139 +79,98 @@ offer one lag-free control (D-021).
 
 ## ⟳ 2. What changed last session
 
-### 1. Leg 1 is a different game from leg 2
+### 1. Leg 1 is a different game from leg 2, and bread is the lesson
 
 `zone_strip_mall.gd::_sources()` built all sixteen substances unconditionally
-and the file had **no leg branch anywhere**, while `CAMPAIGN_SPEC.md` §2.1 gives
-leg 1 three and §2.2 gives leg 2 *"all sixteen — this is where the lid comes
-off"*, with the spec's own intensity column going 2 → 4 across that boundary.
+with **no leg branch anywhere**, against `CAMPAIGN_SPEC.md` §2.1's three and
+§2.2's *"all sixteen — this is where the lid comes off"*. `TUTORIAL_SHELF` is
+now `berries, double_double, grass, bread`, and the set is closed under the
+game's own mixing rule: `MAX_STACK` is 2, leg 1's `double_parked` primary needs
+two at once, and `berries|double_double` is THE WOBBLER — exactly one
+discoverable named combo, and it is the flagship.
 
-`TUTORIAL_SHELF` is `berries, double_double, grass`, and the reason it is those
-three is in the file: berries teaches that a substance is a control mutation and
-not a score bonus, double_double is why aiming at the sweet spot is worth the
-risk, grass is `infinite` so the dose arc can be practised without spending
-anything — and **the set is closed under the game's own mixing rule**, since
-`MAX_STACK` is 2, leg 1's `double_parked` primary requires two substances at
-once, and `berries|double_double` is THE WOBBLER. `selftest` asserts that a
-named combo is reachable rather than trusting it.
+**Bread is a substance, not a special case, and that is why it was cheap.**
+"For twenty seconds you cannot dose, and your chaos is halved" is *exactly* what
+a `Substance` already is, so it cost one export (`blocks_dosing`), one line in
+`resolve()`, one in `_empty_mods()`, one in `_aggregate()` and one refusal in
+`take()`. The HUD strip, the timer, the tolerance, the Almanac entry and the
+unlock it inherits. D-037.
 
-`_source()` is now the only function in the file that can build a pickup: the
-grass patches used to construct their own because they needed `infinite`, and a
-leg filter is only as good as its narrowest choke point.
-
-**The check is in two places and both are needed.** `selftest.gd::_the_shelf()`
-reads the declaration (12 static invariants). `main.gd --loop-test` counts what
-the **director actually built**, on every leg:
+The check is in two places and both are needed: `selftest` reads the
+declaration, and **`--loop-test` counts the pickups the DIRECTOR built** on every
+leg.
 
 ```
-[loop] shelf census: leg1=3 leg2=16 leg3=10 leg4=16 leg5=16 leg6=6 leg7=4
+[loop] shelf census: leg1=4 leg2=17 leg3=10 leg4=16 leg5=16 leg6=6 leg7=4
 ```
-
-That line is the first route-wide statement of the substance curve that has ever
-existed. Both were watched failing, and the second canary is the one that
-matters: with the declaration correct and the guard in `_source()` bypassed,
-**selftest passes and only the census catches it** — which is the
-`stamina_restore` shape (D-017/D-018) caught before the fact instead of after.
 
 ### 2. Seven flights, seven shapes
 
-`migration.gd` had `TARGET_DISTANCE := 2000.0` as its only termination test and
-never read the leg, so every crossing ran 2000 / 23.46 = **85.3 s** and rolled
-its hazards from a flat `randi() % 3`. Half the game was one flight served seven
-times. `docs/ROUTE_DATA.md` §1.3 had shipped the per-flight table since it was
-written and nothing loaded it.
+`migration.gd` had one `TARGET_DISTANCE := 2000.0` and never read the leg, so
+every crossing ran 85.3 s and rolled hazards from a flat `randi() % 3`. Half the
+game was one flight served seven times, and `ROUTE_DATA.md` §1.3 had shipped the
+table the whole time. The shape is deliberately not a ramp — flight 5 drops to
+9.3 hazards because the Stopover is the run's one recovery beat. D-023.
 
-`FLIGHTS` now carries seconds, lethality, opening quiet, spawn interval, hazard
-probability and hazard mix per leg. Fields ROUTE_DATA declares that no code reads
-(`sky`, `ground`, `km`, `put_down`) are deliberately **not** copied in — D-017's
-rule, applied before the fact.
+### 3. Three new gates, and each found something on its first run
 
-The shape is not a ramp, and that is the point: flight 4 is a local peak, flight
-5 out of the Stopover drops to 9.3 hazards, flight 7 is the summit at 70.4. The
-Stopover exists to be a recovery beat and would mean nothing followed by the
-hardest crossing yet. `migtest` grew five measurements and a per-leg build
-census (9 → 14), checking three different kinds of thing: that the table is well
-formed, that it has the shape the design argues for, and that **each leg's
-migration is actually built with those numbers**. The canary that reverts the
-table to the old uniform flight reproduces `~33 obstacles` exactly — the number
-the previous HANDOFF recorded for the old build — which is why the formula is
-trusted rather than convenient.
+- **`--doctest`** (D-024) recomputes every number the docs state. **Seven stale
+  facts** across four root documents on day one — including `CLAUDE.md`'s own
+  line budget, exceeded by 90%. It later caught five more the moment bread added
+  one icon, which is the gate paying for itself.
+- **`--audiotest`** (D-035) opens the WAVs. Its canary showed **exactly four
+  files** depend on `sfx.gd`'s runtime loop patch and would otherwise play once
+  and stop.
+- **`--geomtest`** (D-028, D-036) compares every prop against the footprint its
+  builder declares. **Eleven of fifteen are out by more than 6%**, `hydrant` by
+  −28.5% and `stop_sign`'s depth by **+75%**.
 
-### 3. The claims gate: the ninth, and the only one pointed at the prose
+### 4. THE GLIDE NUMBER PUBLISHED TWO SESSIONS AGO WAS WRONG, AND IT WAS MINE
 
-`docs/CLAIMS.md` lists every number the repo writes into a document and where.
-`tools/doctest.gd` recomputes each from the booted project on every run. **182
-claims at the first green run.** It also binds `feeltest.gd`'s thirteen
-`_assert_window` literals to the windows `FEEL_TARGETS.md` argues for — two
-copies of the same thirteen numbers with nothing comparing them, where the half
-carrying the *argument* was the half free to drift.
+`glidetest` first reported that widening the glide to 3:1 would take reachable
+surfaces from 42 of 113 to 86, and that "suburbia is the whole decision". Those
+went into `FEEL_TARGETS.md` §5.1 and were committed. **The true figures are 21 of
+84 rising to 31**, and suburbia goes 0 → 1 — close to the opposite conclusion.
 
-**Nothing in `CLAIMS.md` stores an expected value.** The alternative shape —
-entries with counters or freshness stamps maintained by a reflection pass —
-needs a loop that runs every session and is honest about its own work, and a
-hand-maintained freshness stamp is stale metadata about staleness.
+It was counting the four invisible boundary walls every zone rings itself with.
+**The tell was in the output and I did not read it:** every zone reported
+*exactly* four hazardous surfaces and two of them named the same position. Three
+filters were tried; the third (visibility) was the dangerous one, because
+`_hide_meshes()` hides the graybox of **the roof plateau**, so it threw away 73
+of 158 surfaces including every landable roof.
 
-It found a bug in itself on its first run: the metric-name character class
-`[a-z_.]` silently dropped `ground.turn_180`, so it counted 12 windows where
-there are 13.
+The gate now prints what every walk discarded, asserts its own filter is stable,
+and fails if `FEEL_TARGETS.md` stops publishing the totals it measures. D-028.
 
-### 4. Two mechanisms that make the next session cheaper
+### 5. The harnesses stopped being shoved by cats
 
-**`docs/RECENT_FAILURES.md`, capped at five, evicted only by conversion**
-(D-025). The Reflexion shape: write on failure, store the diagnosis not the
-transcript, hard-cap the buffer. An entry leaves only when it has been turned
-into an assertion, a hook or a deleted footgun, named in the same commit. The
-cap is the forcing function — it is the only reason a lessons file ever gets
-*smaller*, and `CLAUDE.md`'s own lessons list is unbounded and permanent.
+Four consecutive sober fingerprints disagreed on bearing (0.775, 0.138, 0.462,
+1.211 rad) while `turnrate` and `climb` were bit-identical in all four — a cat
+camped on the pad, so retaking could not find a quiet window. It started because
+editing the LAWN SIGNS moved the cats: `randomize()` plus one shared draw
+sequence means **any zone-builder edit re-rolls every actor downstream of it.**
+`probe_common.hold_actors()` freezes cats and NPCs for controller measurements
+only — catnip still measures 7 of 7 in frenzy, which is the proof the scoping is
+right. Sober noise went to 0.000 with zero retakes. D-027.
 
-**A downward-only line ratchet on `CLAUDE.md`** (D-026). `README_KIT.md` said
-the file was *"under 200 lines on purpose"*; it was 379 and nothing noticed. The
-ratchet fired within an hour of being written — documenting `--doctest` pushed
-the file to 390, and paying for it meant compressing the dead-gates section
-(which `tools/gate.gd` already argues in full) and the architecture preamble.
-Net: 379 lines **with a ninth gate documented**.
+### 6. Nine smaller things, each with its arithmetic
 
-### 5. The substance gate stopped blaming cats, and every step now reads stderr
+| | |
+|---|---|
+| 27.1% of the lawn-sign sampling rectangle was inside the pond | 2.4 signs in the water per run, in the first zone the player sees. D-033 |
+| `gg_share` paid 75 × combo on **every** press | no cooldown, and no check the dose landed. D-032 |
+| `no_early_exit` was read by one thing: a label in the Almanac | for a verb single-player does not have, **and it was in `CONTROL_KEYS`**. D-029 |
+| `main.gd` set `almanac.layer = 20`; `almanac.gd` sets 40 | 40 winning is the only reason the Almanac is visible. D-030 |
+| one standing hop left the wings beating at full rate for the rest of the leg | `_flap_anim` decayed only inside `_tick_fly` |
+| `Prefs` never flushed on quit | any setting changed in the last `SAVE_DEBOUNCE` seconds was lost |
+| six authored objectives could never appear | three redundant, one re-gated, two moved. D-034 |
+| the hitstop rule said "EXACTLY FIVE CALL SITES" | there were eight. D-038 |
+| `wedge()` closed one of its ridge's two ends | a hole in both cat ears, both dog ears and the human's nose. D-039 |
+| the results card quoted the NEXT leg's clock for a landing that replays THIS one | wrong on four of seven legs; leg 1 by a full minute. D-040 |
 
-`--substancetest` went red with `offaxis 1.099` between two sober runs while
-`turnrate` and `climb` agreed to `0.000`. That is a cat — leg 1 builds seven and
-none stop for a measurement. It started **now** because narrowing leg 1's shelf
-removed thirteen `SubstancePickup` constructions, every one of which consumed
-`randf()`; `main._ready()` calls `randomize()`, so the cats' spawn positions come
-off the same stream. **A change with nothing to do with cats moved every cat.**
-That is F-002 and it is not retired: the retake loop added to `substancetest`
-treats the symptom for one harness.
-
-And `verify.ps1` was checking for `SCRIPT ERROR` on **one of its nine steps**.
-Now all nine do, through one shared helper. That is half of F-001; the other
-half — `ERROR: N resources still in use at exit`, printed by two green gates
-since before this session — is diagnosed, not fixed, and the file says exactly
-what was tried and measured.
-
-### 6. D-006 has its number, and it is concentrated rather than spread
-
-`tools/glidetest.gd` — **a report, not a gate**, because the decision is taste
-and an agent must not close it. It walks every zone the director builds, finds
-every static box collider whose top face fits the goose capsule, and asks which
-elevated surfaces are reachable from another **by gliding alone**.
-
-```
-[glide] 168 standable surfaces, 113 of them elevated above 1.5 m
-[glide] 0.85 : 1  ->   42 of 113 elevated surfaces glide-reachable (37%)
-[glide] 3.00 : 1  ->   86 of 113 elevated surfaces glide-reachable (76%)   [+44]
-```
-
-The argument against widening the glide was that it *"would silently invalidate
-every 'the goose cannot reach that' assumption in eight zone builders"*, and
-nobody had counted it. Counted, the cost is not spread across the campaign:
-**legs 1, 2 and 6 are identical at every ratio tested** — flat ground with a
-building on it — while **suburbia goes from 0 of its 21 elevated surfaces to
-16.** The longest glide available anywhere in suburbia today is **0.0 m**. It is
-the leg that introduces height and it is built on getting between roofs costing
-flaps; a 3:1 glide does not adjust that zone, it deletes its premise.
-
-Five approximations are named in the file's header and every one errs toward
-*reachable*, so the counts are ceilings. **D-006 stays Open (human).**
+And an undefined escape sequence (`\*` in a RegEx) **stalls the GDScript parser
+with no output at all** — the same symptom `CLAUDE.md` attributed only to a
+reused local name. That is now 72 invariants, one per script. D-031.
 
 ---
 
@@ -215,85 +179,79 @@ Five approximations are named in the file's header and every one errs toward
 **Nothing here is waiting on you.** See `CLAUDE.md`, *"Taste is the human's.
 Everything measurable is yours."*
 
-### The four that are genuinely yours
-Tracked as `Open (human)` in `docs/DECISIONS.md`. **An agent must not close
-these.** D-006 the glide ratio, D-005 the hard-landing threshold, D-007 the truck
-stop's closing beat, D-019 whether tolerance should stop softening penalties.
-Items 1 and 2 below give two of them a *number* without closing them, which is
-the highest form of help an agent can offer here.
+### The five that are genuinely yours
+`Open (human)` in `docs/DECISIONS.md`, and **an agent must not close them**:
+
+| | |
+|---|---|
+| **D-036** | eleven of fifteen props are declared the wrong size. Correcting one rescales the model *non-uniformly* — `stop_sign` would go to (1.07, 1.01, **0.57**) — so it is a look. `geomtest` prints a copy-paste baseline block for exactly this |
+| **D-006** | the glide ratio. Now costed: 3:1 opens **ten** surfaces across seven zones, not the 44 the first (wrong) measurement claimed |
+| **D-005** | the hard-landing threshold. Now costed: **one** surface in the whole game has no soft way down. A curiosity, not a design problem |
+| **D-019** | tolerance softens penalties, against the documented economy |
+| **D-007** | the truck stop's closing beat is proportional, not absolute |
 
 ### Ranked, for an agent
 
-1. **Decide D-006, or don't — but it now has its number.** `tools/glidetest.gd`
-   (`--probe --glidetest`, a report, not a gate) walked all seven zones:
-   **168 standable surfaces, 113 elevated, 42 of them (37%) glide-reachable
-   today and 86 (76%) at 3 : 1.** The cost is concentrated rather than spread —
-   legs 1, 2 and 6 are identical at every ratio tested, while **suburbia goes
-   from 0 of its 21 elevated surfaces to 16**, and the longest glide available
-   in that zone today is 0.0 m. Full table and the five named approximations in
-   `docs/FEEL_TARGETS.md` §5.1. **Still Open (human); an agent must not close
-   it.** What is left is the same walk for D-005 (item 2), which reuses the same
-   enumeration.
+1. **Retire F-002 properly.** `hold_actors()` fixed the ACTOR half; the static
+   half is open. A shopping cart re-rolled onto the measuring pad still cannot
+   be frozen and nothing checks for one. The fix is the original: **give the
+   zone builders a seed**, so a build's layout is a function of that seed rather
+   than of how many `randf()` calls happened to precede it — at which point
+   `find_dry_ground()` can reject a pad with a rigid body on it and know the
+   answer will not change under it.
 
-2. **Give D-005 its number.** `impact = absf(_last_y_speed)` against
-   `hard_landing_speed` 13.0 with `glide_gravity` 11.0 makes the threshold a
-   descent of **v²/2g = 7.68 m**, and **7 of the 16 substances set
-   `ragdoll_landings`**. Write the closed form into `FEEL_TARGETS.md` §5.2 and
-   count how many surfaces in each zone sit more than 7.68 m above their
-   neighbour.
+2. **Retire F-001 properly.** Every step of `verify.ps1` now fails on
+   `SCRIPT ERROR`; the remaining half is the leak itself. Two things were tried
+   and measured — `Music._exit_tree()` **does** run, and an equivalent in
+   `sfx.gd` left the count at exactly 17 — so the holder is not the autoload
+   caches. The remaining candidate is the AudioServer's playbacks.
 
-3. **Build bread** (D-020). It is `CAMPAIGN_SPEC.md` §2.1's fourth leg-1 item
-   and the thesis of the game delivered before the player reads a word: the
-   obvious food is the trap. It needs a `.tres`, a generated icon, an Almanac
-   entry, a `you are full` mutation in `_tick_eat`, and it moves the number
-   sixteen that four gates count. Now that leg 1 has a shelf of its own, it has
-   somewhere to go.
+3. **The Ranger's leg 6 exam** — `BOSS_DESIGN.md` §2.1.4. D-013 records the real
+   blocker as the propane cannon's bang, which is a human one.
 
-4. **Retire F-002 rather than living with it.** Seed the probes' RNG, or give
-   the zone builders a seed, so a build's actor layout is a function of the seed
-   rather than of how many `randf()` calls happened to precede it. Every harness
-   that measures inside a zone is exposed to this, and the failure always looks
-   like a regression in whatever the harness measures.
+4. **Cut `CLAUDE.md` toward 200.** It is at 373 against a ratchet that only goes
+   down, and the biggest remaining block is the architecture description —
+   which is derivable from `docs/ARCHITECTURE.md`, a file that exists.
 
-5. **`tools/geomtest.gd` — the abandoned FOOTPRINTS checker**, from the built
-   zone rather than from `build(kind, {})`. §4 records the attempt and the wall
-   it hit. `FOOTPRINTS` is load-bearing (`build()` sizes with
-   `want / footprint(kind)`), `down_bale` is suspected 8–12% small, and nothing
-   has ever compared the declared box to the real mesh AABB.
+5. **The remaining per-flight fields.** `ROUTE_DATA.md` §1.3 also gives each
+   flight a `sky`, a `ground` and a `put_down` flag, and §5 a
+   max-birds-lost-per-flight of 2. Per D-017 none should be copied into
+   `FLIGHTS` until the code that reads it exists.
 
-6. **`tools/audiotest.gd` — assert what the WAVs *are*,** since nobody can hear
-   them. The bug it could not see is in the record: the truck stop's "rain" was a
-   0.700 s goose hiss that never looped. Duration bands per family, `loop_mode`
-   on every `amb_*`, non-silence, no clipping. It must not claim anything
-   *sounds* good.
+6. **The placement arithmetic still in §4** — leg 6's double-double inside the
+   grain truck's cab, suburbia's island lamp collider 0.6 m too high, the
+   recycling bin's chevron floating 8.6 cm, the lowpoly goose's feet 5–10 cm
+   under the collider. Each has both numbers already.
 
-7. **The remaining per-flight fields.** `ROUTE_DATA.md` §1.3 also gives each
-   flight a `sky`, a `ground` and a `put_down` flag, and §5 gives a
-   max-birds-lost-per-flight of 2 and a PUT DOWN altitude gate. None is wired,
-   and per D-017 none should be copied into `FLIGHTS` until the code that reads
-   it exists.
-
-8. **Cut two things.** `scripts/ui/objectives.gd` (169 lines) is instantiated
-   nowhere, while `zone_strip_mall.gd`'s `objectives()` still returns a
-   six-entry list that disagrees with `mission_defs.gd` about the cart target —
-   a second, disagreeing objective list for the first zone the player sees.
-
-9. **Lower the `CLAUDE.md` ratchet.** It is at 379 against a target of 200, and
-   the research is specific about why it matters: the file is loaded into every
-   session **and every subagent**, and adherence degrades with instruction
-   *count*, with silent omission as the dominant error. The candidates are named
-   in D-026 — the architecture description (derivable from
-   `docs/ARCHITECTURE.md`, which exists) is the biggest block that is
-   description rather than instruction.
+7. **Convert a zone to a real `.tscn`.** Still accepted debt, and still a
+   candidate for being retired as a decision rather than carried as a task,
+   since everything it buys needs a human in the editor.
 
 ### Recorded, decided without measuring, and revertible
-`stamina_restore` pays out (D-018) — delete one `if` in `_tick_eat` to revert.
-Leg 1's shelf is three substances (D-022) — one constant to revert. The seven
-flights' numbers are ROUTE_DATA's, not measured against a player (D-023).
+`stamina_restore` pays out (D-018). Leg 1's shelf is four substances (D-022,
+D-037). Bread's `charge_time`, sweet band and zero `stamina_restore` are mine
+and each is a one-line revert. The share cooldown of 1.0 s is pacing (D-032).
+`sustained_campaign` lives in the cut corn now, which is a design call (D-034).
 
 ---
 
 ## ⟳ 4. Known issues and honest gaps
+
+> **READ THIS INDEX BEFORE THE BODY.** Everything below was true when it was
+> written and **twelve of the entries have since been fixed** — each is struck
+> through in place with the decision that closed it, because the arithmetic in
+> them is why the fix is what it is and deleting it would cost the next reader
+> the reasoning. The entries that are NOT struck are live.
+>
+> **Still open, in rough order of cost:** the substance gate doses acid and
+> percs on the overdose branch; the results card quotes un-multiplied rewards;
+> `input_lag` and `grid_snap` still have no behavioural coverage; nothing
+> drives the eating verb through the key the player presses; `migtest`'s
+> `lateral.half_cross` cannot fail independently; the failsafe arms after the
+> first zone is built; four placement numbers (leg 6's cab, suburbia's lamp,
+> the recycling chevron, the lowpoly feet); and the three BIG DOWN items,
+> which need a render or a judgement.
+
 
 ### NEW THIS SESSION — survived an adversarial refutation panel, NOT fixed
 
@@ -336,10 +294,12 @@ said so. `[0.45, 0.55]` is in band for all sixteen (highest `sweet_min` is
 nitrous at 0.45, lowest `sweet_max` is acid at 0.55), or dose each substance at
 `clampf(0.6, sweet_min, sweet_max)`.
 
-**`gg_share` pays 75 chaos and a combo link on every key press**, with no
+~~**`gg_share` pays 75 chaos and a combo link on every key press**~~ **FIXED, D-032** — a 1.0 s cooldown, and it only pays when the dose moved a bird. Original text:, with no
 cooldown and no cost once the flock is saturated. The honk has a 0.22 s cooldown
 for exactly this reason; the share has none, and does not check whether it moved
 anything.
+
+~~**Six authored objectives are gated behind `from_leg` values their zone never~~ **FIXED, D-034** — three were redundant copies and were deleted, one re-gated, two moved; `selftest` now fails on any objective gated outside its zone's legs. Original text:
 
 **Six authored objectives are gated behind `from_leg` values their zone never
 reaches**, including the game's only chain-length primary (`sustained_campaign`).
@@ -347,12 +307,14 @@ reaches**, including the game's only chain-length primary (`sustained_campaign`)
 the zone's real leg. `sustained_campaign` needs a home in a zone that runs at
 leg 5+.
 
-**The results card's short-landing clock is derived from the NEXT leg's base**,
+~~**The results card's short-landing clock is derived from the NEXT leg's base**~~ **FIXED, D-040** — wrong on four of seven legs; leg 1 by a full minute. Original text:,
 but landing short replays the CURRENT leg. Add a `short_zone_base` beside
 `next_zone_base` in `evaluate_leg()`'s result.
 
 **The results card's CHAOS note quotes un-multiplied objective rewards** while
 claiming they are the amounts inside the multiplied chaos figure.
+
+~~**`juice.gd`'s rule "HITSTOP HAS EXACTLY FIVE CALL SITES"**~~ **FIXED, D-038** — it is a table now, checked symmetrically, exactly as this entry proposed. Original text:
 
 **`juice.gd`'s non-negotiable rule "HITSTOP HAS EXACTLY FIVE CALL SITES" is
 false — there are eight.** The honest fix here is not a corrected comment but the
@@ -361,11 +323,15 @@ asserts both the count and each site's `(seconds, strength)` against a table
 declared in `juice.gd`. A rule in prose is the failure mode `CLAUDE.md`'s banner
 is about.
 
+~~**`no_early_exit` travels the whole pipeline**~~ **FIXED, D-029** — deleted, and `CONTROL_KEYS` is now checked for exactly this hole. Original text:
+
 **`no_early_exit` travels the whole pipeline and is read by one thing:
 `almanac.gd`, which prints a line about it.** There is no early-exit verb in the
 game, so the Almanac states a rule about the player's options that is not true.
 It is also in `selftest`'s `CONTROL_KEYS`, which means a substance could satisfy
 the design rule with a field that mutates nothing.
+
+**Placement arithmetic, each with both numbers.** **The lawn signs are FIXED (D-033)** and **`wedge()` is FIXED (D-039)**; the other three are live. Original text:
 
 **Placement arithmetic, each with both numbers:** leg 6's double-double pickup
 sits **inside the grain truck's cab** because the placement ignores the truck's
@@ -374,6 +340,8 @@ it floats and overhangs its own luminaire; about **a quarter of leg 1's lawn
 signs spawn in the retention pond**; the recycling bin's chevron badge floats
 **8.6 cm** in front of the tub; and `LowPolyBuilder.wedge()` closes **only one of
 its two ridge ends**, leaving a hole in every model that uses it.
+
+**Cosmetic but real. `_flap_anim`, `Prefs` and `almanac.layer` are all FIXED this session (the last as D-030); the lowpoly feet are live.** Original text:
 
 **Cosmetic but real:** `_flap_anim` is decayed only inside `_tick_fly`, so one
 standing hop leaves the wings flapping at full rate for the rest of the leg; the
@@ -384,7 +352,7 @@ is overwritten by the Almanac's own `_ready()`.
 
 **Gaps in the gates themselves, named honestly:**
 
-- **`input_lag` has no behavioural coverage in any of the nine gates.** It is
+- **`input_lag` has no behavioural coverage in any of the eleven gates.** It is
   the field that caused this project's most expensive bug — eleven of sixteen
   substances unplayable — and `substancetest` counts it as satisfying the design
   rule while asserting nothing about it. Same for `grid_snap`.
@@ -518,6 +486,11 @@ Everything else in the twelve renders read correctly: leg 7's HUD clock says
 **3:49** for its new 230 s, leg 5's dawn marsh is intact, and the Almanac shows
 16/16.
 
+~~**`FOOTPRINTS` is never checked against the meshes it describes.**~~ **FIXED,
+D-028 — and it found eleven of fifteen wrong, which is now D-036, `Open
+(human)`.** The abandoned-attempt note below is why the new one measures BUILT
+ZONES instead of constructing kinds. Original text:
+
 **`FOOTPRINTS` is never checked against the meshes it describes, and it is not
 documentation — it is load-bearing.** `prop_models.gd::build()` sizes with
 `model.scale = want / footprint(kind)`, so a declared box that disagrees with
@@ -529,6 +502,12 @@ kind through `build(kind, {})` crashed inside the builders, which want params
 the empty dictionary does not supply. The idea is sound and the pattern is
 `tools/feeltest.gd`; the work is figuring out the per-kind default params first.
 Nothing was left in the tree.
+
+**Nobody has heard any of the ambience beds, including the agent that generated
+them — and that is still true.** What changed is that `--audiotest` (D-035) now
+asserts what they ARE: that every bed loops, is long enough to be a bed, is not
+silent and does not clip. It still cannot tell you anything sounds good.
+Original text:
 
 **Nobody has heard any of the ambience beds, including the agent that generated
 them.** There is no audio probe and no way to listen headless. What *has* been
@@ -729,15 +708,25 @@ Still everything. See §3.
 | `docs/GODOT_4.7_RULES.md` | Engine API notes for a version newer than any model's training data. |
 | `docs/GIT_SETUP_PROMPT.md` | Paste-ready prompt for setting up git + GitHub. |
 
+**And three that are not read so much as RUN.** Each is checked by a gate, so
+it cannot quietly stop being true:
+
+| File | What it is | What checks it |
+|---|---|---|
+| `docs/DECISIONS.md` | Decision STATUS. What is settled, what is open, what is the human's. Append-only; a reversal is a new entry. | discipline |
+| `docs/CLAIMS.md` | **Every number this repo writes into a document**, and where. Nothing in it stores an expected value — `doctest.gd` recomputes each from the booted project. | `--doctest` |
+| `docs/RECENT_FAILURES.md` | The last five things that went wrong, with a diagnosis and a named check that would retire each. **Capped at five**, and an entry leaves only by becoming that check. | `--doctest` |
+
 ---
 
 ## 6. Verifying
 
-**On Windows, all nine gates in one command:**
+**On Windows, all eleven gates in one command:**
 ```
 .\verify.ps1            # compile, invariants, controller, feel, substances,
-                        #   flight, credit roll, claims, campaign
-.\verify.ps1 -Quick     # skips the slow three
+                        #   flight, credit roll, claims, audio, footprints,
+                        #   campaign
+.\verify.ps1 -Quick     # skips the slow ones
 .\verify.ps1 -Shots     # also renders every zone into .\shots\
 ```
 **Every step now fails on `SCRIPT ERROR`.** Until 2026-08-18 only the campaign
@@ -748,7 +737,7 @@ that cannot fail. One shared `ScriptErrors` helper, and the reason it matches
 known-benign and one known-open stderr condition would otherwise make the build
 permanently red. See `docs/RECENT_FAILURES.md` F-001.
 
-**9. The claims gate** — new, and the only one pointed at this repo's own prose:
+**9. The claims gate** — the only one pointed at this repo's own prose:
 ```
 godot --headless --path . -- --doctest 2>&1 | grep '^\[doctest\]'
 ```
@@ -881,6 +870,27 @@ godot --path . --rendering-driver opengl3 -- --probe --leg:7 --look:BossBigDown
 cd tools && python3 gen_textures.py && python3 gen_audio.py && python3 gen_music.py
 ```
 Needs `numpy` and `pillow`. `gen_music.py` takes ~30 s and writes 33 MB.
+
+**10. The audio gate** — the only one that opens the WAVs:
+```
+godot --headless --path . -- --audiotest 2>&1 | grep '^\[audio\]'
+```
+A bed loops and is long enough to be a bed; a one-shot is short enough to be a
+one-shot; nothing is silent or clipping; the sixteen layered stems share a
+length. **It cannot tell you anything sounds good and says so on every run**,
+along with how many files it skipped for being QOA-compressed. The bug it
+exists for: the truck stop's "rain" was a 0.700 s goose hiss that never looped.
+
+**11. The footprint gate** — the only thing that has ever compared
+`FOOTPRINTS` to a mesh:
+```
+godot --headless --path . -- --probe --geomtest 2>&1 | grep '^\[geom\]'
+```
+`build()` sizes with `want / footprint(kind)`, so a declaration that disagrees
+with the mesh makes every `size:` placement of that kind wrong by that ratio.
+It **asserts** the meshes do not drift and **reports** that eleven of fifteen
+declarations disagree — correcting one rescales a model non-uniformly, which is
+a look, which is D-036 and the human's.
 
 ---
 
