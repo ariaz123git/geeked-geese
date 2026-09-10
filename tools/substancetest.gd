@@ -526,7 +526,29 @@ static func _the_grid(tree: SceneTree, goose: CharacterBody3D, subs: Node, res: 
 		return
 	COMMON.hold_actors(tree, true)
 	await _sober_up(tree, goose, subs)
-	var clean := await _diagonal(tree, goose, cam)
+
+	# RETAKEN, BECAUSE hold_actors() DOES NOT FREEZE A SHOPPING CART.
+	#
+	# The first version of this took the sober diagonal once, and on 2026-09-10
+	# it failed a full verify at 1.130 rad on a controller that was fine — then
+	# measured 0.000 on the next three runs. `COMMON.hold_actors()` freezes the
+	# ACTORS; `chaos_prop` rigid bodies keep rolling, and leg 1 is full of loose
+	# shopping carts. That is the open half of `docs/RECENT_FAILURES.md` F-002,
+	# named in HANDOFF as still live, and it reached this check because this
+	# check was the only measurement in the file with no retake.
+	#
+	# Three attempts, and the assertion below is UNCHANGED at GRID_CLEAN — a
+	# disturbed sample is thrown away, not accommodated. If all three are
+	# disturbed it still fails, and says it is a harness fault, exactly as
+	# `feeltest.gd::_ground_tests()` does for the same reason.
+	var clean := -1.0
+	for attempt in 3:
+		clean = await _diagonal(tree, goose, cam)
+		if clean >= 0.0 and clean <= GRID_CLEAN:
+			break
+		print(("[subs]   grid baseline attempt %d went %.3f rad off a commanded diagonal "
+			+ "(limit %.3f) — something shoved the bird, retaking") % [attempt + 1, clean, GRID_CLEAN])
+
 	_ok(bool(subs.call("take", res, _dose_for(res))),
 		"%s could not be taken for the grid check." % res.id)
 	# Past the substance's own input lag before the diagonal is judged: robo
@@ -542,7 +564,8 @@ static func _the_grid(tree: SceneTree, goose: CharacterBody3D, subs: Node, res: 
 	if clean < 0.0 or snapped < 0.0:
 		return
 	_ok(clean <= GRID_CLEAN,
-		("sober, the bird went %.3f rad off a commanded diagonal, which is more than the "
+		("sober, the bird went %.3f rad off a commanded diagonal on ALL THREE attempts, "
+		+ "which is more than the "
 		+ "%.3f this check treats as straight. The BASELINE is wrong, so read nothing "
 		+ "below it as a verdict on %s.") % [clean, GRID_CLEAN, res.id])
 	_ok(snapped >= GRID_SNAPPED,

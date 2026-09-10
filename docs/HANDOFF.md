@@ -1,5 +1,19 @@
 # HANDOFF — current state
 
+> # ⛔ READ `docs/NEXT_SESSION.md` FIRST.
+>
+> **The human set the next session's format on 2026-09-10: plan and list bugs
+> WITH them, then go autonomous.** Do not open the next session with a code
+> change, and do not open it by proposing §3's list below — §3 is about
+> INSTRUMENTS and the human's priorities are about the GAME.
+>
+> Four things are waiting there: substances do not matter to any objective
+> anywhere (their central critique, and two design documents actively forbid
+> fixing it); leg 1 was narrowed to four substances by D-022/D-037 and they
+> noticed and do not like it; the pause menu does not open in real play; and
+> cat petting is designed but deliberately unbuilt at their request.
+
+
 **Updated:** end of the long session that split leg 1 from leg 2, gave the seven
 flights seven shapes, built bread, and grew the gate count from eight to twelve.
 Its second half spent itself entirely on **things that were wrong and could not
@@ -427,6 +441,18 @@ is overwritten by the Almanac's own `_ready()`.
   OVERDOSE / BARELY ANYTHING scoring have never been driven by a key. That is
   why `stamina_restore` could be dead with every gate green, and it is why its
   wiring is asserted **statically** rather than behaviourally.
+- **NEW: `hold_actors()` freezes the ACTORS and not the PHYSICS.** Cats and
+  humans stop; `chaos_prop` rigid bodies keep rolling, and leg 1 is full of
+  loose shopping carts. On 2026-09-10 this failed a full verify at 1.130 rad on
+  a correct controller, and on the very next verify it disturbed **two of three**
+  attempts — so it is frequent, not rare, and the clean runs the day before were
+  luck. Every measurement in `substancetest.gd` retakes for this reason; the new
+  grid check was the only one that did not, and now does. **The general problem
+  is unfixed**: nothing can freeze a rigid body mid-measurement, and
+  `find_dry_ground()` cannot reject a pad with a cart rolling toward it. This is
+  the RUNTIME half of what F-002 was about — D-041 retired the build-order half
+  (seeded streams), not this one.
+
 - **`migtest`'s `lateral.half_cross` cannot fail unless `full_cross` fails too** —
   it is derived from the same drive rather than measured independently.
 - ~~**`verify.ps1` checks for `SCRIPT ERROR` on one of its eight steps.**~~
