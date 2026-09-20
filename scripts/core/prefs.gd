@@ -119,6 +119,17 @@ func _exit_tree() -> void:
 ## Master always lives on bus 0. SFX/Music buses may not exist yet in every
 ## project build, so those are looked up by name and skipped if missing —
 ## this can never crash a build that hasn't wired its audio buses up yet.
+## Re-apply the saved volumes to the audio buses.
+##
+## `Sfx` and `Music` call this once they have created their buses. `Prefs` is
+## autoload #1 and applies at its own `_ready()`, which is BEFORE either of
+## those buses exists — `get_bus_index()` returns -1 there and the branch is
+## skipped in silence, so without this the value the player saved reaches
+## nothing until they next move the slider themselves.
+func apply_audio() -> void:
+	_apply_audio()
+
+
 func _apply_audio() -> void:
 	if AudioServer.get_bus_count() <= 0:
 		return

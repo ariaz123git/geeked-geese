@@ -110,7 +110,7 @@ look for it and each now carrying the assertion that would have caught it:
 | `--probe --migtest` | the flight answers the stick, and the seven differ | 14 measurements |
 | `--probe --rolltest` | the credit roll travels |  |
 | `--doctest` | **the documents still tell the truth** | 196 claims |
-| `--audiotest` | **the WAVs are what their names claim** | 246 over 68 files |
+| `--audiotest` | **the WAVs are what their names claim, and the volume sliders reach a bus** | 254 over 68 files |
 | `--probe --geomtest` | **a model is the size its table says, nothing edible is buried in a solid, and the bird stands ON the ground** | 56 over 15 kinds, 74 pickups |
 | `--probe --loop-test` | seven legs, seven flights and the ending | + the shelf census |
 | `verify.ps1` | **every count in this table matches the gate that printed it** | |

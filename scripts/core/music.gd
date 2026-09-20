@@ -414,6 +414,14 @@ func _setup_buses() -> void:
 	_bed_idx = _ensure_bus(BUS_BED, BUS_MUSIC)
 	_sting_idx = _ensure_bus(BUS_STING, BUS_MUSIC)
 
+	# AND MAKE Prefs RE-APPLY. It is autoload #1 and ran `_apply_audio()` long
+	# before this; the Music bus did not exist then, so the volume the player
+	# saved was written nowhere and the game came back at full music until they
+	# touched the slider again. Same reason `sfx.gd::_ensure_sfx_bus()` does it.
+	var prefs_node := get_node_or_null("/root/Prefs")
+	if prefs_node != null and prefs_node.has_method("apply_audio"):
+		prefs_node.call("apply_audio")
+
 	if AudioServer.get_bus_effect_count(_bed_idx) == 0:
 		_lpf = AudioEffectLowPassFilter.new()
 		_lpf.cutoff_hz = 20000.0

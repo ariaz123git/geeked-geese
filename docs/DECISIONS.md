@@ -69,6 +69,20 @@ IDs increment. Newest on top.
 
 ---
 
+## D-053 · 2026-09-20 · The SFX volume slider was connected to nothing
+Status: Decided (agent)
+Decision: `sfx.gd` creates an `SFX` bus sending to Master and routes all 17 players to it; `prefs.gd` gains a public `apply_audio()`; `sfx.gd` and `music.gd` both call it once their buses exist. `audiotest.gd::_the_volume_sliders()` asserts the buses exist, that every SFX player is on the SFX bus, and that moving each slider moves its bus. 246 checks → 254.
+Why: `pause_menu.gd` offers Master, SFX and Music sliders. `prefs.gd::_apply_audio()` writes each to a bus **by name** — and nothing in the project ever created a bus called `SFX`, while `sfx.gd` routed every player to `"Master"` directly. `AudioServer.get_bus_index()` returns `-1` for a missing bus **without raising anything**, so the branch was skipped in silence. Measured before the fix: *"bus SFX index=-1"*, *"sfx players on the SFX bus: 0 of 17, elsewhere: Master: 17"*. **The slider moved a number nobody could hear.**
+
+**This is the `stamina_restore` shape for the third time** — an exported control that nothing consumes, passing every gate because no gate asked whether the far end was attached. D-047 caught it in a substance field, D-051/D-052 in unreachable UI, and this one in an options menu.
+
+**A second bug came out with it: boot order.** `Prefs` is autoload #1 and calls `_apply_audio()` in its own `_ready()`; `Music` is #10 and creates the Music bus long afterwards. So a saved music volume was written to a bus that did not exist yet and the game came back at full music until the player touched the slider again. Both `Sfx` and `Music` now re-apply once their buses are up, through the new public seam rather than by reaching for the underscore method.
+
+**The third assertion is the one that survives a refactor.** Bus-exists and players-routed are both about today's plumbing; *"move the slider 0.25 → 1.00 and the bus moves more than 3 dB"* stays true however the volume is wired. All three read −12.0 dB → +0.0 dB now.
+
+Canaried by putting the pool players back on Master while leaving the bus in place: **exactly one** check failed (*"16 of 17 Sfx players are not on the SFX bus"*) and bus-exists stayed green.
+Refs: `scripts/core/sfx.gd::_ensure_sfx_bus`, `SFX_BUS`; `scripts/core/prefs.gd::apply_audio`; `scripts/core/music.gd::_setup_buses`; `tools/audiotest.gd::_the_volume_sliders`.
+
 ## D-052 · 2026-09-20 · The pause menu's buttons, which nobody had ever been able to press
 Status: Decided (agent)
 Decision: `inputtest.gd` opens the pause menu with Escape and presses ALMANAC, CONTROLS and FLOCK through `Button.pressed`, asserting for each that the overlay opens, the menu hides, the tree stays paused, Escape closes the overlay, and the menu comes back. 41 checks → 56.

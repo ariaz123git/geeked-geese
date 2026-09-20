@@ -12,6 +12,20 @@ extends Node
 const AUDIO_DIR := "res://audio/"
 const POOL_SIZE := 16
 
+## The bus every sound effect plays on.
+##
+## IT DID NOT EXIST, AND THE SFX VOLUME SLIDER DID NOTHING FOR THE LIFE OF THE
+## PROJECT. `pause_menu.gd` offers the control and `prefs.gd::_apply_audio()`
+## writes it to a bus of this name — but nothing ever created one, and all 17
+## players here were routed straight to "Master". `get_bus_index()` returns -1
+## for a missing bus without raising anything, so the whole branch was skipped
+## in silence and the slider moved a number nobody could hear.
+##
+## Built in code rather than shipped as a bus layout for the reason
+## `music.gd::_setup_buses()` gives: a `.tres` layout is a file nobody diffs
+## and it silently loses every bus if it fails to load.
+const SFX_BUS := "SFX"
+
 var _cache: Dictionary = {}          # StringName -> AudioStream
 var _pool: Array = []                # Array[AudioStreamPlayer]
 var _pool_started_at: Array = []     # Array[int] (Time.get_ticks_msec() per pool slot)
@@ -26,14 +40,31 @@ var _amb_zone: StringName = &""      # the zone id whose bed is currently up
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_ensure_sfx_bus()
 	for i in range(POOL_SIZE):
 		var p := AudioStreamPlayer.new()
 		p.name = "SfxPoolPlayer%d" % i
-		p.bus = "Master"
+		p.bus = SFX_BUS
 		p.process_mode = Node.PROCESS_MODE_ALWAYS
 		add_child(p)
 		_pool.append(p)
 		_pool_started_at.append(0)
+
+
+## Create the SFX bus if it is not there, and make `Prefs` re-apply the saved
+## volume to it. The re-apply is not optional: `Prefs` is autoload #1 and has
+## already run `_apply_audio()` against a world with no SFX bus in it by the
+## time this runs at #3.
+func _ensure_sfx_bus() -> void:
+	if AudioServer.get_bus_index(SFX_BUS) < 0:
+		var idx := AudioServer.get_bus_count()
+		AudioServer.add_bus(idx)
+		AudioServer.set_bus_name(idx, SFX_BUS)
+		AudioServer.set_bus_send(idx, "Master")
+		AudioServer.set_bus_volume_db(idx, 0.0)
+	var prefs := get_node_or_null("/root/Prefs")
+	if prefs != null and prefs.has_method("apply_audio"):
+		prefs.call("apply_audio")
 
 
 ## Returns true if a wav resource exists on disk for `key`.
@@ -205,7 +236,7 @@ func loop(key: StringName, bus_key: StringName, volume_db: float = -6.0) -> void
 	else:
 		p = AudioStreamPlayer.new()
 		p.name = "SfxLoop_%s" % String(bus_key)
-		p.bus = "Master"
+		p.bus = SFX_BUS
 		p.process_mode = Node.PROCESS_MODE_ALWAYS
 		add_child(p)
 		_loops[bus_key] = p

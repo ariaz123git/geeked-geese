@@ -162,6 +162,8 @@ static func run(tree: SceneTree, main: Node) -> void:
 	print("[audio] %d looping beds; %d files skipped for content checks (QOA-compressed, no PCM samples to read)"
 		% [beds.size(), _skipped_qoa])
 
+	_the_volume_sliders(main)
+
 	if _fails.is_empty():
 		print("[audio] PASS — %d checks over %d files" % [_checks, names.size()])
 		tree.quit(0)
@@ -171,6 +173,83 @@ static func run(tree: SceneTree, main: Node) -> void:
 		print("[audio]   %s" % f)
 	tree.quit(1)
 
+
+
+## ═══════════════════════════════════════════════════════════════════════════
+## THE THREE VOLUME SLIDERS, AND WHETHER THEY DO ANYTHING
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## `pause_menu.gd` offers Master, SFX and Music. `prefs.gd::_apply_audio()`
+## writes each to a bus by name. **A slider whose bus does not exist is a
+## control that moves and changes nothing**, and `get_bus_index()` returns -1
+## for a missing bus without raising anything — so the branch is skipped in
+## silence. That is the `stamina_restore` shape again: an exported control
+## nothing consumes.
+##
+## Boot order is the other half. `Prefs` is autoload #1 and calls
+## `_apply_audio()` in its `_ready()`; `Music` is #10 and creates the Music bus
+## long afterwards. Whatever the player saved is therefore applied to a bus
+## that does not exist yet, unless somebody re-applies once the buses are up.
+static func _the_volume_sliders(main: Node) -> void:
+	var prefs := main.get_node_or_null("/root/Prefs")
+	var sfx := main.get_node_or_null("/root/Sfx")
+	_ok(prefs != null and sfx != null,
+		"Prefs or Sfx autoload missing, so the volume sliders cannot be checked")
+	if prefs == null or sfx == null:
+		return
+
+	# 1. THE BUSES THE SLIDERS NAME MUST EXIST.
+	for bus_name in ["SFX", "Music"]:
+		var idx := AudioServer.get_bus_index(bus_name)
+		print("[audio] bus %-6s index=%d" % [bus_name, idx])
+		_ok(idx >= 0,
+			("prefs.gd::_apply_audio() writes the %s volume to a bus named \"%s\" and no such "
+			+ "bus exists. `get_bus_index()` returns -1 and the branch is skipped without a "
+			+ "word, so that slider moves and nothing happens.") % [bus_name.to_lower(), bus_name])
+
+	# 2. THE SFX PLAYERS MUST ACTUALLY BE ON THE SFX BUS.
+	# A bus that exists and carries nothing is the same dead slider wearing a
+	# better disguise.
+	var routed := 0
+	var total := 0
+	var elsewhere := {}
+	for child in sfx.get_children():
+		var pl := child as AudioStreamPlayer
+		if pl == null:
+			continue
+		total += 1
+		if pl.bus == "SFX":
+			routed += 1
+		else:
+			elsewhere[pl.bus] = int(elsewhere.get(pl.bus, 0)) + 1
+	print("[audio] sfx players on the SFX bus: %d of %d%s"
+		% [routed, total, "" if elsewhere.is_empty() else "  elsewhere: " + str(elsewhere)])
+	_ok(total > 0, "Sfx has no AudioStreamPlayer children, so nothing was checked")
+	_ok(routed == total,
+		("%d of %d Sfx players are not on the SFX bus (%s). The SFX volume slider writes "
+		+ "to that bus, so anything routed past it is deaf to the control.")
+			% [total - routed, total, str(elsewhere)])
+
+	# 3. MOVING THE SLIDER MUST MOVE THE BUS.
+	# The end-to-end statement, and the only one that survives a refactor of
+	# how the volume is plumbed.
+	for row in [["sfx_volume", "SFX"], ["music_volume", "Music"], ["master_volume", "Master"]]:
+		var spec: Array = row
+		var key: String = spec[0]
+		var bus: String = spec[1]
+		var idx2 := AudioServer.get_bus_index(bus)
+		if idx2 < 0:
+			continue
+		var was = prefs.call("get_pref", StringName(key), 0.9)
+		prefs.call("set_pref", StringName(key), 0.25)
+		var quiet := AudioServer.get_bus_volume_db(idx2)
+		prefs.call("set_pref", StringName(key), 1.0)
+		var loud := AudioServer.get_bus_volume_db(idx2)
+		prefs.call("set_pref", StringName(key), was)
+		print("[audio] %-13s 0.25 -> %+.1f dB, 1.00 -> %+.1f dB" % [key, quiet, loud])
+		_ok(loud > quiet + 3.0,
+			("moving %s from 0.25 to 1.00 changed the %s bus by %.1f dB. The slider is "
+			+ "connected to nothing the player can hear.") % [key, bus, loud - quiet])
 
 static func _ok(cond: bool, msg: String) -> void:
 	_checks += 1
