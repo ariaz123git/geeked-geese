@@ -1,22 +1,108 @@
-# NEXT SESSION IS A PLANNING SESSION — DO NOT START IMPLEMENTING
+# NEXT SESSION IS AUTONOMOUS — HERE IS THE QUEUE
 
-**Set by the human on 2026-09-10, at the end of the twelve-gate session.**
+**Set by the human on 2026-09-20:** *"wrap this session for now and next session
+will be another autonomous."*
 
-> Read this before `docs/HANDOFF.md` §3. §3's ranked list is still correct about
-> *instruments*, and it is the wrong queue to work from next time. The human's
-> words: *"there are a lot of bugs and missing features that the full autonomous
-> sessions somehow didn't think of doing, so next session will likely be a
-> planning session with me (and also listing bugs) followed by autonomous
-> implementation."*
+> **This file used to say the opposite.** It was written on 2026-09-10 saying the
+> next session must be a PLANNING session and must not implement anything. The
+> human has since changed that twice — first *"idk wtf is going on but keep
+> building ts, making it better"*, then the line above. **The instruction below
+> is the current one.** The planning material underneath is still good reference,
+> and it is no longer a gate you have to pass first.
+>
+> This is the third time in this project's history that a stale instruction in a
+> rarely-read file nearly sent a session the wrong way. CLAUDE.md's own banner
+> note is about exactly this. If you change what this file says, change the
+> banner at the top of `docs/HANDOFF.md` in the same commit.
 
-**The shape of it:** plan and brainstorm WITH the human first, list the bugs
-together, and only then go autonomous. Do not open with a code change. Do not
-open by proposing the §3 list.
+**This file is a working agenda, not a claim surface.** Consume it and rewrite
+it. Where it states a number, the command that recomputes it is next to it,
+because the number will rot and the command will not.
 
-**This file is a working agenda, not a claim surface.** It is meant to be
-consumed in the planning session and deleted or rewritten afterwards. Where it
-states a number, the command that recomputes it is next to it, because the
-number will rot and the command will not.
+---
+
+## THE QUEUE, ranked, all of it autonomous
+
+**Work item 1 first — it is the seam that has produced four real bugs in four
+attempts and it is not exhausted.**
+
+1. **KEEP SWEEPING FOR CONTROLS THAT DO NOTHING.** See §6 for the full argument.
+   The pattern has now hit four times and the remaining untouched surfaces are:
+   the results screen and its ENTER/`gg_skip` path; the briefing card; the
+   settings widgets themselves (a slider that moves must write a pref — D-053
+   proved the pref reaching a *bus* works, not that dragging the control writes
+   the pref); the restart confirm end to end; and the roster's `gg_skip`. Every
+   one of these is reachable now that the pause menu opens, and none has ever
+   been driven.
+
+2. **`verify.ps1` has no per-step wall-clock timeout.** F-005, and the one hole
+   this project opened rather than closed. A `main.gd` that will not parse hangs
+   the whole script forever and **the in-engine failsafe cannot help, because it
+   lives in `main.gd` too**. One helper — `Start-Process -PassThru
+   -RedirectStandardOutput`, `WaitForExit(ms)`, `Kill()` — applied to twelve
+   invocations, printing the captured output when it fires.
+
+3. **`migtest`'s `lateral.half_cross` cannot fail unless `full_cross` does.**
+   It is derived from the same drive rather than measured. A check that cannot
+   fail independently is the thing CLAUDE.md calls worse than no check.
+
+4. **Retire F-001.** The audio leak. Two things were tried and measured —
+   `Music._exit_tree()` **does** run, and an equivalent in `sfx.gd` left the
+   count at exactly 17 — so the holder is not the autoload caches. Remaining
+   candidate: the AudioServer's playbacks. **Note D-053 added an SFX bus**, which
+   changes the audio teardown surface; re-measure before assuming the old
+   numbers still hold.
+
+5. **Cut `CLAUDE.md` toward 200.** It is at 373 against a ratchet that only goes
+   down, and it has already bitten: a needed addition was refused at 376 and had
+   to be paid for by tightening two paragraphs. The biggest remaining block is
+   the architecture description, which is derivable from `docs/ARCHITECTURE.md`.
+
+6. **Leg 1 discoverability** (§2). The shelf SIZE is the human's call and is one
+   constant. What is not taste: the human could only find the grass, because the
+   three grass patches are infinite and obvious while the other five pickups are
+   up a tree, elevated, or in a far corner. Measurable, and separable from the
+   shelf question.
+
+### NOT autonomous — still the human's
+
+- **Substances as keys (§1).** It overrides a written design principle
+  (`BOSS_DESIGN.md` §3.5, *"chemistry is a lever, never a key"*). Do not decide
+  it alone. If you want to move it without them, the ONLY direction that does not
+  override the rule is making the lever steeper — and that is still taste, so
+  prefer the bug queue.
+- **Cat petting (§4).** The human said explicitly: *"needs to be discussed in
+  detail in the next session."* Designed, deliberately unbuilt.
+- The five `Open (human)` entries in `docs/DECISIONS.md`. **D-019** is worth
+  raising when they are next available — tolerance softening penalties is
+  arguably part of why chemistry feels inconsequential.
+
+---
+
+## 6. THE PATTERN WORTH CARRYING INTO THE NEXT SESSION
+
+Four bugs on 2026-09-20 and **all four were the same bug**: an advertised control
+wired to nothing, passing every gate because no gate asked whether the far end
+was attached.
+
+| | found |
+|---|---|
+| D-050 | the pause menu could close itself and never open itself |
+| D-051 | no input event had **ever** been sent through the viewport by any harness |
+| D-052 | the menu's seven buttons had never been clicked by anyone |
+| D-053 | the SFX volume slider had no bus; all 17 players were on Master |
+
+And a fifth before them, D-047: `stamina_restore` dead in six `.tres` files.
+
+**The tell is always the same.** Something is declared in one place and consumed
+in another, the consumer looks it up *by name or by signal*, and the lookup fails
+softly — `get_bus_index()` returns `-1`, an unconnected signal does nothing, a
+`process_mode` gates the callback. No error is raised anywhere.
+
+**The method that works:** find the declaration, then go and check the far end
+exists, and drive it the way a player would rather than calling the handler.
+`Input.parse_input_event()` rather than `Input.action_press()`;
+`Button.pressed` rather than the callback; the pref path rather than `.new()`.
 
 ---
 

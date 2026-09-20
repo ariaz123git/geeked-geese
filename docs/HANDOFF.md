@@ -1,26 +1,26 @@
 # HANDOFF — current state
 
-> # ⛔ READ `docs/NEXT_SESSION.md` FIRST.
+> # ▶ READ `docs/NEXT_SESSION.md` FIRST — IT CARRIES THE QUEUE.
 >
-> **The human set the next session's format on 2026-09-10: plan and list bugs
-> WITH them, then go autonomous.** Do not open the next session with a code
-> change, and do not open it by proposing §3's list below — §3 is about
-> INSTRUMENTS and the human's priorities are about the GAME.
+> **The human set the next session's format on 2026-09-20: autonomous.** That
+> file used to say the opposite; it has been re-pointed. Work its ranked queue,
+> starting with the control-that-does-nothing sweep, which has produced four real
+> bugs in four attempts and is not exhausted.
 >
-> Four things are waiting there: substances do not matter to any objective
-> anywhere (their central critique, and two design documents actively forbid
-> fixing it); leg 1 was narrowed to four substances by D-022/D-037 and they
-> noticed and do not like it; the pause menu does not open in real play; and
-> cat petting is designed but deliberately unbuilt at their request.
+> **Two things there are still the human's and an agent must not decide them:**
+> making substances required (it overrides `BOSS_DESIGN.md` §3.5 in writing), and
+> cat petting (they asked to discuss it). §3 below is about INSTRUMENTS and is
+> the second queue, not the first.
 
+**Updated:** 2026-09-20, after a short session that started from one sentence
+of real play — *"there is still no pause menu"* — and found **four bugs that
+were all the same bug**: an advertised control wired to nothing, passing twelve
+green gates because no gate asked whether the far end was attached.
 
-**Updated:** end of the long session that split leg 1 from leg 2, gave the seven
-flights seven shapes, built bread, and grew the gate count from eight to twelve.
-Its second half spent itself entirely on **things that were wrong and could not
-be seen** — six pickups inside solids, two goose models standing underground, a
-scoreboard itemising a multiplied number with unmultiplied parts, the eating
-verb never once pressed, and a deadline armed after the thing most likely to
-hang. Every one of them is now an assertion.
+The pause menu could close itself and never open itself. No harness in this
+project had **ever** sent an input event through the viewport. The menu's seven
+buttons had never been clicked by anyone. And the SFX volume slider had no bus
+to write to, with all seventeen sound players routed past it to Master.
 
 > **How this file works.** `CLAUDE.md` holds the *rules* — they rarely change.
 > This file holds the *state* — it changes every session. Read this first, then
@@ -220,6 +220,49 @@ reused local name. That is now 72 invariants, one per script. D-031.
 
 ---
 
+### 7. THE HUMAN PRESSED ESCAPE, AND FOUR THINGS FELL OUT
+
+One sentence of real play beat twelve gates. **`pause_menu.gd` set
+`process_mode = PROCESS_MODE_WHEN_PAUSED`, and that gates `_input()` as well as
+`_process()`** — so the node was inert whenever the tree was RUNNING, and the
+only thing that pauses the tree is the menu's own `_open_menu()`. It could close
+itself and could never open itself. Settings, the Almanac, the control card, the
+flock roster and restart went with it; the README advertises all of them.
+
+**Why twelve gates missed it, and this is the part that generalises:** *nothing
+in this project had ever sent an input event through the viewport.* Every
+harness either calls `Input.action_press()` — which sets action STATE and never
+produces an `InputEvent`, so no `_input()` anywhere fires — or calls a handler
+directly. `main.gd`'s own restart probe does the latter, `_unhandled_input(rev)`
+invoked on main, which proves the handler works and proves nothing about whether
+the event reaches it. Same shape as D-047's eating verb: **the method was
+tested, the path was not.**
+
+`Input.parse_input_event()` is the difference, and the four fixes all come from
+pointing it at things nobody had driven:
+
+| | |
+|---|---|
+| D-050 | the pause menu. Its own gate was written first and failed on the unfixed code — the bug was its own canary |
+| D-051 | TAB, R and J swept the same way. **All three were fine**, and are now locked in |
+| D-052 | the menu's buttons, pressed through `Button.pressed`. ALMANAC / CONTROLS / FLOCK all worked; they were simply unreachable |
+| D-053 | **the SFX volume slider was connected to nothing** — `bus SFX index=-1`, `0 of 17` players on it |
+
+D-053 came with a second bug in the same breath: `Prefs` is autoload #1 and
+applies volumes before `Music` (#10) creates its bus, so **a saved music volume
+was written to a bus that did not exist** and the game came back at full music
+until the player touched the slider again. Both `Sfx` and `Music` now re-apply
+through a new public `Prefs.apply_audio()`.
+
+Checked and found INNOCENT, rather than assumed: `screen_shake`, `fx_intensity`
+and `show_hints` all connect to `pref_changed` and re-read live. `almanac.gd` is
+also `PROCESS_MODE_WHEN_PAUSED` and that one is **correct** — it is only ever
+opened from the pause menu, while the tree is already paused.
+
+Counts: `inputtest` 30 → 56, `audiotest` 246 → 254.
+
+---
+
 ## ⟳ 3. What to do next
 
 **Nothing here is waiting on you.** See `CLAUDE.md`, *"Taste is the human's.
@@ -237,6 +280,14 @@ Everything measurable is yours."*
 | **D-007** | the truck stop's closing beat is proportional, not absolute |
 
 ### Ranked, for an agent
+
+> **This is the SECOND queue.** `docs/NEXT_SESSION.md` carries the first one,
+> and its item 1 — keep sweeping for controls that do nothing — outranks
+> everything here: it has produced four real bugs in four attempts and the
+> remaining surfaces (results screen, briefing card, the settings widgets
+> themselves, the restart confirm, the roster) have still never been driven.
+> The list below is about INSTRUMENTS, and items 1 and 3 of it are duplicated
+> there in priority order.
 
 1. **Give `verify.ps1` a per-step wall-clock timeout.** Found the hard way this
    session and written up in §4: a `main.gd` that will not parse hangs the
