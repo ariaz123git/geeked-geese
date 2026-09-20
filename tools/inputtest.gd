@@ -101,6 +101,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 
 	await _pause_menu_test(tree, main)
 	await _ui_sweep_report(tree, main, goose)
+	await _menu_buttons_report(tree, main)
 
 	if _fails.is_empty():
 		print("[input] PASS — %d controller checks" % _checks)
@@ -301,6 +302,116 @@ static func _ui_sweep_report(tree: SceneTree, main: Node, goose: CharacterBody3D
 	tree.paused = was_paused
 	_release_all()
 
+
+
+## ═══════════════════════════════════════════════════════════════════════════
+## THE PAUSE MENU'S BUTTONS, WHICH NOBODY HAS EVER BEEN ABLE TO PRESS
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## Until D-050 the menu could not open, so **not one of its seven buttons had
+## ever been clicked** — not by a player, not by a probe, not once. ALMANAC,
+## CONTROLS and FLOCK each emit a signal that `main.gd` wires to an overlay,
+## and that whole handoff (suppress the menu, open the overlay, hand the screen
+## back when it closes) has never run outside the render probe.
+##
+## Pressed through `Button.pressed`, which is the signal the real click emits,
+## rather than by calling the callback: the wiring in `_build_overlays()` is
+## the part most likely to be wrong, and calling the lambda directly would
+## skip it.
+##
+## Shipped as a report and read before it was armed. All three handoffs were
+## already correct — overlay opens, menu hides, tree stays paused, Escape brings
+## the menu back — so the wiring was never the bug. It was simply unreachable,
+## which is the whole point: this is a surface the game HAS and nobody could get
+## to, and it is one edit away from breaking without anyone noticing.
+static func _menu_buttons_report(tree: SceneTree, main: Node) -> void:
+	var menu: Node = main.get("pause_menu")
+	if menu == null:
+		return
+	_release_all()
+	var was_paused: bool = tree.paused
+	tree.paused = false
+	for _attempt in 6:
+		if not bool(main.call("_menus_open")):
+			break
+		await _escape(tree)
+
+	var wiring := [
+		["ALMANAC", "almanac"],
+		["CONTROLS", "control_card"],
+		["FLOCK", "roster"],
+	]
+	for row in wiring:
+		var spec: Array = row
+		var label: String = spec[0]
+		var overlay_name: String = spec[1]
+		var overlay: Node = main.get(overlay_name)
+		if overlay == null:
+			print("[input] menu: %s -> main has no %s" % [label, overlay_name])
+			continue
+
+		await _escape(tree)
+		if not bool(menu.call("is_open")):
+			print("[input] menu: %s -> could not open the pause menu to press it" % label)
+			continue
+		var btn: Button = _find_button(menu, label)
+		if btn == null:
+			print("[input] menu: %s -> no button with that label exists" % label)
+			await _escape(tree)
+			continue
+
+		btn.emit_signal("pressed")
+		for _i in 4:
+			await tree.process_frame
+		var opened: bool = overlay.has_method("is_open") and bool(overlay.call("is_open"))
+		var menu_hidden: bool = not bool(menu.get("visible"))
+		print("[input] menu: %s -> %s open=%s, menu hidden=%s, paused=%s"
+			% [label, overlay_name, opened, menu_hidden, tree.paused])
+		_ok(opened,
+			("the pause menu's %s button did not open %s. The button emits a signal that "
+			+ "`main.gd::_build_overlays()` connects; nothing else does, so an unwired "
+			+ "signal is a dead button with no error anywhere.") % [label, overlay_name])
+		_ok(menu_hidden,
+			("%s opened and the pause menu is still drawn underneath it. `hide_for_overlay()` "
+			+ "is what hands the screen over, and without it the player reads two menus at "
+			+ "once.") % overlay_name)
+		_ok(tree.paused,
+			("%s opened and the tree is RUNNING. The game is live behind a menu the player "
+			+ "thinks has stopped it.") % overlay_name)
+
+		# Close the overlay the way a player would, and see the menu come back.
+		await _escape(tree)
+		var back: bool = bool(menu.get("visible"))
+		var overlay_shut: bool = not (overlay.has_method("is_open") and bool(overlay.call("is_open")))
+		print("[input] menu:   after escape -> %s closed=%s, menu back=%s"
+			% [overlay_name, overlay_shut, back])
+		_ok(overlay_shut, "Escape did not close %s." % overlay_name)
+		_ok(back,
+			("%s closed and the pause menu did not come back. `show_after_overlay()` runs off "
+			+ "that overlay's `closed` signal; without it the player is left on a paused game "
+			+ "with no menu and nothing to press.") % overlay_name)
+
+		# Leave the screen clear for the next row.
+		for _attempt2 in 4:
+			if not bool(main.call("_menus_open")):
+				break
+			await _escape(tree)
+
+	tree.paused = was_paused
+	_release_all()
+
+
+## The first Button under `root` whose text matches, case-insensitively.
+static func _find_button(root: Node, label: String) -> Button:
+	var stack: Array[Node] = [root]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		for c in n.get_children():
+			stack.append(c)
+		var btn := n as Button
+		if btn != null and btn.text.to_upper() == label.to_upper():
+			return btn
+	return null
 
 ## One press-and-release of an action, through the viewport.
 static func _press(tree: SceneTree, action: String) -> void:

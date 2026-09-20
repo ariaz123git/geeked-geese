@@ -69,6 +69,18 @@ IDs increment. Newest on top.
 
 ---
 
+## D-052 · 2026-09-20 · The pause menu's buttons, which nobody had ever been able to press
+Status: Decided (agent)
+Decision: `inputtest.gd` opens the pause menu with Escape and presses ALMANAC, CONTROLS and FLOCK through `Button.pressed`, asserting for each that the overlay opens, the menu hides, the tree stays paused, Escape closes the overlay, and the menu comes back. 41 checks → 56.
+Why: D-050 means those buttons had **never been clicked — not by a player, not by a probe, not once**, because the menu could not open. The handoff behind each (suppress the menu, open the overlay, hand the screen back on `closed`) is three signals wired in `main.gd::_build_overlays()` and had never run outside the render probe.
+
+**Pressed through `Button.pressed`, not by calling the callback.** The wiring is the part most likely to be wrong; invoking the lambda directly would skip exactly the thing under test.
+
+**All three were already correct.** That is the result, and it is worth having: this is a surface the game HAS, that nobody could reach, now held by assertions. An unwired signal is a dead button that raises no error anywhere.
+
+**The canary discriminated cleanly.** Unwiring `almanac_requested` produced three failures (opens, hides, comes back — they cascade). Unwiring only `control_card.closed` produced **exactly one**: the control card still opened, and only *"menu back=false"* fired. FLOCK stayed green through both. A check that fails everything when you break one thing is not localising, and this one does.
+Refs: `tools/inputtest.gd::_menu_buttons_report`, `::_find_button`; `scripts/core/main.gd::_build_overlays` signal wiring.
+
 ## D-051 · 2026-09-20 · Every key a player presses, pressed through the viewport
 Status: Decided (agent)
 Decision: `inputtest.gd` sweeps the keys no harness had ever sent — TAB (`gg_objectives`), R (`gg_restart`) and J (`gg_cam_left`) — through `Input.parse_input_event()`, and asserts each. 30 checks → 41.
