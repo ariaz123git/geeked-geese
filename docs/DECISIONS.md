@@ -69,6 +69,20 @@ IDs increment. Newest on top.
 
 ---
 
+## D-050 · 2026-09-20 · The pause menu could close itself and never open itself
+Status: Decided (agent) — **found by the human, in real play**
+Decision: `pause_menu.gd` sets `process_mode = PROCESS_MODE_ALWAYS` instead of `PROCESS_MODE_WHEN_PAUSED`. `inputtest.gd::_pause_menu_test()` presses Escape **through `Input.parse_input_event()`** and asserts the menu opens, the tree pauses, and a second press gives the game back.
+Why: `process_mode` gates `_input()` exactly as it gates `_process()`. Under `WHEN_PAUSED` the node is inert whenever the tree is running — and **the only thing that pauses the tree is `_open_menu()` itself**. So Escape did nothing, for the life of the project, and with it went everything behind the menu: settings, the Almanac, the control card, the flock roster, restart. The README advertises all of it.
+
+**Twelve gates were green while this was broken, and the reason generalises.** *Nothing in this project had ever sent an input event through the viewport.* Every harness either calls `Input.action_press()` — which sets action STATE and never produces an `InputEvent`, so no `_input()` anywhere fires — or calls a handler directly. `main.gd`'s own restart probe does the latter: `_unhandled_input(rev)`, invoked on main, which proves the handler works and proves nothing about whether the event reaches it. That is the same shape as D-047's eating verb: **the method was tested, the path was not.**
+
+**The bug was its own canary.** The check was written first and run against the unfixed code: *"escape: open=false paused=false"*, two checks failing. Nothing had to be armed.
+
+**`almanac.gd` is also `WHEN_PAUSED` and that is correct** — checked, not assumed. It is only ever opened from `pause_menu.almanac_requested`, which fires while the tree is already paused (`main.gd:202-208`), so it is active exactly when it needs to be.
+
+**A second press is asserted, not just the first.** `_open_menu()` sets `get_tree().paused` and `_close()` clears it; a menu that strands the tree paused stops every zone, flight and timer with no way back, and is the same bug wearing the other shoe.
+Refs: `scripts/ui/pause_menu.gd::_ready`; `tools/inputtest.gd::_pause_menu_test`, `::_escape`.
+
 ## D-049 · 2026-08-19 · A deadline that starts after the risky part is not a deadline
 Status: Decided (agent)
 Decision: The headless failsafe moves out of `_probe_if_headless()` into `_arm_headless_deadline()`, called from the **top** of `main.gd::_ready()`. `selftest::_the_failsafe_is_first()` asserts the ordering by reading the source.

@@ -58,7 +58,19 @@ var _checkbox_refs: Dictionary = {}  # StringName -> CheckBox
 
 
 func _ready() -> void:
-	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	# ALWAYS, NOT WHEN_PAUSED, AND THE DIFFERENCE IS THE WHOLE MENU.
+	#
+	# `process_mode` gates `_input()` exactly as it gates `_process()`. Under
+	# PROCESS_MODE_WHEN_PAUSED this node is inert whenever the tree is running
+	# — and the only thing that pauses the tree is `_open_menu()`, below. So
+	# the menu could close itself and could never open itself, and Escape did
+	# nothing for the life of the project. The human found it by pressing
+	# Escape; twelve gates were green at the time, because not one of them had
+	# ever sent an input event through the viewport.
+	#
+	# `tools/inputtest.gd::_pause_menu_test()` is the check, and it presses the
+	# key through `Input.parse_input_event()` rather than calling `open()`.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 30
 	_prefs = get_node_or_null("/root/Prefs")
 	_build_ui()
@@ -86,8 +98,10 @@ func open() -> void:
 	_open_menu()
 
 
-## PROCESS_MODE_WHEN_PAUSED, so this only ticks while the menu is up — which is
-## exactly the window the armed restart has to expire in.
+## Ticks every frame now that `process_mode` is ALWAYS, and the early return is
+## what keeps that free: `_restart_armed` is only ever set while the menu is up,
+## so this is a single float compare per frame the rest of the time. It used to
+## lean on WHEN_PAUSED for the same effect, which cost the game its pause menu.
 func _process(delta: float) -> void:
 	if _restart_armed <= 0.0:
 		return

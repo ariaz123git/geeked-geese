@@ -99,6 +99,8 @@ static func run(tree: SceneTree, main: Node) -> void:
 		+ "no-op there — clampf eats it — so the player is paid for a keypress that did nothing.")
 			% shared.y)
 
+	await _pause_menu_test(tree, main)
+
 	if _fails.is_empty():
 		print("[input] PASS — %d controller checks" % _checks)
 		tree.quit(0)
@@ -109,6 +111,82 @@ static func run(tree: SceneTree, main: Node) -> void:
 	tree.quit(1)
 
 
+
+
+## ═══════════════════════════════════════════════════════════════════════════
+## ESC, THROUGH THE VIEWPORT, LIKE A PLAYER
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## **The human pressed Escape and reported "there is still no pause menu."**
+## Twelve gates were green at the time. NOTHING IN THIS PROJECT HAS EVER SENT
+## AN INPUT EVENT THROUGH THE VIEWPORT — every harness either calls
+## `Input.action_press()`, which sets action STATE and never produces an
+## `InputEvent`, so no `_input()` anywhere fires; or it calls a handler
+## directly. `main.gd`'s own restart probe does the latter — `_unhandled_input
+## (rev)`, invoked on main — which proves the handler works and proves nothing
+## about whether the event would ever reach it.
+##
+## `Input.parse_input_event()` is the whole difference. It pushes the event
+## into the real dispatch, so every node's `_input()` runs, in the real order,
+## under the real `process_mode` rules. That is where the bug lived.
+##
+## Three assertions, all of them things a player notices in one press: the
+## menu opens, the tree actually stops, and a second press gives the game
+## BACK. The last is not padding — `_open_menu()` sets `get_tree().paused` and
+## `_close()` clears it, so a menu that strands the tree paused is the other
+## half of this bug sitting one edit away.
+static func _pause_menu_test(tree: SceneTree, main: Node) -> void:
+	var menu: Node = main.get("pause_menu")
+	_ok(menu != null and menu.has_method("is_open"),
+		"main has no pause_menu with an is_open(), so Escape was never exercised at all")
+	if menu == null or not menu.has_method("is_open"):
+		return
+
+	_release_all()
+	var was_paused: bool = tree.paused
+	tree.paused = false
+	# Start from closed however we arrived here.
+	if bool(menu.call("is_open")):
+		await _escape(tree)
+	for _i in 2:
+		await tree.process_frame
+
+	await _escape(tree)
+	var opened: bool = bool(menu.call("is_open"))
+	var paused: bool = tree.paused
+	print("[input] escape: open=%s paused=%s" % [opened, paused])
+	_ok(opened,
+		("pressing Escape did not open the pause menu. It is built, it is on layer 30, "
+		+ "and its `_input()` handles ui_cancel — so the event is not reaching it. First "
+		+ "suspect is `process_mode`: PROCESS_MODE_WHEN_PAUSED gates `_input` as well as "
+		+ "`_process`, which makes a pause menu that can close itself and never open."))
+	_ok(paused,
+		"the pause menu reported open and the tree is still running. Escape did not pause the game.")
+
+	await _escape(tree)
+	var still_open: bool = bool(menu.call("is_open"))
+	print("[input] escape again: open=%s paused=%s" % [still_open, tree.paused])
+	_ok(not still_open, "a second Escape did not close the pause menu.")
+	_ok(not tree.paused,
+		("the pause menu closed and left the tree PAUSED. Every zone, every flight and "
+		+ "every timer is stopped, and the player has no way to start them again."))
+
+	tree.paused = was_paused
+
+
+## One Escape, through the viewport rather than at a handler.
+static func _escape(tree: SceneTree) -> void:
+	var down := InputEventAction.new()
+	down.action = "ui_cancel"
+	down.pressed = true
+	Input.parse_input_event(down)
+	await tree.process_frame
+	var up := InputEventAction.new()
+	up.action = "ui_cancel"
+	up.pressed = false
+	Input.parse_input_event(up)
+	for _i in 3:
+		await tree.process_frame
 
 ## ═══════════════════════════════════════════════════════════════════════════
 ## THE EATING VERB, THROUGH THE KEY THE PLAYER PRESSES
