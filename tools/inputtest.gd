@@ -100,6 +100,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 			% shared.y)
 
 	await _pause_menu_test(tree, main)
+	await _ui_sweep_report(tree, main, goose)
 
 	if _fails.is_empty():
 		print("[input] PASS — %d controller checks" % _checks)
@@ -145,9 +146,32 @@ static func _pause_menu_test(tree: SceneTree, main: Node) -> void:
 	_release_all()
 	var was_paused: bool = tree.paused
 	tree.paused = false
-	# Start from closed however we arrived here.
-	if bool(menu.call("is_open")):
+
+	# A CLEAN SCREEN FIRST, OR THIS MEASURES THE WRONG OVERLAY.
+	#
+	# Every overlay in this game consumes ui_cancel and marks it handled, and
+	# `briefing.gd` lists it in DISMISS_ACTIONS outright. If a briefing card is
+	# up when the Escape below is sent, the card eats it and closes itself, the
+	# pause menu never sees the event, and this reports the menu as broken on a
+	# build where it is fine — two failures, `opened` and `paused`, which is
+	# exactly the signature seen once before this guard existed.
+	#
+	# So: clear the screen, and if it will not clear, say HARNESS FAULT rather
+	# than deliver a verdict on the menu. Same idiom as `feeltest.gd`'s
+	# disturbed-walk retry.
+	var clear := false
+	for _attempt in 6:
+		if not bool(main.call("_menus_open")):
+			clear = true
+			break
 		await _escape(tree)
+	_ok(clear,
+		("could not reach a screen with no overlay up, so Escape was never tested against "
+		+ "the pause menu. This is a HARNESS fault; do not read the rows below it as a "
+		+ "verdict on the menu."))
+	if not clear:
+		tree.paused = was_paused
+		return
 	for _i in 2:
 		await tree.process_frame
 
@@ -173,6 +197,124 @@ static func _pause_menu_test(tree: SceneTree, main: Node) -> void:
 
 	tree.paused = was_paused
 
+
+
+## ═══════════════════════════════════════════════════════════════════════════
+## THE REST OF THE KEYS, REPORTED AND NOT YET ASSERTED
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## The pause menu was dead for the life of the project because nothing had
+## ever pressed Escape. It is not the only key a player presses that no
+## harness has: `gg_restart` (R) and `gg_objectives` (TAB) both go through
+## `_unhandled_input`, which only runs on events that reached the viewport and
+## were not consumed — exactly the path that was broken.
+##
+## IT SHIPPED AS A REPORT AND IS NOW ASSERTED, which is the order this project
+## uses for a new instrument: print, read the output, then arm. The first run of
+## a new pass is usually wrong about something — the buried-pickup pass called
+## three healthy placements broken — and an assertion written before anyone has
+## read the output is a guess with an `_ok()` around it.
+##
+## Read across five runs: TAB cycled [0, 1, 2, 0] every time, R took the restart
+## prompt false -> true every time, and J moved the camera yaw 0.331 rad in 20
+## frames. All three are real, so all three are checks now.
+##
+## TAB is not in the README control list, which is its own small finding.
+static func _ui_sweep_report(tree: SceneTree, main: Node, goose: CharacterBody3D) -> void:
+	_release_all()
+	var was_paused: bool = tree.paused
+	tree.paused = false
+	for _i in 2:
+		await tree.process_frame
+
+	# TAB — mission_hud cycles FULL / compact / off. Three presses must return
+	# it to where it started, so the sweep leaves no state behind.
+	var mh: Node = main.get("mission_hud")
+	if mh == null:
+		print("[input] sweep: main has no mission_hud")
+	else:
+		var seen: Array = []
+		seen.append(int(mh.get("mode")))
+		for _i in 3:
+			await _press(tree, "gg_objectives")
+			seen.append(int(mh.get("mode")))
+		print("[input] sweep: TAB x3 -> mission_hud mode %s" % str(seen))
+		# Three modes, so three presses is a full lap: every press must move it
+		# and the last must land back where it started. A toggle that changed
+		# nothing and a toggle stuck on one mode both read as "TAB does nothing"
+		# to a player, and only the lap catches the second one.
+		_ok(seen.size() == 4 and int(seen[0]) == int(seen[3]),
+			("TAB three times left mission_hud on mode %s having started at %s. It cycles "
+			+ "three modes through `_unhandled_input`, so three presses is one lap.")
+				% [str(seen[-1]), str(seen[0])])
+		_ok(int(seen[0]) != int(seen[1]),
+			("the first TAB did not change mission_hud's mode (%s -> %s). The action is "
+			+ "registered at runtime in mission_hud.gd::_ensure_action(), and it is handled "
+			+ "in `_unhandled_input`, so anything that consumes the event first kills it.")
+				% [str(seen[0]), str(seen[1])])
+
+	# R — one press must ARM the confirmation and change nothing else. The
+	# second press inside the window throws the run away, so it is not sent
+	# here; the armed state is disarmed again before leaving.
+	var prompt: Node = main.get("restart_prompt")
+	if prompt == null:
+		print("[input] sweep: main has no restart_prompt")
+	else:
+		var before: bool = bool(prompt.get("visible"))
+		await _press(tree, "gg_restart")
+		var after: bool = bool(prompt.get("visible"))
+		print("[input] sweep: R x1 -> restart prompt %s -> %s" % [before, after])
+		# ONE press ARMS and must not restart. The confirmation exists because a
+		# run is eight legs and about forty-five minutes, and R sits one row
+		# above the movement hand.
+		_ok(not before, "the restart prompt was already showing before R was pressed")
+		_ok(after,
+			("pressing R did not raise the restart confirmation. main.gd handles it in "
+			+ "`_unhandled_input` behind `not _menus_open()`, so either the event is being "
+			+ "consumed first or the game thinks a menu is open."))
+		main.set("_restart_armed_ms", -1000000)
+		if main.has_method("_tick_restart_prompt"):
+			main.call("_tick_restart_prompt")
+
+	# J / K — camera orbit. In the ACTIONS table, absent from the README.
+	var cam: Node = null if goose == null else goose.get("cam") as Node
+	if cam == null or not cam.has_method("get_yaw"):
+		print("[input] sweep: no camera to measure a yaw on")
+	else:
+		var y0: float = float(cam.call("get_yaw"))
+		Input.action_press("gg_cam_left")
+		for _i in 20:
+			await tree.process_frame
+		Input.action_release("gg_cam_left")
+		var y1: float = float(cam.call("get_yaw"))
+		print("[input] sweep: J held 20 frames -> yaw %.3f -> %.3f (moved %.3f)"
+			% [y0, y1, absf(y1 - y0)])
+		# 0.05 rad is a floor, not a target: the measured move is 0.331 over 20
+		# frames and the only failure worth catching is "the key does nothing".
+		# J and K are in the ACTIONS table and are NOT in the README's control
+		# list, so a player finds them by accident or not at all.
+		_ok(absf(y1 - y0) > 0.05,
+			("holding J for 20 frames moved the camera yaw %.3f rad. gg_cam_left is bound to "
+			+ "KEY_J in Game.ACTIONS; if this is zero the orbit keys are dead.")
+				% absf(y1 - y0))
+
+	tree.paused = was_paused
+	_release_all()
+
+
+## One press-and-release of an action, through the viewport.
+static func _press(tree: SceneTree, action: String) -> void:
+	var down := InputEventAction.new()
+	down.action = action
+	down.pressed = true
+	Input.parse_input_event(down)
+	await tree.process_frame
+	var up := InputEventAction.new()
+	up.action = action
+	up.pressed = false
+	Input.parse_input_event(up)
+	for _i in 3:
+		await tree.process_frame
 
 ## One Escape, through the viewport rather than at a handler.
 static func _escape(tree: SceneTree) -> void:

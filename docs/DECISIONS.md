@@ -69,6 +69,22 @@ IDs increment. Newest on top.
 
 ---
 
+## D-051 · 2026-09-20 · Every key a player presses, pressed through the viewport
+Status: Decided (agent)
+Decision: `inputtest.gd` sweeps the keys no harness had ever sent — TAB (`gg_objectives`), R (`gg_restart`) and J (`gg_cam_left`) — through `Input.parse_input_event()`, and asserts each. 30 checks → 41.
+Why: D-050 found the pause menu dead because nothing had ever pressed Escape. **The pause menu was simply the first key anyone checked**, and the other three run through `_unhandled_input`, which fires only on events that reached the viewport un-consumed — the exact path that was broken.
+
+**All three turned out to work**, which is a result and not a wasted pass: they are now locked in, and the class of bug that killed the pause menu cannot take them silently.
+
+**Shipped as a report, then armed**, which is the order this project uses. Read across five runs: TAB cycled `[0, 1, 2, 0]` every time, R took the prompt false → true every time, J moved the yaw 0.331 rad in 20 frames. Only then did they become `_ok()` calls.
+
+**TAB gets two assertions, not one, and the canary proved why.** The lap check (three presses return to the start mode) passes on `[0, 0, 0, 0]` — a completely dead key is a valid lap. It takes a second assertion, that the FIRST press changed something, to catch it. Watched failing by disabling both handlers with `if false and …`: TAB reported `[0, 0, 0, 0]` and R reported `false -> false`, and the two live assertions named them.
+
+**The pause-menu test gained a clean-screen guard on the way.** One run failed 2-of-35 and could not be reproduced in five more. Unproven, but the mechanism is known and cheap to exclude: every overlay consumes `ui_cancel` and `briefing.gd` lists it in `DISMISS_ACTIONS`, so a briefing card up at the wrong moment eats the Escape and the menu never sees it — failing `opened` and `paused`, which is exactly 2. The test now clears the screen first and calls it a HARNESS fault if it cannot, rather than delivering a verdict on the menu.
+
+**Found in passing:** J and K orbit the camera, are in `Game.ACTIONS`, and are **absent from the README's control table**. A player finds them by accident or not at all. Not fixed here — it is a documentation call.
+Refs: `tools/inputtest.gd::_ui_sweep_report`, `::_press`, `::_pause_menu_test`.
+
 ## D-050 · 2026-09-20 · The pause menu could close itself and never open itself
 Status: Decided (agent) — **found by the human, in real play**
 Decision: `pause_menu.gd` sets `process_mode = PROCESS_MODE_ALWAYS` instead of `PROCESS_MODE_WHEN_PAUSED`. `inputtest.gd::_pause_menu_test()` presses Escape **through `Input.parse_input_event()`** and asserts the menu opens, the tree pauses, and a second press gives the game back.

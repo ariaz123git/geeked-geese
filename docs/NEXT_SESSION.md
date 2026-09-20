@@ -163,6 +163,14 @@ Decide: revert, keep, or keep-and-fix-placement.
 
 ## 3. BUGS THE HUMAN HAS ACTUALLY HIT
 
+~~**"there is still no pause menu"**~~ **FIXED 2026-09-20, D-050** — `process_mode`
+was `WHEN_PAUSED`, which gates `_input()` too, so the menu could close itself and
+never open itself. Everything behind it (settings, Almanac, control card, roster,
+restart) was unreachable with it. `inputtest` now presses Escape through the
+viewport. **The finding that outlives it:** nothing in this project had ever sent
+an input event through the viewport at all, so the whole UI was unverified —
+D-051 swept TAB, R and J too, and those three were fine. Original text:
+
 **"there is still no pause menu"** — reported from real play. Do not treat as
 missing; it is a live bug with a head start:
 - `scripts/ui/pause_menu.gd` exists, is built in `main.gd::_build_overlays()`,
