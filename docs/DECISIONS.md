@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-088 · 2026-09-25 · Show hints off keeps the dose card away — it works
+Status: Decided (agent)
+Decision: `inputtest::_eat_test()` first turns Show hints off through the pref, stands the goose on leg 1's grass, and asserts the eat target arms, the dose card does not appear, and the card is recorded as seen; then it puts the pref back and un-sees the card for the first-time walk that follows. 165 checks → 166.
+Why: The dose card is *"the only card the Settings 'Show hints' checkbox gates"* (D-059), and D-056 held that row against the objectives panel only — the row's other consumer had never been driven. **It works:** armed, no card, recorded seen (`briefing.gd::show_once()` — *"Player turned hints off in Settings. Believe them."*). Coverage. Canaried by making `show_once()` ignore `respects_show_hints`: the row fails. The same canary also failed D-087's dive, and that was a knock-on worth writing down: with the gate gone the card was raised but never recorded as seen, so at leg 3 the goose landing on something edible raised it again, which pauses the tree mid-dive. The dive check assumes no card can appear during it, which holds only because every card has been seen by then.
+Refs: `tools/inputtest.gd::_eat_test`; `scripts/ui/briefing.gd::show_once`; `scripts/ui/briefing_defs.gd::dose_hint`.
+
 ## D-087 · 2026-09-25 · The Ranger's win, by a dive — it works; and the dog's control check made to hold
 Status: Decided (agent)
 Decision: `inputtest::_ranger_honk()` ends by winning the encounter the way `_drop_board()`'s comment promises: it waits out Piper's carry, gets a clipboard onto the ground (honking the man if he has it back), puts the goose 4 m above it, holds **Shift** as a key event, and asserts the clipboard breaks and the Ranger is routed. The Y-axis control (D-086) now puts the goose back on open ground on the dog's side of the truck, 4 m straight out from it, and is reported rather than asserted. 164 checks → 165.

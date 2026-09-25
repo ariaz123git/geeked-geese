@@ -11,7 +11,7 @@
 > required (it overrides `BOSS_DESIGN.md` §3.5 in writing), cat petting (they
 > asked to discuss it), and the `Open (human)` decisions listed in §3.
 
-**Updated:** 2026-09-25, after one long autonomous session — D-054 to D-087 —
+**Updated:** 2026-09-25, after one long autonomous session — D-054 to D-088 —
 that kept sweeping for controls wired to nothing and found the seam was not
 exhausted. It found a pad that could play one zone and never leave it, a
 Settings panel that did not do what four of its rows said, a flight that paid
@@ -75,7 +75,7 @@ through the path a player's input takes, and assert what the far end did.
 |---|---|---|
 | `--gate` | every `.gd` compiles and every resource loads, inside the booted project | 73 scripts |
 | `--selftest` | the game agrees with itself | **968 invariants** |
-| `--probe --inputtest` | the bird obeys a key, **including the one that eats** — and so does the UI, **and a pad can get from leg 1 to leg 2**, and every Settings row reaches what it controls, and the dose hint appears on the grass, and restart resets a whole run, and the wheel and the click, and every menu button clicked for real, and G at the flock pen, **and both sticks and Back, and the Almanac walked, and BIG DOWN's echo, and the Ranger honked, and BIG DOWN's glass by honk and by body, and TAB after a completion, and the dog against the Y axis, and the Ranger beaten by a dive** | 165 checks |
+| `--probe --inputtest` | the bird obeys a key, **including the one that eats** — and so does the UI, **and a pad can get from leg 1 to leg 2**, and every Settings row reaches what it controls, and the dose hint appears on the grass, and restart resets a whole run, and the wheel and the click, and every menu button clicked for real, and G at the flock pen, **and both sticks and Back, and the Almanac walked, and BIG DOWN's echo, and the Ranger honked, and BIG DOWN's glass by honk and by body, and TAB after a completion, and the dog against the Y axis, and the Ranger beaten by a dive, and Show hints off** | 166 checks |
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, the seven differ, **and Q hands off the lead — and flying the V is scored as holding your slot** | 22 measurements |
@@ -137,7 +137,8 @@ in all four branches (D-073), the ending's honk and the credits it starts
 warehouse echo (D-081), the Ranger's two-body rule (D-082), and BIG DOWN's glass
 breaking to a honk (D-083) and to a goose walking into it (D-085), and the
 Ranger's dog giving up on a goose she cannot reach (D-086), and the Ranger
-beaten the way the design says, by diving onto his clipboard (D-087).
+beaten the way the design says, by diving onto his clipboard (D-087), and
+Show hints off keeping the dose card away (D-088).
 
 ### 3. The instruments
 

@@ -1987,6 +1987,42 @@ static func _eat_test(tree: SceneTree, goose: CharacterBody3D) -> void:
 	if brief != null and brief.has_method("reset_seen"):
 		brief.call("reset_seen", &"dose_hint")
 
+	# SHOW HINTS OFF, FIRST (D-088). The dose card is "the only card the Settings
+	# 'Show hints' checkbox gates" (D-059), and D-056 held that row against the
+	# objectives panel only. With hints off, standing on the grass must raise
+	# nothing — and, "Player turned hints off in Settings. Believe them.", the
+	# card is recorded as seen. Then the pref goes back and the card is un-seen
+	# again for the real first-time walk below.
+	var prefs_n: Node = tree.root.get_node_or_null("/root/Prefs")
+	if prefs_n != null and brief != null:
+		var hints_was: bool = bool(prefs_n.call("get_pref", &"show_hints", true))
+		prefs_n.call("set_pref", &"show_hints", false)
+		_release_all()
+		goose.global_position = pick.global_position + Vector3.UP * 0.5
+		goose.velocity = Vector3.ZERO
+		var off_raised := false
+		var off_armed := false
+		for _o in 30:
+			await tree.physics_frame
+			if goose.get("_eating") != null:
+				off_armed = true
+			if bool(brief.call("is_open")):
+				off_raised = true
+				break
+		var off_seen: bool = bool(brief.call("has_seen", &"dose_hint"))
+		print("[input] eat: Show hints OFF, standing on the grass -> eat target armed %s, dose card raised %s, recorded as seen %s"
+			% [off_armed, off_raised, off_seen])
+		_ok(off_armed and not off_raised and off_seen,
+			("with Show hints off, standing on the grass %s the dose card (armed %s, recorded seen %s). "
+			+ "`briefing.gd::show_once()` honours `respects_show_hints`, and the dose card sets it.")
+				% ["raised" if off_raised else "did not raise", off_armed, off_seen])
+		goose.global_position = pick.global_position + Vector3(3.0, 0.5, 0.0)
+		goose.velocity = Vector3.ZERO
+		for _o2 in 20:
+			await tree.physics_frame
+		prefs_n.call("set_pref", &"show_hints", hints_was)
+		brief.call("reset_seen", &"dose_hint")
+
 	# WALK INTO IT. `SubstancePickup` is an Area3D whose `body_entered` calls
 	# `set_eat_target()`; nothing else sets `_eating`, so being in range is part
 	# of what is under test rather than something to fake.
