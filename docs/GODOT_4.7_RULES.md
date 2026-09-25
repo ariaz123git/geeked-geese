@@ -837,6 +837,33 @@ godot --headless --path . -- --gate
 Exit 0 = clean, exit 1 = something did not compile. Read `tools/gate.gd`'s header
 comment before changing anything about it.
 
+### 5.11 🟠 A typed read of a freed node raises BEFORE your validity check
+
+```gdscript
+var r: Control = _rows[id]      # SCRIPT ERROR here if the row was freed:
+if is_instance_valid(r):        #   "Trying to assign invalid previously freed
+    r.visible = true            #    instance" — this line never gets to look
+```
+
+The assignment into a typed variable is where a freed object is caught, so the
+guard written under it guards nothing. Read into an untyped `Variant`, check it,
+then use it — or prune the dead entries first. `mission_hud.gd` held rows that
+free themselves when their collapse tween ends, and after the first objective
+of a leg completed, **TAB raised a SCRIPT ERROR and the objectives toggle
+stopped halfway** (D-086; `mission_hud.gd::_live_rows()`). The shape only bites
+when a container keeps nodes that free *themselves*; a pool its owner never
+frees is safe.
+
+### 5.12 🟠 A stopped or paused player is not a released stream
+
+`stop()` marks the playback for deletion and the **mixer thread** retires it a
+few mix steps later; a player that leaves the tree only **pauses** its playback,
+and the stop comes with deletion. At quit there are no later mix steps, so any
+stream still playing is reported as *"N resources still in use at exit"*. Stop
+everything, then give the mixer a moment (`OS.delay_msec`) in `_exit_tree` — and
+that includes positional players parented under a zone, which an autoload's own
+cleanup cannot reach unless it kept a list. D-072, D-074; `sfx.gd::_exit_tree`.
+
 ---
 
 ## 6. How to check an API you are unsure about
