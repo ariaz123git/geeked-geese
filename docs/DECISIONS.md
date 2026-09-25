@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-080 · 2026-09-25 · The two restart windows differ on purpose, and the comment now says so
+Status: Decided (agent) — pacing, decided without playing it; a one-constant revert either way
+Decision: Keep R's confirmation window at 1.5 s (`main.gd::RESTART_CONFIRM_MS`) and the pause menu button's at 3.0 s (`pause_menu.gd::RESTART_ARM_SECS`). The comment above `_on_restart_pressed()`, which said the two "behave identically", now says they share the two-press contract and why the windows differ.
+Why: D-061 found the disagreement and left it. The comment was a prose claim that was false — the shape CLAUDE.md's banner is about. Unifying would have been a pacing change with nothing to measure it against, and the difference has a reason: R is pressed mid-play, where an armed restart should not linger into the next stretch of flight, while the button is pressed on a paused menu whose label has just become *"PRESS AGAIN — THIS ENDS THE RUN"*, which takes reading. Both paths are already driven end to end by `inputtest::_restart_test()` (D-061), so nothing new is asserted.
+Refs: `scripts/ui/pause_menu.gd::_on_restart_pressed`, `RESTART_ARM_SECS`; `scripts/core/main.gd::RESTART_CONFIRM_MS`; D-061.
+
 ## D-079 · 2026-09-25 · Honking a credit slab scored, on the one screen with no score
 Status: Decided (agent)
 Decision: `Game` gains `scoring` (true by default; `new_run()` and `start_zone()` set it true) and `score()` returns at once while it is false. `zone_finale.gd::_take_over()` — documented as *"Everything the ending has to switch OFF, in one place"* — sets it false beside the clock. `main.gd::_roll_honk()` spawns a credit slab once the credits are rolling, stands the goose 2 m from it, presses **H**, and fails unless the slab is knocked loose and neither `Game.chaos` nor `Game.combo` moves.

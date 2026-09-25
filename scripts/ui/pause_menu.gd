@@ -247,8 +247,13 @@ func _back_from_settings() -> void:
 
 
 ## Two presses, not one. The first arms and relabels; the second inside
-## RESTART_ARM_SECS actually throws the run away. Same contract as the `R` key
-## in main.gd, so the two ways of restarting behave identically.
+## RESTART_ARM_SECS actually throws the run away. The same two-press contract as
+## the `R` key in main.gd, with a LONGER window on purpose: R's is 1.5 s
+## (`RESTART_CONFIRM_MS`) because it is pressed mid-play, where an armed restart
+## should not linger into the next stretch of flight; this one is pressed on a
+## paused menu, and the button has just turned into a warning the player has to
+## read before pressing it again. This comment used to say the two "behave
+## identically"; they never did (D-061 found it, D-080 says why it stays).
 func _on_restart_pressed() -> void:
 	if _restart_armed > 0.0:
 		_disarm_restart()
