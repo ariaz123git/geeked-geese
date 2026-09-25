@@ -208,7 +208,8 @@ if ($gateCode -ne 0) {
 # A KILLED COMPILE GATE ENDS THE RUN. Every step after it boots the same
 # main.gd, so if this one could not finish, eleven more would each wait out
 # their own limit and say nothing new. The lines printed above are the evidence;
-# run the gate unfiltered to see all of it (CLAUDE.md, "The parser can HANG").
+# run the gate unfiltered to see all of it (CLAUDE.md, "When `--gate` prints
+# nothing and never exits").
 if ($gateCode -eq 124) {
     Write-Host "`nThe compile gate was killed, and every later step boots the same main.gd. Stopping here." -ForegroundColor Red
     Write-Host "`nVERIFY FAILED" -ForegroundColor Red

@@ -87,7 +87,7 @@ for v in [a, c, b]:                # emitted REVERSED — clockwise for Godot
 Every face-emitting call above `_emit` (`tri`, `quad`, `loft`, `box`, the caps
 and annuli) takes an `inside` reference point and orients itself outward relative
 to it, so authors never reason about winding at all. **Do not "simplify" that
-`for v in [a, c, b]` loop.** See `CLAUDE.md` § Mesh authoring and
+`for v in [a, c, b]` loop.** See `CLAUDE.md` § Physics rules, "Mesh winding", and
 `docs/GODOT_4.7_RULES.md` §5.2.
 
 ### The history, so nobody re-derives the wrong conclusion

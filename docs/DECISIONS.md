@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-064 · 2026-09-25 · `CLAUDE.md` 373 → 264 lines, by pointer rather than by deletion
+Status: Decided (agent)
+Decision: `CLAUDE.md` is condensed from 373 lines to 264 and `doctest.gd::CLAUDE_MD_CEILING` ratchets down to match. **No rule was removed.** What went is retelling: the per-gate descriptions (HANDOFF §1 and §6, and each tool's header, carry them), the banner's three-blockage history (DECISIONS' own preamble), the two-session "Play it" stall (D-002), the parser-hang bisections (SESSION_PROTOCOL), the winding argument (GODOT_4.7_RULES §5.2). Each became a one-line pointer. Three rules were **added**, each from this session and each with its evidence in DECISIONS: drive the path not the handler, runs with arguments are hermetic, and `process_mode` gates `_input` as well as `_process` (D-050, D-060). The stale "current goal" paragraph (*"eight gates… all sixteen"*) is replaced by a pointer to HANDOFF §3, which is where the queue actually lives.
+Why: `CLAUDE.md` is loaded into every session, and instruction adherence degrades with instruction count (the argument `docs/RECENT_FAILURES.md` makes for its own cap). The ratchet had already bitten — a needed addition was refused at 376 and paid for by tightening two paragraphs — and the next session's queue named this cut. All eight claim markers doctest reads in this file (C-004, -006, -007, -010, -017, -018, -020, -021) were kept verbatim and each still appears exactly once. 200 remains the target; the remaining weight is mostly real rules.
+Refs: `CLAUDE.md`; `tools/doctest.gd::CLAUDE_MD_CEILING`; `docs/prop_models_notes.md` (a heading reference updated).
+
 ## D-063 · 2026-09-25 · The roster that announces a death ignores the press that skipped the flight
 Status: Decided (agent) — the 0.34 s is matched to the results card, not measured against a human
 Decision: `flock_roster.gd` swallows presses for `INPUT_LOCKOUT` = 0.34 s after opening **with a headline** (a loss). A roster opened from the pause menu's FLOCK button has no headline and no lockout. The pad walk presses A on the loss roster's first frame (must stay open) and again half a second later (must close). 134 checks → 135.
