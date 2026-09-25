@@ -119,6 +119,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	await _pause_menu_test(tree, main)
 	await _ui_sweep_report(tree, main, goose)
 	await _menu_buttons_report(tree, main)
+	await _mouse_report(tree, main, goose)
 	await _settings_walk(tree, main, goose)
 	await _restart_test(tree, main)
 	# LAST, because it ends the leg: everything above needs the zone it leaves.
@@ -436,6 +437,100 @@ static func _menu_buttons_report(tree: SceneTree, main: Node) -> void:
 
 	tree.paused = was_paused
 	_release_all()
+
+
+## ═══════════════════════════════════════════════════════════════════════════
+## THE MOUSE: THE WHEEL ZOOMS AND A CLICK TAKES THE CURSOR BACK
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## The README advertises both — "Scroll wheel: zoom" and "clicking the window
+## grabs it back" — and both live in `_unhandled_input` (`goose_camera.gd`,
+## `main.gd`), which only sees a mouse event no GUI Control took first. A Control
+## left on the default MOUSE_FILTER_STOP anywhere under the cursor eats it
+## silently. So the wheel is sent at several points of the screen — the middle,
+## and over each HUD panel — and the click at the middle.
+##
+## THROUGH `Viewport.push_input()`, AND THE FIRST VERSION WAS BLIND WITHOUT IT.
+## Sent with `Input.parse_input_event()` like every key in this file, the wheel
+## zoomed everywhere and the click reached the director — and the click went on
+## reaching it with the HUD's full-screen root switched to MOUSE_FILTER_STOP,
+## which must eat it. A diagnostic settled why: headless, a parsed mouse event never
+## reaches GUI picking at all (a full-screen Button was pressed 0 times, nothing
+## hovered), while one pushed into the viewport does (pressed once, hovered).
+## That is also the truer path — the OS hands a click to the window's viewport —
+## so every mouse event here is pushed. Headless cannot honour
+## MOUSE_MODE_CAPTURED either, so the click is judged by the flag, not the mode.
+##
+## THE WHEEL IS NOT EATEN BY MOUSE_FILTER_STOP, and the canary said so: pushed
+## through that STOP root the wheel still zoomed, because Godot 4 stops a wheel
+## event only at a Control that consumes it (a ScrollContainer, a Slider). So the
+## wheel rows fail on the camera's own branch — canaried by disabling it, six of
+## six — or on a scrolling Control left over gameplay, and on nothing else.
+static func _mouse_report(tree: SceneTree, main: Node, goose: CharacterBody3D) -> void:
+	_release_all()
+	tree.paused = false
+	for _attempt in 6:
+		if not bool(main.call("_menus_open")):
+			break
+		await _escape(tree)
+	var cam: Node = null if goose == null else goose.get("cam") as Node
+	if cam == null:
+		print("[input] mouse: no camera")
+		return
+	var vs: Vector2 = main.get_viewport().get_visible_rect().size
+	var spots := {
+		"middle": vs * 0.5,
+		"top middle (clock)": Vector2(vs.x * 0.5, 40.0),
+		"top right (chaos)": Vector2(vs.x - 80.0, 40.0),
+		"left (objectives)": Vector2(120.0, 160.0),
+		"bottom left (brain)": Vector2(100.0, vs.y - 110.0),
+		"bottom right (stamina)": Vector2(vs.x - 150.0, vs.y - 90.0),
+	}
+	for label in spots.keys():
+		var at: Vector2 = spots[label]
+		cam.set("_zoom", 1.0)
+		var z0: float = float(cam.get("_zoom"))
+		for pressed in [true, false]:
+			var ev := InputEventMouseButton.new()
+			ev.button_index = MOUSE_BUTTON_WHEEL_UP
+			ev.pressed = pressed
+			ev.position = at
+			ev.global_position = at
+			main.get_viewport().push_input(ev, true)
+			await tree.process_frame
+		var z1: float = float(cam.get("_zoom"))
+		print("[input] mouse: wheel up at %-24s (%4.0f, %3.0f) -> zoom %.3f -> %.3f%s"
+			% [label, at.x, at.y, z0, z1, "" if absf(z1 - z0) > 0.001 else "   <- EATEN"])
+		_ok(z1 < z0 - 0.001,
+			("the scroll wheel over the %s did not zoom (%.3f -> %.3f). `goose_camera.gd` zooms in "
+			+ "`_unhandled_input`: either that branch is not running, or a Control that CONSUMES "
+			+ "wheel events (a ScrollContainer, a Slider) is under the cursor. MOUSE_FILTER_STOP "
+			+ "alone does not stop a wheel in 4.7 — measured.")
+				% [label, z0, z1])
+	cam.set("_zoom", 1.0)
+
+	# The click. Headless may not honour CAPTURED at all, so the mode alone cannot
+	# say whether the click arrived: `main._capture_mouse(true)` also sets
+	# `_mouse_was_captured`, and that flag is read instead.
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	var honoured: bool = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	main.set("_mouse_was_captured", false)
+	for pressed2 in [true, false]:
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = pressed2
+		click.position = vs * 0.5
+		click.global_position = vs * 0.5
+		main.get_viewport().push_input(click, true)
+		await tree.process_frame
+	print("[input] mouse: left click in the middle with the cursor free -> reached main.gd=%s, mouse mode %d (captured is %d; headless honours CAPTURED: %s)"
+		% [bool(main.get("_mouse_was_captured")), Input.mouse_mode, Input.MOUSE_MODE_CAPTURED, honoured])
+	_ok(bool(main.get("_mouse_was_captured")),
+		("a left click in the middle of the screen, with the cursor free and no menu up, never "
+		+ "reached `main.gd::_unhandled_input` — so \"clicking the window grabs it back\" does not. "
+		+ "Headless cannot honour CAPTURED, so the flag `_capture_mouse(true)` sets is the evidence."))
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 ## ═══════════════════════════════════════════════════════════════════════════

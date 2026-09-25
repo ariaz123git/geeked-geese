@@ -69,6 +69,14 @@ IDs increment. Newest on top.
 
 ---
 
+## D-065 · 2026-09-25 · The mouse controls work, and the first check of them could not fail
+Status: Decided (agent)
+Decision: `inputtest::_mouse_report()` pushes a scroll-wheel event at six points of the screen (the middle and over every HUD panel) and asserts the camera zooms at each, and pushes a left click with the cursor free and asserts it reaches `main.gd::_unhandled_input` (read off `_mouse_was_captured`, since headless cannot honour CAPTURED). Every mouse event goes through `Viewport.push_input()`. 135 checks → 142.
+Why: The README advertises both — *"Scroll wheel: zoom"* and *"clicking the window grabs it back"* — and no harness had touched either. **Both work.** But the first version sent them with `Input.parse_input_event()` like every key in the file, passed, and **went on passing with the HUD's full-screen root switched to `MOUSE_FILTER_STOP`**, which must eat a click. A diagnostic found why: headless, a parsed mouse event never reaches GUI picking (a full-screen Button clicked at its centre: pressed 0 times, nothing hovered), and a pushed one does (pressed once, hovered). The check was blind, and only its canary could say so. Rebuilt on `push_input`, the STOP canary failed the click row. The same canary showed the wheel is **not** eaten by STOP — Godot 4 stops a wheel only at a Control that consumes it — so the wheel rows were canaried instead by disabling the camera's wheel branch (six of six), and their message now says what can actually cause them.
+
+**Consequence worth more than the check:** `push_input` makes real mouse clicks on menu Buttons testable headless for the first time; every menu button in this repo is still pressed by emitting `Button.pressed`. Recorded in `docs/GODOT_4.7_RULES.md` §4.5.
+Refs: `tools/inputtest.gd::_mouse_report`; `scripts/goose/goose_camera.gd::_unhandled_input`; `scripts/core/main.gd::_unhandled_input`; `docs/GODOT_4.7_RULES.md` §4.5.
+
 ## D-064 · 2026-09-25 · `CLAUDE.md` 373 → 264 lines, by pointer rather than by deletion
 Status: Decided (agent)
 Decision: `CLAUDE.md` is condensed from 373 lines to 264 and `doctest.gd::CLAUDE_MD_CEILING` ratchets down to match. **No rule was removed.** What went is retelling: the per-gate descriptions (HANDOFF §1 and §6, and each tool's header, carry them), the banner's three-blockage history (DECISIONS' own preamble), the two-session "Play it" stall (D-002), the parser-hang bisections (SESSION_PROTOCOL), the winding argument (GODOT_4.7_RULES §5.2). Each became a one-line pointer. Three rules were **added**, each from this session and each with its evidence in DECISIONS: drive the path not the handler, runs with arguments are hermetic, and `process_mode` gates `_input` as well as `_process` (D-050, D-060). The stale "current goal" paragraph (*"eight gates… all sixteen"*) is replaced by a pointer to HANDOFF §3, which is where the queue actually lives.

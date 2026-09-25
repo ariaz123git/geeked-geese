@@ -526,6 +526,15 @@ D-056):
   disabling an explicit `release_focus()` and seeing nothing focused anyway.
 - **Pad buttons do not auto-repeat;** held keys send echoes. `is_action_pressed(a,
   true)` accepts the echoes.
+- **Headless, `Input.parse_input_event()` mouse events never reach GUI picking**;
+  `get_viewport().push_input(ev, true)` does. A full-screen Button clicked at its
+  centre was pressed 0 times the first way and once the second. Keys and actions
+  sent with `parse_input_event()` do reach `_input()`, GUI focus navigation and
+  `_unhandled_input()` — it is mouse picking specifically. Headless also never
+  honours `MOUSE_MODE_CAPTURED`.
+- **`MOUSE_FILTER_STOP` does not stop a mouse WHEEL.** Only a Control that consumes
+  the wheel (ScrollContainer, Slider) does; a wheel pushed through a full-screen
+  STOP Control still reached `_unhandled_input`. A click through it did not.
 
 ### 4.6 `Tween`
 
