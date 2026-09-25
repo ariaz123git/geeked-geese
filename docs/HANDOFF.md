@@ -96,7 +96,7 @@ look for it and each now carrying the assertion that would have caught it:
 | Autoloads | 10 (see `docs/ARCHITECTURE.md` §2 for the order and why it matters) |
 | Gates | **11.** `.\verify.ps1`, about six minutes |
 | Decisions | `docs/DECISIONS.md` — **40 entries.** Five are `Open (human)` and must not be closed by an agent: D-005, D-006, D-007, D-019, **D-036** |
-| Failure log | `docs/RECENT_FAILURES.md` — 1 of a hard cap of 5 (F-005 and F-003 retired 2026-09-25 by `verify.ps1`'s timeout and `probe_common.settled()`). An entry leaves only by becoming a check |
+| Failure log | `docs/RECENT_FAILURES.md` — **empty**, of a hard cap of 5 (F-005, F-003 and F-001 all retired 2026-09-25: by `verify.ps1`'s timeout, by `probe_common.settled()`, and by the audio exit wait plus `ScriptErrors` catching leaks — D-072). An entry leaves only by becoming a check |
 
 ### The twelve gates, and what each one is the only thing that can see
 
@@ -109,7 +109,7 @@ look for it and each now carrying the assertion that would have caught it:
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, and the seven differ | 14 measurements |
 | `--probe --rolltest` | the credit roll travels |  |
-| `--doctest` | **the documents still tell the truth** | 194 claims |
+| `--doctest` | **the documents still tell the truth** | 193 claims |
 | `--audiotest` | **the WAVs are what their names claim, and the volume sliders reach a bus** | 254 over 68 files |
 | `--probe --geomtest` | **a model is the size its table says, nothing edible is buried in a solid, and the bird stands ON the ground** | 56 over 15 kinds, 74 pickups |
 | `--probe --loop-test` | seven legs, seven flights and the ending | + the shelf census |
@@ -512,7 +512,10 @@ is overwritten by the Almanac's own `_ready()`.
   helper says why: the compile gate legitimately prints 26 attributed lines, and
   two probes exit with `ERROR: N resources still in use` from a teardown
   ordering issue that is diagnosed and open. See `docs/RECENT_FAILURES.md`
-  F-001, which this half retired.
+  F-001, which this half retired. **The other half closed 2026-09-25 (D-072):**
+  the leak was playbacks the mixer thread had not yet retired, both audio
+  autoloads now stop and wait for it at exit, and `ScriptErrors` matches
+  `resources still in use at exit` as well — so a leak is now a red step.
 - ~~**The failsafe is armed after the first zone has already been built.**~~
   **FIXED, D-049** — `_arm_headless_deadline()` is now the first statement of
   `_ready()`, and `selftest::_the_failsafe_is_first()` asserts the ordering.
@@ -893,9 +896,11 @@ it cannot quietly stop being true:
 step looked, so a harness could raise inside a branch its pass line did not
 depend on, print PASS, exit 0, and be reported green — the same class as a gate
 that cannot fail. One shared `ScriptErrors` helper, and the reason it matches
-`SCRIPT ERROR` rather than a blanket `ERROR:` is written at that helper: two
-known-benign and one known-open stderr condition would otherwise make the build
-permanently red. See `docs/RECENT_FAILURES.md` F-001.
+`SCRIPT ERROR` rather than a blanket `ERROR:` is written at that helper: the
+compile gate's attributed `briefing.gd` lines are benign and would make the
+build permanently red. Since 2026-09-25 it also matches `resources still in use at
+exit` — the audio leak that used to be excused there is fixed (D-072), so
+it is now a failure like any other.
 
 **9. The claims gate** — the only one pointed at this repo's own prose:
 ```

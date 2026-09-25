@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-072 · 2026-09-25 · The audio leak at exit, closed — and a leak is now a red step; F-001 retired
+Status: Decided (agent)
+Decision: `Sfx._exit_tree()` (new) stops every pooled and looping player and then waits `EXIT_MIX_WAIT_MS = 100`; `Music._exit_tree()` stops its stems and waits 60 ms. `verify.ps1`'s `ScriptErrors` matches `resources still in use at exit` as well as `SCRIPT ERROR`, the campaign step goes through the helper instead of its own inline match, and every call site wraps the helper in `@()`. `docs/RECENT_FAILURES.md` is empty.
+Why: `--verbose` named the holders: 17 `AudioStreamWAV`s and 17 `AudioStreamPlaybackWAV`s at refcount 1 — Music's 16 stems and the parking-lot bed — on six of ten gates. `stop()` only marks a playback for deletion; the **mixer thread** frees it a few mix steps later, and at quit there were none, which is why F-001's earlier attempt (stop, no wait) measured exactly 17 again. Stop + 60 ms took `--gate` from 17 to 0 and cleared nine gates of ten; 100 ms in Sfx (which exits after Music) gave **0 leaks in 20 runs of all ten**. Canaried by setting both waits to 0: two `-Quick` runs went red on five and then two steps, each naming the count — the leak is intermittent per gate, so the canary is the whole run, not one step. **The `@()` fix is its own bug:** a single matching line came back as a bare string, and `[0]` on it printed the letter `E`.
+Refs: `scripts/core/sfx.gd::_exit_tree`, `EXIT_MIX_WAIT_MS`; `scripts/core/music.gd::_exit_tree`; `verify.ps1::ScriptErrors` and the campaign step; `docs/RECENT_FAILURES.md`.
+
 ## D-071 · 2026-09-25 · The flock pen's "[G] MAKE … THE DD", pressed — and the keys the docs never listed
 Status: Decided (agent)
 Decision: `inputtest::_designate_test()` stands the goose beside a pen goose and presses **G** as a real key event, then beside another and presses **LB** on a pad, asserting `Flock.designated_driver()` becomes the pen's focused bird each time. The README's control table gains G, J/K and TAB (and "press twice" on R); the pause menu's table gains "Name the DD (at the pen): G / LB" and "Objectives: Tab". 143 checks → 145.

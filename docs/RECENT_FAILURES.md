@@ -49,31 +49,9 @@ a silently dropped entry is a lesson unlearned twice.
 
 ---
 
-### F-001 · 2026-08-18 · Two gates print `ERROR: N resources still in use at exit` and nothing looks
-**Symptom:** `--probe --migtest` exits **0** with `[mig] PASS` and then prints
-`WARNING: 34 ObjectDB instances were leaked at exit` and `ERROR: 17 resources
-still in use at exit` on stderr. `--selftest` does the same intermittently, with
-1 resource. `verify.ps1` reports both steps green.
-**Diagnosis:** pre-existing, and **isolated to HEAD~2 by stashing** — not caused
-by this session's changes, though building extra nodes makes it more likely. The
-17 are `Music`'s 16 bed streams plus `Sfx`'s parking-lot ambience.
-`Music._exit_tree()` exists specifically to release them and **it does run** —
-confirmed with a temporary `print`. So the streams are held past that point by
-something else, most plausibly AudioServer playback objects torn down after the
-leak report. The reason nobody saw it for the life of the project is the reason
-that matters: `verify.ps1` greps each step for its own `^\[tag\]` pass line and
-checks the exit code, and **only step 7 looks for `SCRIPT ERROR`**. A gate can
-print anything it likes on stderr and still be called green.
-**Half retired, 2026-08-18:** every step in `verify.ps1` now fails on
-`SCRIPT ERROR`, through one shared `ScriptErrors` helper, so a harness that
-raises inside a branch its pass line does not depend on can no longer print
-PASS and be believed.
-**Retires when:** the remaining half is closed — the resource leak itself. Two
-things were tried and measured. `Music._exit_tree()` **does run** (confirmed with
-a temporary `print`) and nulls every bed stream, and an equivalent `_exit_tree()`
-added to `sfx.gd` left the count at **exactly 17, `amb_parking_lot.wav`
-included**, so it was reverted rather than shipped as a fix that fixes nothing.
-The holder is therefore not the autoload caches; the remaining candidate is the
-AudioServer's playbacks, torn down after the leak report. Until that is closed,
-gating on `ERROR: N resources still in use` would make the build permanently red
-for a known-open condition, which is how a check gets deleted.
+*Empty since 2026-09-25.* The last entry, F-001 (the audio streams reported
+"still in use at exit"), was retired by stopping every player and giving the
+mixer thread a moment in `Music._exit_tree()` and `Sfx._exit_tree()`, and by
+`verify.ps1`'s `ScriptErrors` now failing any step whose exit reports leaked
+resources. The diagnosis lives in the comment above `sfx.gd::EXIT_MIX_WAIT_MS`;
+the decision is D-072.

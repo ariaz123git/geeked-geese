@@ -397,6 +397,11 @@ func _exit_tree() -> void:
 			s.stream = null
 	_cache.clear()
 	_playing = false
+	# `stop()` only marks a playback for deletion; the mixer thread retires it a
+	# few mix steps later, and at quit there were none before the engine's leak
+	# report — so every stem was reported "still in use" (F-001). The pause is
+	# what lets the mixer run. See `sfx.gd::_exit_tree`, which carries the numbers.
+	OS.delay_msec(60)
 
 
 func _resolve_nodes() -> void:

@@ -51,6 +51,36 @@ func _ready() -> void:
 		_pool_started_at.append(0)
 
 
+## STOP EVERYTHING, THEN GIVE THE AUDIO THREAD A MOMENT. docs/RECENT_FAILURES
+## F-001, closed 2026-09-25: the engine's exit report listed 17 AudioStreamWAVs
+## and 17 AudioStreamPlaybackWAVs "still in use" — Music's sixteen stems and this
+## node's parking-lot bed — each held once, by a playback. `stop()` does not
+## drop a playback; it marks it for deletion, and the MIXER THREAD retires it a
+## few mix steps later. At quit there were no later mix steps before the report,
+## so every playing stream leaked. Stopping here alone had been tried and measured
+## to change nothing, which is exactly what that predicts. Stopping and then
+## pausing 60 ms for the mixer took `--gate` from 17 to 0 and cleared nine of ten
+## gates; the tenth leaked one sound once in eight runs, a sound started in the
+## last frames. 100 ms here bought the margin — 0 leaks in 20 runs of all ten
+## gates — and it covers Music's stems too: a node's children leave the tree
+## last-first, so Sfx (autoload 3) exits after Music (autoload 10). `music.gd`
+## stops and waits for its own stems as well. This is guarded, not trusted:
+## `verify.ps1`'s ScriptErrors fails any gate whose exit reports resources still
+## in use, and setting both waits to 0 fails the run (canaried 2026-09-25).
+const EXIT_MIX_WAIT_MS := 100
+
+func _exit_tree() -> void:
+	for p in _pool:
+		var pp := p as AudioStreamPlayer
+		if pp != null and is_instance_valid(pp):
+			pp.stop()
+	for k in _loops.keys():
+		var lp := _loops[k] as AudioStreamPlayer
+		if lp != null and is_instance_valid(lp):
+			lp.stop()
+	OS.delay_msec(EXIT_MIX_WAIT_MS)
+
+
 ## Create the SFX bus if it is not there, and make `Prefs` re-apply the saved
 ## volume to it. The re-apply is not optional: `Prefs` is autoload #1 and has
 ## already run `_apply_audio()` against a world with no SFX bus in it by the

@@ -92,13 +92,17 @@ function Fail($name, $why) {
 # `SCRIPT ERROR` specifically, NOT a blanket `ERROR:`: the compile gate
 # legitimately prints 26 lines of `ERROR: Parameter "method" is null.` parsing
 # scripts/ui/briefing.gd (bisected, attributed, harmless - tools/gate.gd
-# explains it), and two probes exit with `ERROR: N resources still in use at
-# exit` from an engine teardown ordering issue that is diagnosed but not fixed.
-# Failing on those would make the build permanently red for known-benign and
-# known-open conditions, which is how a check gets deleted. F-001 stays open for
-# exactly that half, with the evidence, rather than being gated prematurely.
+# explains it). Failing on those would make the build permanently red for a
+# known-benign condition, which is how a check gets deleted.
+#
+# AND `resources still in use at exit`, since 2026-09-25. That line was left
+# out on purpose while F-001 was open: six of ten gates printed it on every run
+# (17 audio streams, each held by a playback the mixer thread never got to
+# retire before the leak report). sfx.gd / music.gd now stop every player and
+# give the mixer a moment on the way out; 0 leaks in 20 runs across all ten
+# gates, so the condition is closed and a new leak is a failure.
 function ScriptErrors($out) {
-    return @(($out -split "`r?`n") | Where-Object { $_ -match 'SCRIPT ERROR' })
+    return @(($out -split "`r?`n") | Where-Object { $_ -match 'SCRIPT ERROR|resources still in use at exit' })
 }
 
 # Every PASS line, kept, because step 12 checks them against docs/HANDOFF.md.
@@ -200,8 +204,8 @@ if ($gateCode -ne 0) {
     Fail "compile gate" "exit $gateCode"
 } elseif (-not ($gateLines -match 'PASS')) {
     Fail "compile gate" "no [gate] PASS line - did it run at all?"
-} elseif ((ScriptErrors $gateOut).Count -gt 0) {
-    Fail "compile gate" "SCRIPT ERROR: $((ScriptErrors $gateOut)[0])"
+} elseif (@(ScriptErrors $gateOut).Count -gt 0) {
+    Fail "compile gate" "SCRIPT ERROR: $(@(ScriptErrors $gateOut)[0])"
 } else {
     Pass "compile gate" ($gateLines | Where-Object { $_ -match 'PASS' })
 }
@@ -245,8 +249,8 @@ if ($stCode -ne 0) {
     Fail "invariants" "exit $stCode"
 } elseif (-not ($stLines -match 'PASS')) {
     Fail "invariants" "no [selftest] PASS line"
-} elseif ((ScriptErrors $stOut).Count -gt 0) {
-    Fail "invariants" "SCRIPT ERROR: $((ScriptErrors $stOut)[0])"
+} elseif (@(ScriptErrors $stOut).Count -gt 0) {
+    Fail "invariants" "SCRIPT ERROR: $(@(ScriptErrors $stOut)[0])"
 } else {
     Pass "invariants" ($stLines | Where-Object { $_ -match 'PASS' })
 }
@@ -268,8 +272,8 @@ if ($inCode -ne 0) {
     Fail "controller" "exit $inCode"
 } elseif (-not ($inLines -match 'PASS')) {
     Fail "controller" "no [input] PASS line"
-} elseif ((ScriptErrors $inOut).Count -gt 0) {
-    Fail "controller" "SCRIPT ERROR: $((ScriptErrors $inOut)[0])"
+} elseif (@(ScriptErrors $inOut).Count -gt 0) {
+    Fail "controller" "SCRIPT ERROR: $(@(ScriptErrors $inOut)[0])"
 } else {
     Pass "controller" ($inLines | Where-Object { $_ -match 'PASS' })
 }
@@ -297,8 +301,8 @@ if ($feelCode -ne 0) {
     Fail "feel" "exit $feelCode"
 } elseif (-not ($feelLines -match 'PASS')) {
     Fail "feel" "no [feel] PASS line"
-} elseif ((ScriptErrors $feelOut).Count -gt 0) {
-    Fail "feel" "SCRIPT ERROR: $((ScriptErrors $feelOut)[0])"
+} elseif (@(ScriptErrors $feelOut).Count -gt 0) {
+    Fail "feel" "SCRIPT ERROR: $(@(ScriptErrors $feelOut)[0])"
 } else {
     Pass "feel" ($feelLines | Where-Object { $_ -match 'PASS' })
 }
@@ -329,8 +333,8 @@ if (-not $Quick) {
         Fail "substances" "exit $subCode"
     } elseif (-not ($subLines -match 'PASS')) {
         Fail "substances" "no [subs] PASS line"
-    } elseif ((ScriptErrors $subOut).Count -gt 0) {
-        Fail "substances" "SCRIPT ERROR: $((ScriptErrors $subOut)[0])"
+    } elseif (@(ScriptErrors $subOut).Count -gt 0) {
+        Fail "substances" "SCRIPT ERROR: $(@(ScriptErrors $subOut)[0])"
     } else {
         Pass "substances" ($subLines | Where-Object { $_ -match 'PASS' })
     }
@@ -359,8 +363,8 @@ if (-not $Quick) {
         Fail "flight" "exit $migCode"
     } elseif (-not ($migLines -match 'PASS')) {
         Fail "flight" "no [mig] PASS line"
-    } elseif ((ScriptErrors $migOut).Count -gt 0) {
-        Fail "flight" "SCRIPT ERROR: $((ScriptErrors $migOut)[0])"
+    } elseif (@(ScriptErrors $migOut).Count -gt 0) {
+        Fail "flight" "SCRIPT ERROR: $(@(ScriptErrors $migOut)[0])"
     } else {
         Pass "flight" ($migLines | Where-Object { $_ -match 'PASS' })
     }
@@ -382,8 +386,8 @@ if ($rollCode -ne 0) {
     Fail "credit roll" "exit $rollCode"
 } elseif (-not ($rollLines -match 'PASS')) {
     Fail "credit roll" "no [roll] PASS line"
-} elseif ((ScriptErrors $rollOut).Count -gt 0) {
-    Fail "credit roll" "SCRIPT ERROR: $((ScriptErrors $rollOut)[0])"
+} elseif (@(ScriptErrors $rollOut).Count -gt 0) {
+    Fail "credit roll" "SCRIPT ERROR: $(@(ScriptErrors $rollOut)[0])"
 } else {
     Pass "credit roll" ($rollLines | Where-Object { $_ -match 'measured' })
 }
@@ -409,8 +413,8 @@ if ($docCode -ne 0) {
     Fail "claims" "exit $docCode"
 } elseif ($docOut -notmatch '\[doctest\] PASS') {
     Fail "claims" "no [doctest] PASS line"
-} elseif ((ScriptErrors $docOut).Count -gt 0) {
-    Fail "claims" "SCRIPT ERROR: $((ScriptErrors $docOut)[0])"
+} elseif (@(ScriptErrors $docOut).Count -gt 0) {
+    Fail "claims" "SCRIPT ERROR: $(@(ScriptErrors $docOut)[0])"
 } else {
     Pass "claims" ($docLines | Where-Object { $_ -match 'PASS' })
 }
@@ -434,8 +438,8 @@ if ($audCode -ne 0) {
     Fail "audio" "exit $audCode"
 } elseif ($audOut -notmatch '\[audio\] PASS') {
     Fail "audio" "no [audio] PASS line"
-} elseif ((ScriptErrors $audOut).Count -gt 0) {
-    Fail "audio" "SCRIPT ERROR: $((ScriptErrors $audOut)[0])"
+} elseif (@(ScriptErrors $audOut).Count -gt 0) {
+    Fail "audio" "SCRIPT ERROR: $(@(ScriptErrors $audOut)[0])"
 } else {
     Pass "audio" ($audLines | Where-Object { $_ -match 'PASS' })
 }
@@ -460,8 +464,8 @@ if ($geoCode -ne 0) {
     Fail "footprints" "exit $geoCode"
 } elseif ($geoOut -notmatch '\[geom\] PASS') {
     Fail "footprints" "no [geom] PASS line"
-} elseif ((ScriptErrors $geoOut).Count -gt 0) {
-    Fail "footprints" "SCRIPT ERROR: $((ScriptErrors $geoOut)[0])"
+} elseif (@(ScriptErrors $geoOut).Count -gt 0) {
+    Fail "footprints" "SCRIPT ERROR: $(@(ScriptErrors $geoOut)[0])"
 } else {
     Pass "footprints" ($geoLines | Where-Object { $_ -match 'PASS' })
 }
@@ -482,8 +486,8 @@ if (-not $Quick) {
         Fail "full campaign" "exit $loopCode"
     } elseif ($loopOut -notmatch '\[run\] COMPLETE') {
         Fail "full campaign" "never reached [run] COMPLETE - the route stops somewhere"
-    } elseif ($loopOut -match 'SCRIPT ERROR') {
-        Fail "full campaign" "SCRIPT ERROR during the run"
+    } elseif (@(ScriptErrors $loopOut).Count -gt 0) {
+        Fail "full campaign" "during the run: $(@(ScriptErrors $loopOut)[0])"
     } else {
         $survivors = ($loopOut -split "`r?`n") | Where-Object { $_ -match '\[run\] COMPLETE' }
         Pass "full campaign" $survivors
