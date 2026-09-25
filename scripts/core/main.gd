@@ -982,6 +982,54 @@ func _roll_honk() -> bool:
 	if roll_after < 0.0:
 		printerr("[roll] FAIL — the credits did not start after the honk. They are the answer to it; without one they wait 42 s.")
 		return false
+
+	# "You can honk them over" — and "THEY DO NOT AWARD CHAOS". A slab spawned
+	# for this, the goose stood beside it, H pressed as a key.
+	var before_n := fin.get_child_count()
+	fin.call("_spawn_credit", "HONK TEST SLAB")
+	var slab2: RigidBody3D = null
+	for j in range(fin.get_child_count() - 1, before_n - 1, -1):
+		var c2 := fin.get_child(j)
+		if c2 is RigidBody3D:
+			slab2 = c2 as RigidBody3D
+			break
+	if slab2 == null:
+		printerr("[roll] FAIL — no slab spawned for the honk test")
+		return false
+	for _i5 in 20:
+		await get_tree().physics_frame
+	var g3 := goose as Node3D
+	g3.global_position = slab2.global_position + Vector3(2.0, -0.4, 0.0)
+	for _i6 in 6:
+		await get_tree().physics_frame
+	var chaos0: int = Game.chaos
+	var combo0: int = Game.combo
+	var down2 := InputEventKey.new()
+	down2.keycode = KEY_H
+	down2.physical_keycode = KEY_H
+	down2.pressed = true
+	Input.parse_input_event(down2)
+	await get_tree().process_frame
+	var up2 := InputEventKey.new()
+	up2.keycode = KEY_H
+	up2.physical_keycode = KEY_H
+	up2.pressed = false
+	Input.parse_input_event(up2)
+	for _i7 in 6:
+		await get_tree().physics_frame
+	var knocked: bool = not bool(slab2.get("driving"))
+	print("[roll] slab: honked from %.1f m -> released=%s, chaos %d -> %d, combo %d -> %d"
+		% [g3.global_position.distance_to(slab2.global_position), knocked,
+			chaos0, Game.chaos, combo0, Game.combo])
+	# ARMED after one report-only run, which is D-079: the slab was knocked
+	# loose as promised and the honk scored 0 -> 20 for it.
+	if not knocked:
+		printerr("[roll] FAIL — a honk from 2 m did not knock the credit slab loose. \"You can honk them over.\"")
+		return false
+	if Game.chaos != chaos0 or Game.combo != combo0:
+		printerr("[roll] FAIL — honking a credit slab scored: chaos %d -> %d, combo %d -> %d. The ending has no score (zone_finale.gd::_take_over, Game.scoring)."
+			% [chaos0, Game.chaos, combo0, Game.combo])
+		return false
 	return true
 
 

@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-079 · 2026-09-25 · Honking a credit slab scored, on the one screen with no score
+Status: Decided (agent)
+Decision: `Game` gains `scoring` (true by default; `new_run()` and `start_zone()` set it true) and `score()` returns at once while it is false. `zone_finale.gd::_take_over()` — documented as *"Everything the ending has to switch OFF, in one place"* — sets it false beside the clock. `main.gd::_roll_honk()` spawns a credit slab once the credits are rolling, stands the goose 2 m from it, presses **H**, and fails unless the slab is knocked loose and neither `Game.chaos` nor `Game.combo` moves.
+Why: The ending's spec is *"No clock. No HUD. No score."*; `zone_finale.gd` says *"THEY DO NOT AWARD CHAOS"* of its slabs and that *"a '+240' floating over your own roster would undo the entire ending for the price of one line nobody removed."* It built every prop worth 0 and overrode the slab's own scoring — and `honk.gd::_shove()` calls `Game.score(10 × hits, "HONK", …)` for whatever it shoves, whatever the prop is worth. Measured report-only: honking a slab from 2.1 m knocked it loose, as promised, **and scored 0 → 20** with a combo, which is a "+20" floating over the goose. After: knocked loose, **0 → 0**. A switch in `Game` rather than a guard in the honk, because the honk was only the path found first — a prop's break also calls `Game.score()`, with 0 points, which still bumps the combo. The run's total is fixed at `_take_over()`, and `_compose_credits()` runs after it, so the number the credits print is the number the run earned. Canaried by removing the line from `_take_over()`: *"honking a credit slab scored: chaos 0 -> 10"*.
+Refs: `scripts/core/game.gd::scoring`, `::score`, `::start_zone`, `::new_run`; `scripts/world/zone_finale.gd::_take_over`; `scripts/goose/honk.gd::_shove`; `scripts/core/main.gd::_roll_honk`.
+
 ## D-078 · 2026-09-25 · The Almanac, walked — it works, and it had only ever been opened
 Status: Decided (agent)
 Decision: `inputtest::_almanac_nav()` runs inside the ALMANAC row of the menu-button section, on an Almanac opened by a real click from the pause menu: Down (a key), down on the D-pad, Up, and a click on a row, each asserted to move the selection where it should. Three entries are lent to `Unlocks` for the walk and taken back after, because a hermetic run has discovered almost nothing. 150 checks → 154.

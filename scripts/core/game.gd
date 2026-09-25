@@ -40,6 +40,15 @@ var combo: int = 0
 var combo_timer: float = 0.0
 var zone_time_left: float = 180.0
 var zone_running := false
+## FALSE ON THE 18TH GREEN, AND NOWHERE ELSE. The ending's spec is "No clock.
+## No HUD. No score." `zone_finale.gd::_take_over()` switched off the first two,
+## and built every prop worth 0 for the third — but the honk scores `10 × hits`
+## for whatever it shoves, whatever the prop is worth, so honking a credit slab,
+## which the ending invites, floated "+20" over the goose on the one screen the
+## spec says has no numbers (D-079). A switch here rather than a guard in the
+## honk, because the honk is only the path that was found first. `new_run()`
+## and `start_zone()` turn it back on.
+var scoring := true
 
 
 func _ready() -> void:
@@ -149,6 +158,7 @@ func set_phase(p: int) -> void:
 func start_zone(seconds: float = 180.0) -> void:
 	zone_time_left = seconds
 	zone_running = true
+	scoring = true
 	leg_chaos = 0
 	Subs.reset_for_new_leg()
 	# Next to the substance reset, and for the same reason: a hitstop or a pop
@@ -165,6 +175,8 @@ func start_zone(seconds: float = 180.0) -> void:
 ## untouched, and any site that happens to know where the thing happened opts in
 ## by passing one extra argument.
 func score(base: int, label: String = "", at := Vector3.INF) -> void:
+	if not scoring:
+		return
 	combo += 1
 	combo_timer = 3.0
 	var mult: float = Subs.mods.get("chaos_mult", 1.0) * (1.0 + 0.12 * float(combo - 1))
@@ -221,6 +233,7 @@ func new_run(seconds: float = 180.0) -> void:
 	chaos = 0
 	leg_chaos = 0
 	combo = 0
+	scoring = true
 	Flock.leg = 1
 	Flock.new_flock(6)
 	Subs.tolerance.clear()

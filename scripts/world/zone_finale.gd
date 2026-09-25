@@ -213,6 +213,11 @@ func _take_over() -> void:
 	# fires Phase.MIGRATION under the credits.
 	Game.zone_running = false
 	Game.zone_time_left = 0.0
+	# The score. Every prop here is built worth 0, and that was not enough: the
+	# honk scores for what it shoves whatever the prop is worth, and honking a
+	# credit slab floated "+20" over the goose (D-079). From here the run's
+	# total is fixed, and it is the number `_compose_credits()` prints.
+	Game.scoring = false
 	Engine.time_scale = 1.0
 	# Whatever the player was on when they landed. The epilogue is sober: the
 	# uber-shader lives on the HUD we are about to hide, so a substance still

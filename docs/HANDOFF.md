@@ -108,7 +108,7 @@ look for it and each now carrying the assertion that would have caught it:
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, the seven differ, **and Q hands off the lead — and flying the V is scored as holding your slot** | 22 measurements |
-| `--probe --rolltest` | the credit roll travels, **and H on the 18th green honks the goose, answers with the whole course, and starts the credits** |  |
+| `--probe --rolltest` | the credit roll travels, **and H on the 18th green honks the goose, answers with the whole course, and starts the credits — and a honked slab falls over and scores nothing** |  |
 | `--doctest` | **the documents still tell the truth** | 193 claims |
 | `--audiotest` | **the WAVs are what their names claim, the volume sliders reach a bus, and quitting mid-sound leaks nothing** | 255 over 68 files |
 | `--probe --geomtest` | **a model is the size its table says, nothing edible is buried in a solid, and the bird stands ON the ground** | 56 over 15 kinds, 74 pickups |
