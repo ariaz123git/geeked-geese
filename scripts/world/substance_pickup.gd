@@ -35,6 +35,10 @@ const ANIM_STYLES := {
 	&"bars": &"bob",
 	&"percs": &"bob",
 	&"acid": &"bob",
+	# `sway`, not the default `bob`: bob assigns the model's height outright and
+	# drops the 0.15 m lift, and bread is placed at VERGE_Y - PICKUP_LIFT for a
+	# model that keeps it — under bob the slice would stand 14 cm in the verge.
+	&"bread": &"sway",
 }
 
 

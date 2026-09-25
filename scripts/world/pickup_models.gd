@@ -32,7 +32,7 @@ const _KNOWN_IDS: Array[StringName] = [
 	&"berries", &"double_double", &"nitrous", &"math", &"grass",
 	&"special_k", &"robo", &"molly", &"darts", &"catnip",
 	&"toad_slime", &"fly_agaric", &"gravy", &"bars", &"percs",
-	&"acid",
+	&"acid", &"bread",
 ]
 
 ## True if [param id] has a dedicated model (otherwise build() falls back to
@@ -80,6 +80,8 @@ static func build(id: StringName, parent: Node3D) -> Node3D:
 			_build_percs(model)
 		&"acid":
 			_build_acid(model)
+		&"bread":
+			_build_bread(model)
 		_:
 			_build_fallback(model)
 	return model
@@ -633,6 +635,48 @@ static func _build_acid(m: Node3D) -> void:
 
 ## Fallback for an unrecognised id: a small glowing sphere so nothing in the
 ## world is ever invisible.
+# ---------------------------------------------------------------------------
+# 17. bread
+# ---------------------------------------------------------------------------
+
+## A slice of white bread, standing on its crust and leaning back — the HUD
+## icon (`gen_textures.py::icon_bread`) in three dimensions: the same crumb and
+## crust, the rim round the face, and the dome that "makes it read as bread and
+## not a card". Deliberately the plainest pickup on the shelf, as the icon is.
+##
+## BREAD WAS BUILT WITH NO MODEL AT ALL. It fell through to `_build_fallback`,
+## a glowing grey sphere, so leg 1's "obvious food" — the trap the whole of
+## CAMPAIGN_SPEC §2.1 hangs on — was the one thing in the leg a player could
+## not recognise on sight, in a game whose one ask of them is to recognise a
+## substance before eating it. `tools/geomtest.gd` pass 2 had written it down
+## as "bread's visible blob"; nobody had drawn the bread. D-069.
+static func _build_bread(m: Node3D) -> void:
+	var crust := _mat(Color(0.69, 0.52, 0.29), 0.85)
+	# Darker than the icon's crumb and with no emission, on purpose: the pickup's
+	# own glow light washed the icon's exact colour out to white in the first two
+	# renders, and the icon is BEIGE. This is the colour that survives the light.
+	var crumb := _mat(Color(0.80, 0.68, 0.46), 0.9)
+	var hole := _mat(Color(0.85, 0.77, 0.61), 0.9)
+	var slice := Node3D.new()
+	m.add_child(slice)
+	# Leaning back, turned a little off square, as a dropped slice lands.
+	slice.rotation = Vector3(deg_to_rad(-14.0), deg_to_rad(18.0), 0.0)
+	# The body: crust behind, crumb proud of it on both faces.
+	_mi(slice, _box(Vector3(0.32, 0.25, 0.05)), crust, Vector3(0.0, 0.135, 0.0))
+	_mi(slice, _box(Vector3(0.27, 0.22, 0.058)), crumb, Vector3(0.0, 0.14, 0.0))
+	# The dome, as the icon draws it: a crust disc and a smaller crumb disc,
+	# axis through the thickness of the slice.
+	var up := Vector3(PI * 0.5, 0.0, 0.0)
+	_mi(slice, _cyl(0.16, 0.16, 0.05), crust, Vector3(0.0, 0.27, 0.0), up)
+	_mi(slice, _cyl(0.135, 0.135, 0.058), crumb, Vector3(0.0, 0.27, 0.0), up)
+	# Crumb holes on the front face, the icon's three.
+	for h in [[Vector3(-0.05, 0.16, 0.03), 0.022], [Vector3(0.05, 0.1, 0.03), 0.017],
+			[Vector3(0.0, 0.3, 0.03), 0.014]]:
+		var at: Vector3 = h[0]
+		var r: float = h[1]
+		_mi(slice, _cyl(r, r, 0.004), hole, at, up)
+
+
 static func _build_fallback(m: Node3D) -> void:
 	var mat := _mat(Color(0.8, 0.8, 0.9), 0.5, 0.5)
 	_mi(m, _sphere(0.18), mat, Vector3(0.0, 0.18, 0.0))
