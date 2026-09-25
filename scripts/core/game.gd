@@ -27,6 +27,10 @@ const ACTIONS := {
 	"gg_skip": [KEY_ENTER, KEY_KP_ENTER],
 	"gg_cam_left": [KEY_J],
 	"gg_cam_right": [KEY_K],
+	# Pad only — the right stick's vertical. The keyboard looks up and down
+	# with the mouse; see the right-stick block in _setup_input().
+	"gg_cam_up": [],
+	"gg_cam_down": [],
 }
 
 var phase: int = Phase.ZONE
@@ -78,6 +82,17 @@ func _setup_input() -> void:
 	_pad("ui_cancel", JOY_BUTTON_START)
 	_pad("ui_accept", JOY_BUTTON_A)
 	_pad("gg_skip", JOY_BUTTON_A)
+
+	# THE CAMERA, ON A PAD — which had none. The README's gamepad scheme gave the
+	# right stick nothing, so a pad player could not look around at all: J / K
+	# and the mouse were the only ways to turn the view. The right stick drives
+	# the same actions J and K do (`goose_camera.gd` reads their strength, so the
+	# stick is analog for free) plus a vertical pair the keyboard never needed.
+	# D-077. `tools/inputtest.gd` pushes the stick through `parse_input_event`.
+	_axis("gg_cam_left", JOY_AXIS_RIGHT_X, -1.0)
+	_axis("gg_cam_right", JOY_AXIS_RIGHT_X, 1.0)
+	_axis("gg_cam_up", JOY_AXIS_RIGHT_Y, -1.0)
+	_axis("gg_cam_down", JOY_AXIS_RIGHT_Y, 1.0)
 
 
 func _pad(action: String, button: int) -> void:

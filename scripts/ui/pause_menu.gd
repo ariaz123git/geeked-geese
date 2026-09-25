@@ -31,11 +31,11 @@ const CONTROLS := {
 	"Eat / dose (hold)": "E / X",
 	"Share": "Q / Y",
 	"Name the DD (at the pen)": "G / LB",
-	"Objectives": "Tab",
+	"Objectives": "Tab / Back",
 	"Restart": "R",
 	"Skip / continue": "Enter / A",
 	"Pause": "Esc / Start",
-	"Camera": "J / K",
+	"Camera": "J / K / Right Stick",
 }
 
 var _prefs = null  # Node, /root/Prefs

@@ -25,6 +25,11 @@ extends Node3D
 const AUTO_RESUME_DELAY := 2.5
 const PITCH_MIN := deg_to_rad(-72.0)
 const PITCH_MAX := deg_to_rad(38.0)
+## Radians a second at full right-stick deflection, up or down. Two thirds of
+## the 2.4 the stick and J / K turn at, because the pitch range (110°) is a
+## third of a turn and the whole of it in about 1.2 s is plenty. Decided
+## without playing it (D-077); one number to revert.
+const PAD_PITCH_RATE := 1.6
 const ZOOM_MIN := 2.2
 const ZOOM_MAX := 16.0
 
@@ -193,10 +198,17 @@ func _process(delta: float) -> void:
 		var travel := atan2(-flat.x, -flat.y)
 		_yaw = lerp_angle(_yaw, travel, clampf(yaw_lag * delta, 0.0, 1.0))
 
-	# Keyboard nudge still works for anyone not using a mouse.
+	# Keyboard nudge still works for anyone not using a mouse — and the right
+	# stick's horizontal is bound to the same two actions, analog (D-077).
 	var kb := Input.get_action_strength("gg_cam_right") - Input.get_action_strength("gg_cam_left")
 	if absf(kb) > 0.01:
 		_yaw -= kb * delta * 2.4
+		_manual_t = AUTO_RESUME_DELAY
+	# The right stick's vertical: the mouse's pitch, for a pad. Same sign as
+	# the mouse (stick down looks down) and the same Invert Y pref.
+	var kp := Input.get_action_strength("gg_cam_down") - Input.get_action_strength("gg_cam_up")
+	if absf(kp) > 0.01:
+		_pitch = clampf(_pitch + (kp if _invert else -kp) * delta * PAD_PITCH_RATE, PITCH_MIN, PITCH_MAX)
 		_manual_t = AUTO_RESUME_DELAY
 
 	rotation.y = _yaw

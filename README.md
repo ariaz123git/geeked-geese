@@ -37,9 +37,10 @@ by anyone, because nobody has played it yet.
 | **R** | restart run (press twice) |
 | **ENTER** | continue past the migration results |
 
-Gamepad: left stick move, A flap, B honk, X eat, Y share, RB dive, LB name the
-designated driver at the flock pen. **Start** pauses; in menus the D-pad moves
-and **A** presses, and A also continues past every results card.
+Gamepad: left stick move, **right stick camera** (Invert Y applies), A flap,
+B honk, X eat, Y share, RB dive, LB name the designated driver at the flock pen,
+**Back** objectives. **Start** pauses; in menus the D-pad moves and **A** presses,
+and A also continues past every results card.
 
 The mouse is captured on launch. **Escape** releases it; clicking the window
 grabs it back.

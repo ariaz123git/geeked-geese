@@ -259,7 +259,8 @@ static func _pause_menu_test(tree: SceneTree, main: Node) -> void:
 ## prompt false -> true every time, and J moved the camera yaw 0.331 rad in 20
 ## frames. All three are real, so all three are checks now.
 ##
-## TAB is not in the README control list, which is its own small finding.
+## TAB was missing from the README control list, which was its own small
+## finding; D-071 added it.
 static func _ui_sweep_report(tree: SceneTree, main: Node, goose: CharacterBody3D) -> void:
 	_release_all()
 	var was_paused: bool = tree.paused
@@ -292,6 +293,18 @@ static func _ui_sweep_report(tree: SceneTree, main: Node, goose: CharacterBody3D
 			+ "registered at runtime in mission_hud.gd::_ensure_action(), and it is handled "
 			+ "in `_unhandled_input`, so anything that consumes the event first kills it.")
 				% [str(seen[0]), str(seen[1])])
+
+		# BACK on a pad — the same toggle, which a pad did not have (D-077). The
+		# same full lap, pressed as a pad button.
+		var seen_pad: Array = [int(mh.get("mode"))]
+		for _i in 3:
+			await _pad(tree, JOY_BUTTON_BACK)
+			seen_pad.append(int(mh.get("mode")))
+		print("[input] sweep: pad Back x3 -> mission_hud mode %s" % str(seen_pad))
+		_ok(int(seen_pad[0]) != int(seen_pad[1]) and int(seen_pad[0]) == int(seen_pad[3]),
+			("pad Back three times took mission_hud through %s. It should cycle the objectives "
+			+ "like TAB — one lap, every press moving. mission_hud.gd::_ensure_action() binds it.")
+				% str(seen_pad))
 
 	# R — one press must ARM the confirmation and change nothing else. The
 	# second press inside the window throws the run away, so it is not sent
@@ -331,12 +344,67 @@ static func _ui_sweep_report(tree: SceneTree, main: Node, goose: CharacterBody3D
 			% [y0, y1, absf(y1 - y0)])
 		# 0.05 rad is a floor, not a target: the measured move is 0.331 over 20
 		# frames and the only failure worth catching is "the key does nothing".
-		# J and K are in the ACTIONS table and are NOT in the README's control
-		# list, so a player finds them by accident or not at all.
+		# (J and K were missing from the README's control list until D-071.)
 		_ok(absf(y1 - y0) > 0.05,
 			("holding J for 20 frames moved the camera yaw %.3f rad. gg_cam_left is bound to "
 			+ "KEY_J in Game.ACTIONS; if this is zero the orbit keys are dead.")
 				% absf(y1 - y0))
+
+		# THE RIGHT STICK (D-077), pushed the way a pad pushes it. Left must turn
+		# the view the way J does; up must look up, as the mouse does; and Invert
+		# Y — set through the pref, not the camera's field — must flip it.
+		var y2: float = float(cam.call("get_yaw"))
+		await _stick(tree, JOY_AXIS_RIGHT_X, -1.0, 20)
+		var y3: float = float(cam.call("get_yaw"))
+		var p0: float = float(cam.get("_pitch"))
+		await _stick(tree, JOY_AXIS_RIGHT_Y, -1.0, 20)
+		var p1: float = float(cam.get("_pitch"))
+		var prefs: Node = main.get_node_or_null("/root/Prefs")
+		var inv_was: bool = bool(prefs.call("get_pref", &"invert_y", false))
+		prefs.call("set_pref", &"invert_y", not inv_was)
+		await tree.process_frame
+		await _stick(tree, JOY_AXIS_RIGHT_Y, -1.0, 20)
+		var p2: float = float(cam.get("_pitch"))
+		prefs.call("set_pref", &"invert_y", inv_was)
+		print("[input] sweep: right stick left 20 frames -> yaw moved %.3f (J moved %.3f); up -> pitch %.3f -> %.3f; up with Invert Y flipped -> %.3f"
+			% [y3 - y2, y1 - y0, p0, p1, p2])
+		_ok(absf(y3 - y2) > 0.05 and signf(y3 - y2) == signf(y1 - y0),
+			("the right stick pushed left moved the camera yaw %.3f rad, against J's %.3f. A pad had "
+			+ "no camera until D-077: Game._setup_input() binds JOY_AXIS_RIGHT_X to gg_cam_left/right.")
+				% [y3 - y2, y1 - y0])
+		var looked: float = (p1 - p0) if not inv_was else (p0 - p1)
+		_ok(looked > 0.05,
+			("the right stick pushed up moved the camera pitch %.3f -> %.3f with Invert Y %s. Up must "
+			+ "look up, as the mouse does (goose_camera.gd, the gg_cam_up/down block).")
+				% [p0, p1, "on" if inv_was else "off"])
+		_ok(signf(p2 - p1) == -signf(p1 - p0) and absf(p2 - p1) > 0.05,
+			("flipping Invert Y did not flip the right stick: up moved pitch %.3f, then %.3f. The "
+			+ "pref is labelled Invert Y, not invert mouse.") % [p1 - p0, p2 - p1])
+
+		# THE LEFT STICK. "Gamepad: left stick move" is the first thing the README
+		# says about a pad, and no harness had ever moved it (D-077).
+		if goose != null and is_instance_valid(goose):
+			var push := InputEventJoypadMotion.new()
+			push.device = 0
+			push.axis = JOY_AXIS_LEFT_Y
+			push.axis_value = -1.0
+			Input.parse_input_event(push)
+			for _i in 20:
+				await tree.physics_frame
+			var v: Vector3 = goose.velocity
+			var flat := Vector2(v.x, v.z).length()
+			var centre := InputEventJoypadMotion.new()
+			centre.device = 0
+			centre.axis = JOY_AXIS_LEFT_Y
+			centre.axis_value = 0.0
+			Input.parse_input_event(centre)
+			for _i in 6:
+				await tree.physics_frame
+			print("[input] sweep: left stick forward 20 physics frames -> goose ground speed %.2f m/s" % flat)
+			_ok(flat > 1.0,
+				("the left stick pushed forward for 20 physics frames left the goose at %.2f m/s. "
+				+ "Game._setup_input() binds JOY_AXIS_LEFT_Y to gg_forward; this is a pad that cannot walk.")
+					% flat)
 
 	tree.paused = was_paused
 	_release_all()
@@ -1238,6 +1306,26 @@ static func _find_button(root: Node, label: String) -> Button:
 		if btn != null and btn.text.to_upper() == label.to_upper():
 			return btn
 	return null
+
+## A stick pushed and held for `frames` process frames, then centred — an
+## `InputEventJoypadMotion` through `parse_input_event`, the way a pad sends it.
+## Until D-077 no harness here had ever moved a stick, left or right.
+static func _stick(tree: SceneTree, axis: JoyAxis, value: float, frames: int) -> void:
+	var ev := InputEventJoypadMotion.new()
+	ev.device = 0
+	ev.axis = axis
+	ev.axis_value = value
+	Input.parse_input_event(ev)
+	for _i in frames:
+		await tree.process_frame
+	var centre := InputEventJoypadMotion.new()
+	centre.device = 0
+	centre.axis = axis
+	centre.axis_value = 0.0
+	Input.parse_input_event(centre)
+	for _i2 in 3:
+		await tree.process_frame
+
 
 ## One press-and-release of an action, through the viewport.
 static func _press(tree: SceneTree, action: String) -> void:

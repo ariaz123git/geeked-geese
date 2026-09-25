@@ -122,6 +122,12 @@ func _ensure_action() -> void:
 	var ev := InputEventKey.new()
 	ev.physical_keycode = KEY_TAB
 	InputMap.action_add_event("gg_objectives", ev)
+	# And Back / View / Select on a pad, where pad games keep the map. Bound
+	# here, not in `Game._setup_input()`, because this action does not exist yet
+	# when Game binds its pad buttons (D-077).
+	var pad := InputEventJoypadButton.new()
+	pad.button_index = JOY_BUTTON_BACK
+	InputMap.action_add_event("gg_objectives", pad)
 
 
 func _wire() -> void:

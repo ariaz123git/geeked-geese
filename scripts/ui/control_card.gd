@@ -208,11 +208,15 @@ class RefPanel extends Control:
 				HORIZONTAL_ALIGNMENT_LEFT, inner - 30.0, 14, -1, Color(0.90, 0.92, 0.97))
 		y += box_h
 
+		# The pad line has its own row since the right stick and Back joined it
+		# (D-077): sharing one with the right-aligned close hint, it ran into it.
 		y += 16.0
 		if do_draw:
 			draw_string(f, Vector2(PAD, y + f.get_ascent(13)),
-				"Gamepad:  stick move · A flap/climb · RB dive/drop · B honk · X eat · Y share/hand off · Start pause",
+				"Gamepad:  L stick move · R stick camera · A flap/climb · RB dive/drop · B honk · X eat · Y share/hand off · Back objectives · Start pause",
 				HORIZONTAL_ALIGNMENT_LEFT, inner, 13, Color(0.55, 0.58, 0.66))
+		y += f.get_ascent(13) + f.get_descent(13) + 8.0
+		if do_draw:
 			draw_string(f, Vector2(PAD, y + f.get_ascent(13)), "ESC · START to close",
 				HORIZONTAL_ALIGNMENT_RIGHT, inner, 13, Color(0.75, 0.78, 0.85))
 		y += f.get_ascent(13) + f.get_descent(13)
