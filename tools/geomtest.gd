@@ -157,7 +157,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_modelless = 0
 	_zone_tally.clear()
 	_stance.clear()
-	await tree.process_frame
+	await COMMON.settled(tree)   # probe_common lesson 10
 
 	var route: Array = main.get_script().get_script_constant_map().get("ROUTE", [])
 	if route.is_empty():

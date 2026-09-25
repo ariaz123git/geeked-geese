@@ -48,6 +48,7 @@ extends RefCounted
 ## never leaves the tree, answered for the zone under test.
 
 const GEOM := preload("res://tools/geomtest.gd")
+const COMMON := preload("res://tools/probe_common.gd")
 
 ## "Near the spawn" for the summary count. Leg 1's lot is about 80 m across and
 ## `waddle_speed` is 4.2 m/s, so 25 m is six seconds of walking.
@@ -55,9 +56,9 @@ const NEAR := 25.0
 
 
 static func run(tree: SceneTree, main: Node) -> void:
-	# A frame first: `run()` is reached from main._ready(), and the scene root
-	# refuses add_child() until it has finished setting up (RECENT_FAILURES F-003).
-	await tree.process_frame
+	# probe_common lesson 10: `run()` is reached from main._ready(), where the
+	# scene root refuses add_child() silently and hands back an empty node.
+	await COMMON.settled(tree)
 	var route: Array = main.get_script().get_script_constant_map().get("ROUTE", [])
 	if route.is_empty():
 		print("[find] FAIL — could not read main.gd's ROUTE")

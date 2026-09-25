@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-070 · 2026-09-25 · Every harness that builds settles first; F-003 retired
+Status: Decided (agent)
+Decision: `probe_common.gd` gains `settled(tree)` and lesson 10; `geomtest`, `glidetest`, `findtest` and `migtest` — every tool whose code calls `add_child()` — make it the first thing `run()` awaits; `selftest::_the_harnesses_settle()` checks exactly that by reading `res://tools`. F-003 leaves `docs/RECENT_FAILURES.md` in the same commit, which leaves one entry (F-001). 954 invariants → 960.
+Why: F-003's own "Retires when" named this artefact: a shared helper every harness calls before constructing anything, the reason in its docstring, the lesson in the trap list. A harness starts inside `main._ready()`, where `add_child()` fails silently and returns an empty node, and each constructing tool had been working round it by hand with a bare frame await. **The check's first two runs accused `selftest.gd` itself** — once over the string literal `"add_child("` in the check, once over its own error messages — so string literals are stripped before looking. Canaried by putting geomtest back on a bare frame await: exactly one failure, naming geomtest.
+Refs: `tools/probe_common.gd::settled` (lesson 10); `tools/selftest.gd::_the_harnesses_settle`; `tools/geomtest.gd`, `glidetest.gd`, `findtest.gd`, `migtest.gd` `run()`; `docs/RECENT_FAILURES.md`.
+
 ## D-069 · 2026-09-25 · Bread has a model — it was a grey sphere
 Status: Decided (agent) — the look is mine, made to match the existing icon, and revertible
 Decision: `pickup_models.gd::_build_bread()` builds a slice of white bread standing on its crust and leaning back: crust body and dome with a crumb face proud of them on both sides and the icon's crumb holes, in the primitive style of the other fourteen primitive pickups. `substance_pickup.gd` idles it with `sway`, which keeps the 0.15 m lift its placement at `VERGE_Y - PICKUP_LIFT` assumes.

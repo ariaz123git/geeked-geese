@@ -69,6 +69,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_layers()
 	_the_itemisation(main)
 	_the_failsafe_is_first()
+	_the_harnesses_settle()
 	_the_hitstops()
 	_the_primitives_are_closed()
 	_the_control_keys()
@@ -1094,6 +1095,62 @@ static func _the_itemisation(main: Node) -> void:
 ## it at runtime means hanging the build on purpose and waiting for the timer,
 ## which is a check nobody would keep. This is the same idiom as
 ## `_the_hitstops()` — read the file, assert the shape.
+## EVERY HARNESS THAT BUILDS ANYTHING SETTLES FIRST (probe_common lesson 10;
+## retired RECENT_FAILURES F-003). A tool is called from `main._ready()`, where
+## `add_child()` fails silently and returns an empty node — a shelf check once
+## counted zero pickups on both legs that way and accused a correct filter. So
+## any tool whose CODE (not its comments) calls `add_child(` must make its first
+## `await` in `run()` the shared `settled(tree)`.
+static func _the_harnesses_settle() -> void:
+	var dir := DirAccess.open("res://tools")
+	_ok(dir != null, "res://tools is unreadable, so harness settling cannot be checked")
+	if dir == null:
+		return
+	var builders := 0
+	var strings := RegEx.new()
+	strings.compile("\"[^\"]*\"")
+	for fname in dir.get_files():
+		if not fname.ends_with(".gd"):
+			continue
+		var fh := FileAccess.open("res://tools/" + fname, FileAccess.READ)
+		if fh == null:
+			continue
+		var tool_lines := fh.get_as_text().split("\n")
+		var builds := false
+		var first_await := ""
+		var in_run := false
+		for raw in tool_lines:
+			var line: String = raw.strip_edges()
+			if line.begins_with("#"):
+				continue
+			# A CALL, not the name inside a string: the first two runs of this
+			# check accused selftest.gd itself, over the literal on this line and
+			# over its own messages. String literals are stripped before looking.
+			if strings.sub(line, "", true).contains("add_child("):
+				builds = true
+			if raw.begins_with("static func ") or raw.begins_with("func "):
+				in_run = line.begins_with("static func run(")
+				continue
+			if in_run and first_await == "" and line.contains("await "):
+				first_await = line
+		if not builds:
+			continue
+		var has_run := false
+		for raw2 in tool_lines:
+			if raw2.begins_with("static func run("):
+				has_run = true
+				break
+		if not has_run:
+			continue
+		builders += 1
+		_ok(first_await.contains("settled("),
+			("tools/%s builds nodes, and the first thing its run() awaits is `%s`, not "
+			+ "`COMMON.settled(tree)`. A harness starts inside main._ready(), where add_child() "
+			+ "fails silently and hands back an empty node (probe_common lesson 10).")
+				% [fname, first_await if first_await != "" else "nothing"])
+	_ok(builders > 0, "no tool in res://tools calls add_child() — the settling check has gone blind")
+
+
 static func _the_failsafe_is_first() -> void:
 	var handle := FileAccess.open("res://scripts/core/main.gd", FileAccess.READ)
 	var src := handle.get_as_text() if handle != null else ""

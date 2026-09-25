@@ -77,18 +77,3 @@ The holder is therefore not the autoload caches; the remaining candidate is the
 AudioServer's playbacks, torn down after the leak report. Until that is closed,
 gating on `ERROR: N resources still in use` would make the build permanently red
 for a known-open condition, which is how a check gets deleted.
-
-### F-003 · 2026-08-18 · `add_child()` during `main._ready()` fails silently and hands back an empty node
-**Symptom:** the first version of the leg-1 shelf check built the strip mall at
-leg 1 and leg 2 and counted **zero** pickups in both, and reported a correct
-filter as broken on both legs.
-**Diagnosis:** `tools/selftest.gd::run()` is called from `main._ready()`, so the
-scene root is still "busy setting up children". `add_child()` on it prints a
-non-fatal engine error and **does nothing**; the node is returned, it is empty,
-and every count taken from it is zero. The failure mode is the dangerous one —
-the harness accuses the game, exactly as `probe_common.gd`'s header warns, and
-the accusation is specific and plausible. Awaiting one frame fixes it, and then
-exposes F-001.
-**Retires when:** `tools/probe_common.gd` grows a `settled(tree)` helper that
-every harness calls before it constructs anything, with the reason in its
-docstring, and the trap list at the top of that file gains this as lesson 6.

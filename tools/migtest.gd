@@ -28,6 +28,7 @@ extends RefCounted
 ## justify any of these bounds. The full reasoning is `docs/FEEL_TARGETS.md` §6.
 
 const TICK := 1.0 / 60.0
+const COMMON := preload("res://tools/probe_common.gd")
 
 ## Physics frames spent with the tree PAUSED while a measurement was running.
 static var _paused_ticks := 0
@@ -71,6 +72,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_rows.clear()
 	_fails.clear()
 	_paused_ticks = 0
+	await COMMON.settled(tree)   # probe_common lesson 10: it builds seven flights below
 
 	var mig: Node = await _enter_flight(tree, main)
 	if mig == null:

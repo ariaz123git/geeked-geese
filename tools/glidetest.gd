@@ -152,10 +152,9 @@ static var _dropped := {}
 static func run(tree: SceneTree, main: Node) -> void:
 	_rows.clear()
 	_filter_ok = true
-	# A frame, because `run()` is reached from main._ready() and the scene root
-	# refuses add_child() until it has finished setting up its own children —
-	# silently, handing back an empty node. See docs/RECENT_FAILURES.md F-003.
-	await tree.process_frame
+	# probe_common lesson 10: `run()` is reached from main._ready(), where the
+	# scene root refuses add_child() silently and hands back an empty node.
+	await COMMON.settled(tree)
 
 	var route: Array = main.get_script().get_script_constant_map().get("ROUTE", [])
 	if route.is_empty():

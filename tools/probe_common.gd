@@ -77,6 +77,14 @@ extends RefCounted
 ##      refuses a paused tree. **If the result depends on a file outside the
 ##      repo, the gate is testing that file.**
 ##
+##  10. **A harness starts inside `main._ready()`, where `add_child()` fails
+##      SILENTLY.** The scene root is still "busy setting up children": the call
+##      prints a non-fatal engine error, does nothing, and hands back an empty
+##      node — so the first leg-1 shelf check counted zero pickups on both legs
+##      and accused a correct filter. One frame and the root accepts children.
+##      **Every harness that builds anything awaits `settled(tree)` first**, and
+##      `selftest::_the_harnesses_settle()` checks it. (Was RECENT_FAILURES F-003.)
+##
 ## The habit that caught all of them: **measure the baseline twice and refuse to
 ## report anything if the two runs disagree.** A harness that cannot reproduce
 ## itself cannot accuse anything else.
@@ -96,6 +104,13 @@ const DROP_BUDGET := 40
 ## Cached dry pad, found once per run. Shared by every caller in this process.
 static var _dry := Vector3.ZERO
 static var _dry_ok := false
+
+
+## Wait until the scene root will accept children. Lesson 10: a harness is
+## called from `main._ready()`, and `add_child()` there fails silently and
+## returns an empty node. Await this before building anything.
+static func settled(tree: SceneTree) -> void:
+	await tree.process_frame
 
 
 ## Forget the cached pad. Call at the top of a run so repeat runs in one process
