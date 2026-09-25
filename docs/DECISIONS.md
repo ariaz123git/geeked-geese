@@ -69,6 +69,16 @@ IDs increment. Newest on top.
 
 ---
 
+## D-061 · 2026-09-25 · Restart, pressed end to end, was already right — and is now held
+Status: Decided (agent)
+Decision: `inputtest::_restart_test()` builds a run worth losing — leg 3's zone, chaos banked, a goose dead, tolerance built, grass still running with `Engine.time_scale` at 0.92 — and restarts it twice: R, R through real key events, and RESTART RUN pressed twice (asserting the first press relabels it). After each it asserts leg 1, zero chaos, six geese, no tolerance, nothing running, time scale 1.0, leg 1's zone and a clock within 5 s of its 240, the zone running and the mission on leg 1. 113 checks → 134.
+Why: A run is seven legs and about forty-five minutes, and the one control that throws it away had only ever been pressed ONCE by a harness (D-051 armed the prompt and backed out). Its reset is spread across five autoloads, and a restart that resets four of them is a new run that is secretly still the old one. **Both paths were correct**; this is a surface locked in, not a bug found, and it is recorded so nobody re-sweeps it.
+
+Canaried by dropping `Subs.tolerance.clear()` from `Game.new_run()`: exactly two failures, the tolerance row on each path.
+
+**Found in passing, not fixed:** `pause_menu.gd` says its confirmation is *"the same contract as the `R` key in main.gd, so the two ways of restarting behave identically"* — but the key's window is `RESTART_CONFIRM_MS` = 1500 and the button's is `RESTART_ARM_SECS` = 3.0. Which is right is pacing; they are just not identical.
+Refs: `tools/inputtest.gd::_restart_test`, `::_dirty_run`, `::_run_state`; `scripts/core/game.gd::new_run`; `scripts/core/main.gd::_unhandled_input`; `scripts/ui/pause_menu.gd::_on_restart_pressed`.
+
 ## D-060 · 2026-09-25 · The director's menu watch could not see a menu
 Status: Decided (agent)
 Decision: `main.gd`'s per-frame `_menus_open()` poll moves from `_process()` to `_poll_menus()`, connected to `SceneTree.process_frame`. `inputtest::_pause_menu_test()` asserts the gameplay HUD and the objectives panel are hidden while the pause menu is open and the HUD is back after. 111 checks → 113.

@@ -120,6 +120,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	await _ui_sweep_report(tree, main, goose)
 	await _menu_buttons_report(tree, main)
 	await _settings_walk(tree, main, goose)
+	await _restart_test(tree, main)
 	# LAST, because it ends the leg: everything above needs the zone it leaves.
 	await _gamepad_walk(tree, main)
 
@@ -953,6 +954,103 @@ static func _far_end(main: Node, goose: CharacterBody3D, key: String) -> String:
 			return "goose=%s, cats lowpoly/classic=%d/%d, people lowpoly/classic=%d/%d" % [
 				str(goose.get("_model_key")) if goose != null else "?", cats_lp, cats_classic, ppl_lp, ppl_classic]
 	return "?"
+
+
+## ═══════════════════════════════════════════════════════════════════════════
+## RESTART, END TO END, FROM A RUN THAT HAS SOMETHING TO LOSE
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## `_ui_sweep_report()` proves one R ARMS the confirmation. Nothing had ever
+## pressed it twice and looked at what came back — and a run is seven legs of
+## state spread across five autoloads: the leg, the chaos, the flock, tolerance,
+## the mission, the clock, `Engine.time_scale`. A restart that resets four of
+## them is a new run that is secretly still the old one.
+##
+## So: make a run worth losing — leg 3, chaos banked, a bird dead, tolerance
+## built, a substance still running — press R twice through the viewport the
+## way a player does, and check every piece came back as a first leg. Then the
+## same through the pause menu's RESTART RUN, which is a second path to the same
+## function behind its own confirmation.
+static func _restart_test(tree: SceneTree, main: Node) -> void:
+	for path in ["R, R", "RESTART RUN, twice"]:
+		await _dirty_run(tree, main)
+		var before := _run_state(main)
+		print("[input] restart (%s): before  %s" % [path, str(before)])
+		if path == "R, R":
+			await _key(tree, KEY_R)
+			await _key(tree, KEY_R)
+		else:
+			var menu: Node = main.get("pause_menu")
+			await _escape(tree)
+			var btn := _find_button(menu, "RESTART RUN")
+			if btn == null:
+				_ok(false, "the pause menu has no RESTART RUN button")
+				continue
+			btn.emit_signal("pressed")
+			for _i in 3:
+				await tree.process_frame
+			var armed := _find_button(menu, "PRESS AGAIN — THIS ENDS THE RUN")
+			_ok(armed != null, "one press of RESTART RUN did not arm it (no 'PRESS AGAIN' label)")
+			if armed != null:
+				armed.emit_signal("pressed")
+		# The zone rebuild happens on the next phase change; give it room.
+		for _i2 in 60:
+			await tree.physics_frame
+		var after := _run_state(main)
+		print("[input] restart (%s): after   %s" % [path, str(after)])
+		_ok(int(after.leg) == 1, "%s left the run on leg %d, not leg 1" % [path, int(after.leg)])
+		_ok(int(after.chaos) == 0, "%s kept %d chaos" % [path, int(after.chaos)])
+		_ok(int(after.alive) == 6, "%s came back with %d geese alive, not 6" % [path, int(after.alive)])
+		_ok(int(after.tolerance) == 0, "%s kept tolerance for %d substance(s)" % [path, int(after.tolerance)])
+		_ok(int(after.actives) == 0, "%s left %d substance(s) running" % [path, int(after.actives)])
+		_ok(absf(float(after.time_scale) - 1.0) < 0.01, "%s left Engine.time_scale at %.2f" % [path, float(after.time_scale)])
+		_ok(str(after.zone).ends_with("zone_strip_mall.gd"), "%s rebuilt %s, not leg 1's zone" % [path, str(after.zone)])
+		_ok(float(after.clock) > float(after.leg1_clock) - 5.0,
+			"%s started the clock at %.0f s; leg 1 is %.0f s" % [path, float(after.clock), float(after.leg1_clock)])
+		_ok(bool(after.running) and not tree.paused, "%s left the zone clock stopped or the tree paused" % path)
+		_ok(int(after.mission_leg) == 1, "%s left the mission on leg %d" % [path, int(after.mission_leg)])
+
+## Put the run somewhere worth losing: leg 3's zone, chaos banked, a bird dead,
+## tolerance built, a substance still running and `Engine.time_scale` off 1.0.
+static func _dirty_run(tree: SceneTree, main: Node) -> void:
+	_release_all()
+	for _a in 6:
+		if not bool(main.call("_menus_open")):
+			break
+		await _escape(tree)
+	tree.paused = false
+	Flock.leg = 3
+	Game.start_zone(float(main.call("leg_seconds", 3)))
+	for _i in 30:
+		await tree.physics_frame
+	Game.score(900, "RESTART TEST")
+	var alive: Array = Flock.alive_birds()
+	if alive.size() > 2:
+		Flock.lose_bird(2, "was lost to the restart test")
+	Subs.take(Subs.get_substance(&"grass"), 0.5)
+	for _j in 10:
+		await tree.physics_frame
+
+
+## Everything a restart is supposed to reset, in one place.
+static func _run_state(main: Node) -> Dictionary:
+	var cur: Node = main.get("current")
+	var zone_path := "<none>"
+	if cur != null and is_instance_valid(cur) and cur.get_script() != null:
+		zone_path = (cur.get_script() as Script).resource_path
+	return {
+		"leg": Flock.leg,
+		"chaos": Game.chaos,
+		"alive": Flock.alive_birds().size(),
+		"tolerance": Subs.tolerance.size(),
+		"actives": Subs.actives.size(),
+		"time_scale": snappedf(Engine.time_scale, 0.01),
+		"zone": zone_path.get_file(),
+		"clock": snappedf(Game.zone_time_left, 0.1),
+		"leg1_clock": float(main.call("leg_seconds", 1)),
+		"running": Game.zone_running,
+		"mission_leg": Mission.leg,
+	}
 
 
 ## One press-and-release of a pad button, through the viewport.
