@@ -484,6 +484,28 @@ produced the clock lie three times.
 `CORRIDOR_X`, the lateral 17.0, or the spawn interval — and moving any of them
 changes all seven flights.
 
+### The handoff, and the slot it asks you to hold
+
+**Q** passes the point to the freshest bird fit to lead; the flight then says
+*"hold your slot"*, and `integrity` — which sets the flight's speed and how much
+stamina a drafting bird gets back — is how well you do. An AI lead wanders
+(`_ai_lead_offset()`, about ±5 m sober and more when it is drunk), and the whole
+V follows it. `migtest` flies the player two ways while drafting: exactly where
+that V puts the player's slot, and parked where the V would be if the lead never
+moved. It asserts two things about them, and neither is taste:
+
+- **Flying the V holds integrity at 0.95 or better, at worst.** Doing exactly
+  what the flight asks has to score as doing it. The only thing between the
+  measurement and 1.00 is the lerp settling, so the margin is generous.
+- **Flying the V beats ignoring it, by at least 0.03 of mean integrity.** At or
+  below zero, the flight pays the player *not* to fly in formation.
+
+Both failed on the code as it was, and it was the second one, inverted: the
+slot was scored against the V at rest while the V on screen moved, so the empty
+sky beside the formation scored perfectly and the formation did not. D-073 has
+the numbers. **How much ignoring the V should cost is a pacing question, and it
+is not asserted** — only that it costs something.
+
 ---
 
 ## 7. The dose window — the only timing skill gate, finally measured

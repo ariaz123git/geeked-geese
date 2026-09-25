@@ -107,7 +107,7 @@ look for it and each now carrying the assertion that would have caught it:
 | `--probe --inputtest` | the bird obeys a key, **including the one that eats** — and so does the UI, **and a pad can get from leg 1 to leg 2**, and every Settings row reaches what it controls, and the dose hint appears on the grass, and restart resets a whole run, and the wheel and the click, and every menu button clicked for real, and G at the flock pen | 145 checks |
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
-| `--probe --migtest` | the flight answers the stick, and the seven differ | 14 measurements |
+| `--probe --migtest` | the flight answers the stick, the seven differ, **and Q hands off the lead — and flying the V is scored as holding your slot** | 22 measurements |
 | `--probe --rolltest` | the credit roll travels |  |
 | `--doctest` | **the documents still tell the truth** | 193 claims |
 | `--audiotest` | **the WAVs are what their names claim, and the volume sliders reach a bus** | 254 over 68 files |

@@ -114,6 +114,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	await _lateral(tree, mig, corridor)
 	await _vertical(tree, mig, y_min, y_max)
 	await _rally(tree, mig)
+	await _handoff(tree, mig, corridor)
 	_the_seven_flights(main, mig)
 
 	for r in _rows:
@@ -531,6 +532,223 @@ static func _rally(tree: SceneTree, mig: Node) -> void:
 	_observe("rally.drift_after", after, "m", "after one honk")
 	_assert_window("rally.pull_in", after / maxf(before, 0.001), "x", 0.0, 0.6,
 		"one honk must visibly drag the worst drifter back — _rally() multiplies its drift by 0.15, so anything near 1.0 means the honk is not reaching the flight")
+
+
+# ---------------------------------------------------------------- the handoff
+
+## [Q] HANDS OFF THE LEAD. `migration.gd` calls it "the mechanic the whole
+## flight is built around", the README advertises it and the flight opens by
+## saying so — and until 2026-09-25 no harness had ever pressed it. This presses
+## Q as a key, the way a player does, through all four branches of
+## `_tick_lead_rotation()`: pass the point, take it back, nobody fit to take
+## it, too gassed to take it back.
+##
+## AND IT MEASURES WHAT THE HANDOFF ASKS OF YOU. While an AI bird leads, the
+## flight tells you to "hold your slot", and `integrity` is how well you do it.
+## An AI lead "flies its own wandering line and everyone follows it", so the V
+## you are asked to hold your place in moves. The two holds below fly the
+## player exactly where that V puts them, and then exactly where the V would be
+## if it did not move. If the score cannot tell the first from the second, it
+## is not scoring the slot the player can see.
+static func _handoff(tree: SceneTree, mig: Node, corridor: float) -> void:
+	_release_all()
+	var birds: Array = mig.get("birds")
+	var me: int = int(mig.get("player_bird_index"))
+	if birds.size() < 3 or me < 0:
+		_observe("handoff.birds", float(birds.size()), "", "fewer than three birds aloft — the handoff cannot be measured")
+		return
+	_clear_sky(mig)
+
+	# A sober flock with distinct stamina, so "the freshest bird fit to lead"
+	# has exactly one right answer: the last one assigned below.
+	var freshest := -1
+	var k := 0
+	for b1 in birds:
+		var i: int = int(b1.idx)
+		var rec: Dictionary = Flock.birds[i]
+		rec.intox = 0.0
+		if i == me:
+			rec.stamina = 1.0
+		else:
+			rec.stamina = 0.60 + 0.06 * float(k)
+			freshest = i
+			k += 1
+	var led_at_start: bool = bool(mig.get("player_leads"))
+
+	# --- 1. pass the point ---
+	await _key(tree, KEY_Q)
+	var lead1: int = int(mig.get("lead_index"))
+	var passed: bool = not bool(mig.get("player_leads")) and lead1 == freshest
+	print("[mig] handoff: led at start=%s; Q -> lead %d (freshest fit bird %d), player leads=%s, says \"%s\""
+		% [led_at_start, lead1, freshest, mig.get("player_leads"), mig.get("_msg")])
+	_assert_window("handoff.pass", 1.0 if passed else 0.0, "", 1.0, 1.0,
+		"Q while holding the point must pass it to the freshest bird fit to lead — the handoff is the flight's central mechanic")
+
+	# --- 2. what drafting asks of you ---
+	if passed:
+		var follow: Array = await _hold(tree, mig, me, corridor, true)
+		var still: Array = await _hold(tree, mig, me, corridor, false)
+		print("[mig] handoff: drafting, flying where the V puts your slot  -> integrity min %.3f mean %.3f (%d tries)"
+			% [follow[0], follow[1], follow[2]])
+		print("[mig] handoff: drafting, parked where the V would be at rest -> integrity min %.3f mean %.3f (%d tries); the lead wandered %.1f m"
+			% [still[0], still[1], still[2], still[3]])
+		# ARMED after one report-only run, which is D-073: the score was measuring
+		# the slot against a V that did not move while the V on screen did, so
+		# flying in formation read 0.84 at worst and 0.89 on average and ignoring
+		# it read 1.00. Both rows fail on that code.
+		_assert_window("handoff.follow_min", follow[0], "", 0.95, 1.0,
+			"integrity, lowest, flying exactly where the V puts the player's slot. Doing what the flight asks — \"hold your slot\" — must score as doing it")
+		_observe("handoff.follow_mean", follow[1], "", "integrity, mean, same")
+		_observe("handoff.still_mean", still[1], "", "integrity, mean, parked where the V would be if the lead did not wander")
+		_assert_window("handoff.follow_gain", follow[1] - still[1], "", 0.03, 1.0,
+			"mean integrity gained by flying the V rather than ignoring it. At or below zero, the flight pays the player not to fly in formation")
+
+	# --- 3. take it back ---
+	# Only a take-back if the point was given away first: with Q wired to
+	# nothing the player never leaves it, and "the player is on the point" then
+	# passed vacuously. That is what this row's canary found.
+	var mine: Dictionary = Flock.birds[me]
+	mine.stamina = 1.0
+	var was_drafting: bool = not bool(mig.get("player_leads"))
+	await _key(tree, KEY_Q)
+	var back: bool = was_drafting and bool(mig.get("player_leads")) and int(mig.get("lead_index")) == me
+	print("[mig] handoff: Q again -> player leads=%s, says \"%s\"" % [mig.get("player_leads"), mig.get("_msg")])
+	_assert_window("handoff.take_back", 1.0 if back else 0.0, "", 1.0, 1.0,
+		"Q while drafting, with the legs for it, must put the player back on the point")
+
+	# --- 4. nobody fit to take it: the punish ---
+	for b2 in birds:
+		if int(b2.idx) != me:
+			var r: Dictionary = Flock.birds[int(b2.idx)]
+			r.stamina = 0.10
+	await _key(tree, KEY_Q)
+	var refused: bool = bool(mig.get("player_leads")) and String(mig.get("_msg")).contains("NOBODY")
+	print("[mig] handoff: every other bird spent, Q -> player leads=%s, says \"%s\"" % [mig.get("player_leads"), mig.get("_msg")])
+	_assert_window("handoff.nobody_fit", 1.0 if refused else 0.0, "", 1.0, 1.0,
+		"with no bird fit to lead, Q must keep the point on the player and say so — the flight's one real punishment")
+
+	# --- 5. too gassed to take it back ---
+	for b3 in birds:
+		var r2: Dictionary = Flock.birds[int(b3.idx)]
+		r2.stamina = 0.90
+	await _key(tree, KEY_Q)
+	mine.stamina = 0.10
+	await _key(tree, KEY_Q)
+	var gassed: bool = not bool(mig.get("player_leads")) and String(mig.get("_msg")).contains("GASSED")
+	print("[mig] handoff: spent, Q -> player leads=%s, says \"%s\"" % [mig.get("player_leads"), mig.get("_msg")])
+	_assert_window("handoff.too_gassed", 1.0 if gassed else 0.0, "", 1.0, 1.0,
+		"a player too spent to lead must not be able to take the point back")
+
+	# Leave the flight as it was found: fresh, sober, the player on the point.
+	for b4 in birds:
+		var r3: Dictionary = Flock.birds[int(b4.idx)]
+		r3.stamina = 1.0
+	if not bool(mig.get("player_leads")):
+		await _key(tree, KEY_Q)
+	mig.set("_spawn_t", 1.0)
+
+
+## Fly six and a half seconds of drafting — a full period of the lead's wander —
+## with the player placed every frame, and return [min, mean, tries, wander]:
+## integrity over all but the first 1.5 s, and how far the lead moved sideways.
+##
+## `follow` puts the player where the V actually is: the lead bird's position
+## plus the player's slot offset in the V's own geometry, clamped to the
+## corridor the player is clamped to. Otherwise the player is parked at that
+## offset from the corridor's centre line — where the V sits if the lead does
+## not wander. Only X and Z: `migration.gd` scores the slot on those two.
+##
+## RETAKEN IF THE SKY INTERFERES. The sky is cleared first, but a hit still
+## takes 0.18–0.25 off integrity in one frame, where holding a slot moves it at
+## most ~0.04. A step of 0.1 is the world, not the slot.
+static func _hold(tree: SceneTree, mig: Node, me: int, corridor: float, follow: bool) -> Array:
+	var birds: Array = mig.get("birds")
+	var lo := 1.0
+	var sum := 0.0
+	var n := 0
+	var wander := 0.0
+	var tries := 0
+	while tries < 3:
+		tries += 1
+		_clear_sky(mig)
+		mig.set("distance", 0.0)
+		lo = 1.0
+		sum = 0.0
+		n = 0
+		var x_min := 1e9
+		var x_max := -1e9
+		var struck := false
+		var prev: float = float(mig.get("integrity"))
+		for f in 390:
+			var lead: int = int(mig.get("lead_index"))
+			var lead_node: Node3D = null
+			var off := Vector3.ZERO
+			for b in birds:
+				if int(b.idx) == lead:
+					lead_node = b.node
+				if int(b.idx) == me:
+					off = mig.call("_slot_position", int(b.slot))
+			if lead_node == null or not is_instance_valid(lead_node):
+				break
+			var p: Vector3 = mig.get("player_pos")
+			if follow:
+				p.x = clampf(lead_node.position.x + off.x, -corridor, corridor)
+				p.z = clampf(lead_node.position.z + off.z, -6.0, 14.0)
+			else:
+				p.x = off.x
+				p.z = off.z
+			mig.set("player_pos", p)
+			await tree.physics_frame
+			if not _tick(tree) or bool(mig.get("over")):
+				struck = true
+			var integ: float = float(mig.get("integrity"))
+			if prev - integ > 0.1:
+				struck = true
+			prev = integ
+			x_min = minf(x_min, lead_node.position.x)
+			x_max = maxf(x_max, lead_node.position.x)
+			if f >= 90:
+				lo = minf(lo, integ)
+				sum += integ
+				n += 1
+		wander = x_max - x_min
+		if not struck:
+			break
+		print("[mig] handoff hold (%s) attempt %d was disturbed — retaking" % ["follow" if follow else "still", tries])
+	return [lo, sum / maxf(float(n), 1.0), tries, wander]
+
+
+## An empty sky: every obstacle and thermal gone, and no new ones for a while.
+## A hazard strike or a thermal would move `integrity` for reasons that have
+## nothing to do with the slot being measured.
+static func _clear_sky(mig: Node) -> void:
+	for key in ["_obstacles", "_thermals"]:
+		var arr: Array = mig.get(key)
+		for o in arr:
+			var node: Node = o.node
+			if node != null and is_instance_valid(node):
+				node.queue_free()
+		arr.clear()
+	mig.set("_spawn_t", 999.0)
+
+
+## One key, pressed and released through `Input.parse_input_event()` — the path
+## a player's keyboard takes. Same shape as `inputtest.gd::_key`; duplicated
+## rather than shared, per CLAUDE.md.
+static func _key(tree: SceneTree, code: Key) -> void:
+	var down := InputEventKey.new()
+	down.keycode = code
+	down.physical_keycode = code
+	down.pressed = true
+	Input.parse_input_event(down)
+	await tree.process_frame
+	var up := InputEventKey.new()
+	up.keycode = code
+	up.physical_keycode = code
+	up.pressed = false
+	Input.parse_input_event(up)
+	for _i in 3:
+		await tree.process_frame
 
 
 # ---------------------------------------------------------------- entering

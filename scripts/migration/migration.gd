@@ -399,6 +399,29 @@ func _pick_initial_lead() -> void:
 	_say("YOU HAVE THE POINT — [Q] to hand off the lead", 3.2)
 
 
+## WHERE THE PLAYER'S SLOT IS while an AI bird has the point: its offset in the
+## V, measured from wherever the lead bird actually is — clamped to the box
+## `_tick_player()` clamps the player into, because a slot the player cannot
+## reach is not one they failed to hold.
+##
+## It used to be `_slot_position()` alone, which is where the V would sit if the
+## lead never moved. The lead does move — `_ai_lead_offset()` swings it about
+## ±5 m sober and further drunk, and every other bird follows it — so the slot
+## the player was scored against was a patch of empty sky beside the formation.
+## Measured by `tools/migtest.gd::_handoff` (2026-09-25, D-073): flying exactly
+## where the V put the player's slot held integrity at 0.89 on average and 0.84
+## at worst, while parking in that empty sky and ignoring the V held 1.00. The
+## flight paid the player, in speed and in stamina, for NOT flying in formation.
+func _drafting_slot(slot_pos: Vector3) -> Vector3:
+	for b in birds:
+		if b.idx == lead_index and b.node != null and is_instance_valid(b.node):
+			var at: Vector3 = b.node.position + slot_pos
+			at.x = clampf(at.x, -CORRIDOR_X, CORRIDOR_X)
+			at.z = clampf(at.z, -6.0, 14.0)   # the z clamp in _tick_player()
+			return at
+	return slot_pos
+
+
 ## Rebuild slot assignment so the lead is slot 0 and everyone else fills in.
 func _reassign_slots() -> void:
 	var n := 1
@@ -592,7 +615,8 @@ func _tick_birds(delta: float) -> void:
 			# formation forms around you. When drafting, you must HOLD your slot.
 			b.node.position = player_pos
 			if not player_leads:
-				var err := Vector2(player_pos.x - slot_pos.x, player_pos.z - slot_pos.z).length()
+				var held := _drafting_slot(slot_pos)
+				var err := Vector2(player_pos.x - held.x, player_pos.z - held.z).length()
 				total_err += clampf(err / SLOT_RADIUS, 0.0, 2.0)
 				count += 1
 			continue
