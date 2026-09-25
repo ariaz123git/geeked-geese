@@ -86,7 +86,7 @@ look for it and each now carrying the assertion that would have caught it:
 | | |
 |---|---|
 | Engine | Godot 4.7.1, GL Compatibility renderer |
-| Code | 72 GDScript files (read the live count off `[gate] PASS — N scripts`) |
+| Code | 73 GDScript files (read the live count off `[gate] PASS — N scripts`) |
 | Zones built | 8 — retention pond / strip mall lot (one zone, two legs, **two shelves**), suburbia, cottage country, the stopover, cut corn, truck stop, the 18th green |
 | Route legs | 7 flown + the arrival |
 | Substances | **17.** Leg 1 offers 4 (berries, double-double, grass, **bread**); every other leg offers its zone's full set |
@@ -102,8 +102,8 @@ look for it and each now carrying the assertion that would have caught it:
 
 | gate | proves | count |
 |---|---|---|
-| `--gate` | every `.gd` compiles and every resource loads, inside the booted project | 72 scripts |
-| `--selftest` | the game agrees with itself | **953 invariants** |
+| `--gate` | every `.gd` compiles and every resource loads, inside the booted project | 73 scripts |
+| `--selftest` | the game agrees with itself | **954 invariants** |
 | `--probe --inputtest` | the bird obeys a key, **including the one that eats** — and so does the UI, **and a pad can get from leg 1 to leg 2**, and every Settings row reaches what it controls, and the dose hint appears on the grass, and restart resets a whole run, and the wheel and the click, and every menu button clicked for real | 143 checks |
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |

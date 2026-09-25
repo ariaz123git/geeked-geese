@@ -69,6 +69,35 @@ IDs increment. Newest on top.
 
 ---
 
+## D-069 · 2026-09-25 · Bread has a model — it was a grey sphere
+Status: Decided (agent) — the look is mine, made to match the existing icon, and revertible
+Decision: `pickup_models.gd::_build_bread()` builds a slice of white bread standing on its crust and leaning back: crust body and dome with a crumb face proud of them on both sides and the icon's crumb holes, in the primitive style of the other fourteen primitive pickups. `substance_pickup.gd` idles it with `sway`, which keeps the 0.15 m lift its placement at `VERGE_Y - PICKUP_LIFT` assumes.
+Why: Bread was the only substance on the shelf with no pickup model — `_KNOWN_IDS` listed sixteen and bread fell through to `_build_fallback`, a glowing grey sphere. It is leg 1's "obvious food is the trap" (CAMPAIGN_SPEC §2.1, D-037), in a game whose one ask of the player is to recognise a substance before eating it, and it was the one thing in the leg nobody could recognise. `geomtest.gd` had written it down as "bread's visible blob"; nobody had drawn the bread. Found while reading D-068's report. **Rendered three times:** the first two came back a near-white tombstone because the pickup's own glow light washes the icon's exact crumb colour out, so the crumb is darker than the icon and unlit; the third reads as a beige slice with a crust rim, dome and two visible crumb holes, standing on the verge and casting a shadow.
+Refs: `scripts/world/pickup_models.gd::_build_bread`, `_KNOWN_IDS`; `scripts/world/substance_pickup.gd::ANIM_STYLES`; `tools/gen_textures.py::icon_bread`.
+
+## D-068 · 2026-09-25 · Leg 1's findability, counted — the flagship combo's second half is the hardest thing to find
+Status: Open (human) — the numbers are the agent's; where the pickups go is level design
+Decision: `tools/findtest.gd` (`--probe --findtest`, a report like `--glidetest`, not a gate) builds every leg's zone and prints, per pickup: straight-line distance from the spawn; whether a goose standing on real ground beside it arms its trigger (**driven**, with the zone's own goose — not estimated); how high it sits and on what; whether the opening camera frames it; and the first drawn thing in the way. Nothing was moved.
+Why: The human, on playing leg 1: *"all I can find is grass."* NEXT_SESSION §2 separated how many substances leg 1 offers (the human's constant, D-022/D-037) from how findable they are (arithmetic nobody had done). **Leg 1, measured, two identical runs:**
+
+| pickup | from spawn | reach | opening camera |
+|---|---|---|---|
+| grass | 8.9 m | on foot | in view |
+| bread | 11.7 m | on foot | in view |
+| berries (canopy) | 12.2 m | **needs a flap — 4.6 m up the tree** | out of frame |
+| berries (tree foot) | 12.8 m | on foot | out of frame |
+| grass | 20.6 m | on foot | in view |
+| grass | 20.9 m | on foot | in view |
+| berries | 28.2 m | on foot | in view |
+| **double-double** | **50.8 m** | **needs a flap — 2.6 m up on the dumpster** | **out of frame** |
+
+So the three grass patches are the nearest thing, all in the opening shot, and there are three of them — while the **double-double, which is half of THE WOBBLER, leg 1's one discoverable named combo and its flagship (D-037)**, is the single least findable pickup in the leg: the farthest, the only one on a prop, and not in frame. Bread is findable, which is the point of bread. The human's sentence is explained better by placement than by the shelf size, which is what NEXT_SESSION suggested and could not show.
+
+**The instrument's first four runs were wrong in four ways**, each fixed where it happened and written into the tool's header: a ray from an underground origin found no ground; a ray stopping at a dumpster lid called the pickup on it "on foot"; views were measured after walking had moved the camera; and **the booted leg-1 zone, which never leaves the tree (probe_common lesson 7), answered for the zone under test** — the same grass read "on foot" in leg 2 and not in leg 1 until each trigger was asked directly.
+
+**Left for the human:** whether to move the double-double somewhere near and visible, keep it as the reward for exploring, or widen the shelf. Recommendation, not taken: move it off the dumpster to the lot's near side, because the combo it completes is what leg 1 is for.
+Refs: `tools/findtest.gd`; `scripts/core/main.gd::_probe_if_headless` (`--findtest`); `scripts/world/zone_strip_mall.gd::_sources`; `docs/NEXT_SESSION.md` §2.
+
 ## D-067 · 2026-09-25 · `migtest`'s half crossing is measured, not divided
 Status: Decided (agent)
 Decision: `lateral.half_cross` is timed from the corridor's centre to its edge, on its own run, instead of being `full_cross * 0.5`.

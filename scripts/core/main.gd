@@ -1123,6 +1123,14 @@ func _probe_if_headless() -> void:
 		await preload("res://tools/glidetest.gd").run(get_tree(), self)
 		return
 
+	# A REPORT, NOT A GATE, same arrangement as --glidetest. How findable each
+	# leg's pickups are from where the goose starts: distance, height, and
+	# whether the opening camera can see them. The human's "all I can find is
+	# grass" on leg 1, given its numbers. See tools/findtest.gd.
+	if args.has("--findtest"):
+		await preload("res://tools/findtest.gd").run(get_tree(), self)
+		return
+
 	# THE THIRD GATE, and the only one that presses a key. Holds W, flaps, honks,
 	# and doses, then asserts the bird actually did something. It exists because
 	# an input-lag bug that made eleven of the sixteen substances unplayable got
