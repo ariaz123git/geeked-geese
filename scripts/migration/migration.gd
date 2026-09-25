@@ -1212,7 +1212,9 @@ func _finish() -> void:
 		sfx.stop_loop(&"wind")
 	var pct := clampf(distance / maxf(target_distance, 1.0), 0.0, 1.0)
 	var verdict := "MADE IT" if pct >= 0.999 else "LANDED SHORT"
-	_lbl_mid.text = "%s\n%d / %d km\n%s\n\n[ENTER]" % [
+	# The prompt names the pad button too: this card waits on `gg_skip` alone,
+	# with no timeout, and for the life of the project a pad could not send it.
+	_lbl_mid.text = "%s\n%d / %d km\n%s\n\n[ENTER  ·  A]" % [
 		verdict, int(distance), int(target_distance), Flock.condition_summary()]
 	_lbl_top.text = ""
 

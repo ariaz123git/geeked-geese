@@ -63,6 +63,22 @@ func _setup_input() -> void:
 	_axis("gg_forward", JOY_AXIS_LEFT_Y, -1.0)
 	_axis("gg_back", JOY_AXIS_LEFT_Y, 1.0)
 
+	# MENUS AND CARDS, ON A PAD — which had none. Godot 4.7.1 binds `ui_cancel`
+	# to Escape ALONE and `ui_accept` to Enter / Keypad Enter / Space alone
+	# (printed from the engine on 2026-09-25, not remembered), and `gg_skip`
+	# above had no pad button. So a pad player could not pause, could not close
+	# the roster or the control card, and met a wall at the end of flight 1: the
+	# flight's own card waits on `gg_skip` with no timeout. D-055.
+	#
+	# Start pauses, which is the convention. A confirms — it is also what a
+	# focused menu Button answers to, through `ui_accept`. B deliberately stays
+	# the honk and is NOT a back button: `pause_menu.gd` opens and closes on the
+	# same action, so B on `ui_cancel` would pause the game on every honk.
+	# `tools/inputtest.gd::_gamepad_walk()` drives all of it with pad events.
+	_pad("ui_cancel", JOY_BUTTON_START)
+	_pad("ui_accept", JOY_BUTTON_A)
+	_pad("gg_skip", JOY_BUTTON_A)
+
 
 func _pad(action: String, button: int) -> void:
 	var ev := InputEventJoypadButton.new()

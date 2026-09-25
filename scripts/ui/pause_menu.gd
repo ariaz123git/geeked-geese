@@ -31,7 +31,8 @@ const CONTROLS := {
 	"Eat / dose (hold)": "E / X",
 	"Share": "Q / Y",
 	"Restart": "R",
-	"Skip": "Enter",
+	"Skip / continue": "Enter / A",
+	"Pause": "Esc / Start",
 	"Camera": "J / K",
 }
 
@@ -49,6 +50,9 @@ var _main_panel: PanelContainer
 var _settings_panel: PanelContainer
 var _best_lbl: Label
 var _restart_btn: Button
+var _resume_btn: Button
+var _settings_btn: Button
+var _model_opt: OptionButton
 var _restart_armed := 0.0
 var _main_scroll: ScrollContainer
 var _main_vb: VBoxContainer
@@ -125,6 +129,7 @@ func show_after_overlay() -> void:
 	visible = true
 	_show_main()
 	_refresh_settings_display()
+	_focus(_resume_btn)
 
 
 func _open_menu() -> void:
@@ -139,6 +144,7 @@ func _open_menu() -> void:
 	_refresh_settings_display()
 	_best_lbl.text = "BEST CHAOS: %d" % _best_chaos()
 	visible = true
+	_focus(_resume_btn)
 
 
 func _close() -> void:
@@ -148,6 +154,26 @@ func _close() -> void:
 	visible = false
 	get_tree().paused = false
 	resumed.emit(_was_mouse_captured)
+
+
+## THE MENU TAKES FOCUS WHEN IT OPENS.
+##
+## Nothing had focus when the menu opened, and the D-pad only moves focus once
+## something has it — so on a pad not one button in here could be pressed. On a
+## keyboard the arrows did nothing either. RESUME takes it on open, which also
+## makes Space or A a one-press resume. D-055.
+##
+## There is deliberately no matching release on close, and that was measured
+## rather than assumed. The worry was real — a focused Button answers
+## `ui_accept`, which is Space, the flap, so an armed RESTART RUN still holding
+## focus behind a closed menu would be one flap from ending the run. But Godot
+## 4.7.1 releases a Control's focus when its CanvasLayer hides: an explicit
+## release was written, disabled as a canary, and `inputtest` still saw nothing
+## focused after the close. A release that changes nothing is not a guard.
+func _focus(c: Control) -> void:
+	if c == null or not is_instance_valid(c) or not visible:
+		return
+	c.grab_focus.call_deferred()
 
 
 func _show_main() -> void:
@@ -176,6 +202,14 @@ func _show_settings() -> void:
 	_main_panel.visible = false
 	_settings_panel.visible = true
 	_refresh_settings_display()
+	_focus(_model_opt)
+
+
+## BACK, from settings. Focus returns to the button that went there, so a pad
+## player walking the menu is not thrown back to the top of it.
+func _back_from_settings() -> void:
+	_show_main()
+	_focus(_settings_btn)
 
 
 ## Two presses, not one. The first arms and relabels; the second inside
@@ -339,7 +373,8 @@ func _build_main_panel() -> PanelContainer:
 
 	vb.add_child(_header_label("PAUSED"))
 
-	vb.add_child(_menu_button("RESUME", _close, Color(0.35, 0.85, 0.55)))
+	_resume_btn = _menu_button("RESUME", _close, Color(0.35, 0.85, 0.55))
+	vb.add_child(_resume_btn)
 	vb.add_child(_menu_button("ALMANAC", func(): almanac_requested.emit(), Color(0.55, 0.75, 0.95)))
 	# The controls reference is the safety net for anyone who skipped the
 	# briefing cards, so it sits on the top level of the menu, not buried in
@@ -350,7 +385,8 @@ func _build_main_panel() -> PanelContainer:
 	# checking on it sits next to the codex rather than inside settings. Same
 	# hand-off pattern as ALMANAC: we hide, it opens, we come back.
 	vb.add_child(_menu_button("FLOCK", func(): flock_requested.emit(), Color(0.55, 0.92, 0.62)))
-	vb.add_child(_menu_button("SETTINGS", _show_settings, Color(0.85, 0.75, 0.35)))
+	_settings_btn = _menu_button("SETTINGS", _show_settings, Color(0.85, 0.75, 0.35))
+	vb.add_child(_settings_btn)
 	_restart_btn = _menu_button("RESTART RUN", _on_restart_pressed, Color(0.95, 0.55, 0.3))
 	vb.add_child(_restart_btn)
 	vb.add_child(_menu_button("QUIT", func(): get_tree().quit(), Color(0.9, 0.35, 0.35)))
@@ -430,7 +466,7 @@ func _build_settings_panel() -> PanelContainer:
 
 	vb.add_child(_rule())
 
-	var back_btn := _menu_button("BACK", _show_main)
+	var back_btn := _menu_button("BACK", _back_from_settings)
 	vb.add_child(back_btn)
 
 	return panel
@@ -461,6 +497,7 @@ func _model_row(parent: Control) -> void:
 	if prefs:
 		cur = str(prefs.get_pref(&"goose_model", "lowpoly"))
 	opt.selected = 1 if cur == "classic" else 0
+	_model_opt = opt
 	opt.item_selected.connect(func(i: int):
 		var p2 := get_node_or_null("/root/Prefs")
 		if p2:

@@ -69,6 +69,22 @@ IDs increment. Newest on top.
 
 ---
 
+## D-055 · 2026-09-25 · A pad can get through the game, not just around one zone
+Status: Decided (agent)
+Decision: `Game._setup_input()` binds pad **Start → `ui_cancel`** (pause) and pad **A → `ui_accept` and `gg_skip`** (confirm / continue). `pause_menu.gd` gives RESUME focus on open, the Art style picker focus on SETTINGS, and SETTINGS focus again on BACK. `briefing.gd::DISMISS_ACTIONS` gains `gg_honk`, so B closes a card. The flight card reads `[ENTER · A]`; the README, the pause menu's control table and the control card name Start. `inputtest.gd::_gamepad_walk()` drives it with `InputEventJoypadButton`s only. 56 checks → 70.
+Why: The README advertises a gamepad scheme and every VERB on it worked. Nothing had checked whether a pad could get a player THROUGH the game. Printed from the engine, not remembered: Godot 4.7.1 binds `ui_cancel` to **Escape alone** and `ui_accept` to **Enter / Keypad Enter / Space alone**, and `Game.ACTIONS` gave `gg_skip` no pad button. So on a pad there was no pause (and so no settings, Almanac or quit); the roster and control card, which close on those three actions, could not close; and **the flight's own results card — `[ENTER]`, waiting on `gg_skip` with no timeout — was a wall at the end of flight 1**. The walk found the roster soft-lock by accident on its first draft, which killed a bird before ending the leg and stalled right after the results card without being able to say why.
+
+**The first hypothesis was the opposite bug, and it was wrong.** Older Godot bound `ui_cancel` to pad B, which would have made every honk open the pause menu. The same printout refuted it. That is also why B is **not** a back button now: the menu opens and closes on one action, so B on `ui_cancel` would pause the game on every honk.
+
+**Two prose claims were false for the same reason.** `briefing.gd` said *"ui_cancel is Escape/pad-B"* and `docs/ONBOARDING_NOTES.md` rule 1 says every card closes on *"gamepad A, gamepad B"*. B did nothing to a card. Both became true when `gg_honk` joined the dismiss list, and the walk now closes the flight briefing with B so they stay true.
+
+**Canaried per binding:** before the fix, 4 failures (Start, focus, B ×10 presses, never reached the flight). With only `gg_skip`'s A removed, exactly one (*"fired `finished` 0 times"*). With only `ui_accept`'s A removed, the Almanac check names the cause and two cascade after it.
+
+**One guard was written, canaried and removed.** A focused Button answers `ui_accept` — Space, the flap — so a closed menu still holding focus (say, on an armed RESTART RUN) would be a hazard, and `_close()` released focus explicitly. With the release disabled, nothing was focused after the close anyway: **Godot 4.7.1 releases a Control's focus when its CanvasLayer hides.** A release that changes nothing is not a guard, so it was deleted, the comment says what was measured, and the walk reports where focus is after a close rather than asserting it.
+
+**Side effect, and it is the point:** a keyboard player can now walk the pause menu with the arrows, and Space / Enter press what is focused — one press of Space resumes.
+Refs: `scripts/core/game.gd::_setup_input`; `scripts/ui/pause_menu.gd::_focus`, `::_back_from_settings`; `scripts/ui/briefing.gd::DISMISS_ACTIONS`; `scripts/migration/migration.gd::_finish`; `scripts/ui/control_card.gd`; `tools/inputtest.gd::_gamepad_walk`, `::_pad`; `README.md` controls.
+
 ## D-054 · 2026-09-25 · The gates stop sharing a save file with the player
 Status: Decided (agent)
 Decision: `Prefs` is **hermetic** in any run launched with arguments after `--` — it starts from `DEFAULTS` and never writes `user://geeked_geese.cfg`. `main.gd::_probe_if_headless()` force-closes the first-run briefing before dispatching any harness, `probe_common.fresh_goose()` refuses a paused tree, and `migtest::_enter_flight()` closes the flight's own first-run card where it actually appears. `verify.ps1` hashes the player's save (content + write time) before step 1 and after the last step and fails if they differ; the compile gate prints `OS.get_user_data_dir()` so that path is confirmed by the engine rather than guessed. That verdict is gate 13.

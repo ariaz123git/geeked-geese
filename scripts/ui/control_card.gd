@@ -211,9 +211,9 @@ class RefPanel extends Control:
 		y += 16.0
 		if do_draw:
 			draw_string(f, Vector2(PAD, y + f.get_ascent(13)),
-				"Gamepad:  left stick move  ·  A flap/climb  ·  RB dive/drop  ·  B honk  ·  X eat  ·  Y share / hand off",
+				"Gamepad:  stick move · A flap/climb · RB dive/drop · B honk · X eat · Y share/hand off · Start pause",
 				HORIZONTAL_ALIGNMENT_LEFT, inner, 13, Color(0.55, 0.58, 0.66))
-			draw_string(f, Vector2(PAD, y + f.get_ascent(13)), "ESC to close",
+			draw_string(f, Vector2(PAD, y + f.get_ascent(13)), "ESC · START to close",
 				HORIZONTAL_ALIGNMENT_RIGHT, inner, 13, Color(0.75, 0.78, 0.85))
 		y += f.get_ascent(13) + f.get_descent(13)
 

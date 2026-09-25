@@ -39,10 +39,17 @@ const PREF_SEEN := &"seen_briefings"
 const PREFS_CONFIG_PATH := "user://geeked_geese.cfg"
 const PREFS_SECTION := "prefs"
 
-## Every one of these closes the card. ui_accept is Enter/Space/pad-A,
-## ui_cancel is Escape/pad-B; gg_skip and gg_flap are belt and braces for
-## anyone whose muscle memory is already trained on this game's map.
-const DISMISS_ACTIONS := ["ui_accept", "ui_cancel", "gg_skip", "gg_flap"]
+## Every one of these closes the card: Enter, Space, Escape, pad A, pad B and
+## pad Start between them, which is what `docs/ONBOARDING_NOTES.md` rule 1
+## promises.
+##
+## This comment used to say "ui_cancel is Escape/pad-B" — true of older engine
+## defaults and false in Godot 4.7.1, where `ui_cancel` is Escape alone. So B
+## did nothing to a card for as long as anyone can tell, while the rule said it
+## closed every one. `gg_honk` is in the list now, which also means the card's
+## own button — labelled HONK on the first one — and the honk key agree.
+## `tools/inputtest.gd::_gamepad_walk()` closes the flight card with B to hold it.
+const DISMISS_ACTIONS := ["ui_accept", "ui_cancel", "gg_skip", "gg_flap", "gg_honk"]
 
 ## Long enough that a key already held when the card opens can't eat it, short
 ## enough that nobody notices.

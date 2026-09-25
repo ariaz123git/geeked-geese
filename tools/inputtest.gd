@@ -102,6 +102,8 @@ static func run(tree: SceneTree, main: Node) -> void:
 	await _pause_menu_test(tree, main)
 	await _ui_sweep_report(tree, main, goose)
 	await _menu_buttons_report(tree, main)
+	# LAST, because it ends the leg: everything above needs the zone it leaves.
+	await _gamepad_walk(tree, main)
 
 	if _fails.is_empty():
 		print("[input] PASS — %d controller checks" % _checks)
@@ -401,6 +403,261 @@ static func _menu_buttons_report(tree: SceneTree, main: Node) -> void:
 	_release_all()
 
 
+## ═══════════════════════════════════════════════════════════════════════════
+## THE WHOLE LOOP, ON A PAD, WITH NO KEYBOARD ANYWHERE
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## The README advertises a gamepad scheme — "left stick move, A flap, B honk, X
+## eat, Y share, RB dive" — and every one of those verbs works. What nobody had
+## checked is whether a pad can get a player THROUGH the game rather than
+## around one zone. Measured on 2026-09-25 by printing the engine's own
+## defaults: Godot 4.7.1 binds `ui_cancel` to Escape ALONE and `ui_accept` to
+## Enter / Keypad Enter / Space alone, and `Game.ACTIONS` gives `gg_skip` no pad
+## button. So on a pad the pause menu cannot open; the roster and the control
+## card, which close on those three actions, cannot close; and the flight's own
+## results card, which prints `[ENTER]` and waits on `gg_skip` with no timeout,
+## is a wall at the end of flight 1.
+##
+## (The first hypothesis was the opposite bug — that B would open the pause menu
+## and eat every honk, because older Godot bound `ui_cancel` to a pad button.
+## The same printout refuted it. Neither was assumed.)
+##
+## So this walks the real loop pressing ONLY `InputEventJoypadButton`s through
+## the viewport: Start pauses, the D-pad and A drive the menu, Start backs out,
+## and then the leg is ended and every card between leg 1 and the next zone —
+## the results card, the first-flight briefing, the flight's own card and the
+## roster after a loss — is cleared with A. A card nobody can close is not a
+## menu problem. It is the end of the game.
+static func _gamepad_walk(tree: SceneTree, main: Node) -> void:
+	var menu: Node = main.get("pause_menu")
+	var almanac: Node = main.get("almanac")
+	var results: Node = main.get("results")
+	var briefing: Node = main.get("briefing")
+	var roster: Node = main.get("roster")
+	if menu == null or almanac == null or results == null or briefing == null or roster == null:
+		_ok(false, "main is missing an overlay the pad walk needs, so the pad was never exercised")
+		return
+
+	_release_all()
+	tree.paused = false
+	for _attempt in 6:
+		if not bool(main.call("_menus_open")):
+			break
+		await _escape(tree)
+	for _i in 4:
+		await tree.process_frame
+
+	# ── the pause menu ─────────────────────────────────────────────────────
+	await _pad(tree, JOY_BUTTON_START)
+	var opened: bool = bool(menu.call("is_open"))
+	var focus0 := _focus_text(menu)
+	print("[input] pad: Start -> menu open=%s paused=%s focus=%s" % [opened, tree.paused, focus0])
+	_ok(opened,
+		("Start did not open the pause menu. The menu listens for `ui_cancel` and nothing "
+		+ "else, and Godot 4.7 binds that to Escape alone — so on a pad there is no pause, "
+		+ "no settings, no Almanac and no way to quit. `Game._setup_input()` owns the pad map."))
+	_ok(focus0 == "RESUME",
+		("the pause menu opened with focus on %s, not RESUME. With nothing focused a pad "
+		+ "cannot press any button in it: the D-pad moves focus only once something has it.")
+			% focus0)
+	if opened:
+		await _pad(tree, JOY_BUTTON_DPAD_DOWN)
+		var focus1 := _focus_text(menu)
+		await _pad(tree, JOY_BUTTON_A)
+		var alm_open: bool = bool(almanac.call("is_open"))
+		print("[input] pad: D-pad down -> focus=%s, A -> almanac open=%s" % [focus1, alm_open])
+		_ok(focus1 == "ALMANAC",
+			"D-pad down from RESUME put focus on %s, not ALMANAC. The menu cannot be walked on a pad." % focus1)
+		_ok(alm_open,
+			("A on the focused ALMANAC button did not open the Almanac. `ui_accept` is what a "
+			+ "Button answers to, and it needs a pad binding for A to press anything."))
+		await _pad(tree, JOY_BUTTON_START)
+		var alm_shut: bool = not bool(almanac.call("is_open"))
+		var menu_back: bool = bool(menu.get("visible"))
+		await _pad(tree, JOY_BUTTON_START)
+		var menu_shut: bool = not bool(menu.call("is_open"))
+		print("[input] pad: Start -> almanac closed=%s menu back=%s; Start -> menu closed=%s paused=%s"
+			% [alm_shut, menu_back, menu_shut, tree.paused])
+		_ok(alm_shut and menu_back, "Start did not back out of the Almanac to the pause menu.")
+		_ok(menu_shut and not tree.paused, "Start did not close the pause menu and give the game back.")
+		# REPORTED, NOT ASSERTED. A focused Button answers `ui_accept` — Space,
+		# the flap — so a closed menu still holding focus would be a hazard. It
+		# was going to be a check, and its canary said no: with the explicit
+		# release removed, the engine released focus on its own when the layer
+		# hid. There is no code here that could regress it, so the line stays as
+		# an observation that would say so if the engine ever changed.
+		var holder: Control = menu.get_viewport().gui_get_focus_owner()
+		var held_inside: bool = holder != null and (menu as Node).is_ancestor_of(holder)
+		print("[input] pad: after closing, focus is on %s"
+			% ("<nothing>" if holder == null else "%s (inside the menu: %s)" % [str(holder.get("text")), held_inside]))
+	for _attempt2 in 6:
+		if not bool(main.call("_menus_open")):
+			break
+		await _escape(tree)
+	tree.paused = false
+
+	# ── the end of the leg, and every card between here and the next zone ──
+	var game := main.get_node_or_null("/root/Game")
+	if game == null:
+		_ok(false, "no Game autoload, so the leg could not be ended")
+		return
+	game.set("zone_running", true)
+	game.set("zone_time_left", 0.05)
+
+	var got_results := false
+	for _i in 180:
+		await tree.physics_frame
+		if bool(results.call("is_open")):
+			got_results = true
+			break
+	_ok(got_results, "the leg clock ran out and the results card never opened, so nothing after it was tested")
+	if not got_results:
+		return
+	var presses := 0
+	while bool(results.call("is_open")) and presses < 10:
+		await _pad(tree, JOY_BUTTON_A)
+		presses += 1
+		# GRADE_LOCKOUT is 0.34 s of wall clock; 30 physics frames is half a second.
+		for _i2 in 30:
+			await tree.physics_frame
+	print("[input] pad: results card closed=%s after %d press(es) of A" % [not bool(results.call("is_open")), presses])
+	_ok(not bool(results.call("is_open")), "ten presses of A did not get past the leg's results card.")
+
+	# The first-flight briefing. Hermetic runs never saw it, so it shows here —
+	# and it is dismissed with B, NOT A, on purpose. `docs/ONBOARDING_NOTES.md`
+	# rule 1 says every card closes on "Enter, Space, Escape, gamepad A, gamepad
+	# B, or a clicked button", and `briefing.gd` carried a comment saying
+	# `ui_cancel` was "Escape/pad-B". Neither was true in Godot 4.7: B is the
+	# honk and nothing else. A rule in prose is only true while nobody checks.
+	#
+	# The roster is handled here too, though nothing below expects it: a leg that
+	# cost a bird opens it straight after the results card, and the first draft of
+	# this walk — which killed a bird BEFORE ending the leg — stalled right here,
+	# unable to see why. That was the soft-lock itself, found by accident.
+	var mig: Node = null
+	var brief_seen := false
+	var brief_presses := 0
+	var stray_roster := 0
+	for _i3 in 360:
+		await tree.physics_frame
+		if bool(briefing.call("is_open")) and brief_presses < 10:
+			brief_seen = true
+			# INPUT_LOCKOUT swallows presses for the card's first 0.22 s.
+			for _w in 20:
+				await tree.physics_frame
+			await _pad(tree, JOY_BUTTON_B)
+			brief_presses += 1
+			continue
+		if bool(roster.call("is_open")) and stray_roster < 10:
+			for _w2 in 20:
+				await tree.physics_frame
+			await _pad(tree, JOY_BUTTON_A)
+			stray_roster += 1
+			continue
+		var cur: Node = main.get("current")
+		if cur != null and is_instance_valid(cur) and cur.has_method("_finish") and not tree.paused:
+			mig = cur
+			break
+	print("[input] pad: flight briefing seen=%s, B pressed %d time(s); stray roster presses %d; flight running=%s"
+		% [brief_seen, brief_presses, stray_roster, mig != null])
+	_ok(brief_seen, "the first-flight briefing never appeared in a hermetic run, so B was never tested against a card")
+	_ok(brief_presses == 1,
+		("the flight briefing took %d presses of B to close. ONBOARDING_NOTES rule 1 promises "
+		+ "every card closes on gamepad B, and `briefing.gd::DISMISS_ACTIONS` is the list "
+		+ "that has to contain whatever B is bound to.") % brief_presses)
+	_ok(mig != null, "never reached a running flight after the results card. A card between them did not close on a pad.")
+	if mig == null:
+		return
+
+	# A BIRD LOST IN THE FLIGHT, which is where the game loses them. The roster
+	# then opens after the flight's card: the one card that appears only when
+	# something went wrong, and it pauses the tree until someone closes it.
+	var flock := main.get_node_or_null("/root/Flock")
+	var had_loss := false
+	if flock != null and flock.has_method("lose_bird") and flock.has_method("alive_birds"):
+		var alive: Array = flock.call("alive_birds")
+		if alive.size() > 1:
+			flock.call("lose_bird", 1, "was driven into a lamp post by the gamepad test")
+			had_loss = true
+
+	# The flight's own card. `_finish()` is what the flight calls at its end;
+	# the crossing itself is migtest's business, the card is this file's.
+	var fired := [0]
+	var count_it := func(_d: float, _t: float) -> void:
+		fired[0] += 1
+	mig.connect("finished", count_it)
+	mig.call("_finish")
+	for _i4 in 4:
+		await tree.process_frame
+	await _pad(tree, JOY_BUTTON_A)
+	for _i5 in 4:
+		await tree.process_frame
+	print("[input] pad: flight card [ENTER] -> A fired finished %d time(s)" % fired[0])
+	_ok(int(fired[0]) == 1,
+		("pressing A on the flight's results card fired `finished` %d times. The card waits on "
+		+ "`gg_skip` and nothing else, with no timeout — so if a pad cannot send it, a pad "
+		+ "player finishes flight 1 and never leaves it.") % fired[0])
+	if int(fired[0]) != 1:
+		return
+
+	if had_loss:
+		var got_roster := false
+		for _i6 in 120:
+			await tree.physics_frame
+			if bool(roster.call("is_open")):
+				got_roster = true
+				break
+		print("[input] pad: roster opened after the loss = %s" % got_roster)
+		if got_roster:
+			for _i7 in 20:
+				await tree.physics_frame
+			await _pad(tree, JOY_BUTTON_A)
+			print("[input] pad: A -> roster closed=%s" % (not bool(roster.call("is_open"))))
+			_ok(not bool(roster.call("is_open")),
+				("the roster that opens after a loss did not close on A. It closes on ui_cancel, "
+				+ "ui_accept, gg_skip or a mouse click, and a pad sent none of them."))
+
+	var back_in_zone := false
+	for _i8 in 240:
+		await tree.physics_frame
+		var cur2: Node = main.get("current")
+		if cur2 != null and is_instance_valid(cur2) and cur2.get("goose") != null \
+				and not tree.paused and int(game.get("phase")) == 0:
+			back_in_zone = true
+			break
+	print("[input] pad: next zone running = %s" % back_in_zone)
+	_ok(back_in_zone, "after the flight the next zone never started running. The pad walk stopped somewhere between them.")
+
+
+## One press-and-release of a pad button, through the viewport.
+static func _pad(tree: SceneTree, button: JoyButton) -> void:
+	var down := InputEventJoypadButton.new()
+	down.device = 0
+	down.button_index = button
+	down.pressed = true
+	Input.parse_input_event(down)
+	await tree.process_frame
+	var up := InputEventJoypadButton.new()
+	up.device = 0
+	up.button_index = button
+	up.pressed = false
+	Input.parse_input_event(up)
+	for _i in 3:
+		await tree.process_frame
+
+
+## The text of whichever Button holds GUI focus in `n`'s viewport, or a word
+## saying there is none.
+static func _focus_text(n: Node) -> String:
+	var f: Control = n.get_viewport().gui_get_focus_owner()
+	if f == null:
+		return "<nothing>"
+	var b := f as Button
+	if b == null:
+		return "<%s>" % f.get_class()
+	return b.text.to_upper()
+
+
 ## The first Button under `root` whose text matches, case-insensitively.
 static func _find_button(root: Node, label: String) -> Button:
 	var stack: Array[Node] = [root]
@@ -610,17 +867,12 @@ static func _ok(cond: bool, msg: String) -> void:
 
 
 ## Put the bird on the ground, sober, stationary, with the clock running.
+##
+## Delegates to `probe_common.gd`. This file carried its own copy, identical but
+## for one thing: when `fresh_goose()` gained a refusal to hand out a bird on a
+## paused tree (lesson 9), this copy did not — which is what a second copy is for.
 static func _fresh_goose(tree: SceneTree, main: Node) -> CharacterBody3D:
-	var game := main.get_node_or_null("/root/Game")
-	if game != null:
-		game.zone_running = true
-	for _i in 30:
-		await tree.physics_frame
-	var cur: Node = main.get("current")
-	if cur == null or not is_instance_valid(cur):
-		return null
-	var g = cur.get("goose")
-	return g as CharacterBody3D
+	return await preload("res://tools/probe_common.gd").fresh_goose(tree, main)
 
 
 static func _settle(tree: SceneTree, goose: CharacterBody3D) -> void:
