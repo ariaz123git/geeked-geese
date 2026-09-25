@@ -541,13 +541,26 @@ static func _the_grid(tree: SceneTree, goose: CharacterBody3D, subs: Node, res: 
 	# disturbed sample is thrown away, not accommodated. If all three are
 	# disturbed it still fails, and says it is a harness fault, exactly as
 	# `feeltest.gd::_ground_tests()` does for the same reason.
+	#
+	# AND EACH RETAKE STARTS SOMEWHERE ELSE. On 2026-09-25 all three attempts of
+	# one full verify read 0.773, 0.766 and 0.747 — not three shoves, which
+	# scatter, but one thing PARKED in the path: a cart that rolled there earlier
+	# and stopped. A bird sliding along an axis-aligned box reads almost exactly
+	# PI/4, and three retakes from the same spot meet the same box three times.
+	# So attempts 2 and 3 start 3 m to either side of the path, the dosed run
+	# reuses whichever start came back clean, and a disturbed attempt prints what
+	# the bird actually hit — so the next failure names its cause.
 	var clean := -1.0
+	var clean_side := 0.0
 	for attempt in 3:
-		clean = await _diagonal(tree, goose, cam)
+		var side: float = [0.0, 3.0, -3.0][attempt]
+		clean = await _diagonal(tree, goose, cam, side)
+		clean_side = side
 		if clean >= 0.0 and clean <= GRID_CLEAN:
 			break
 		print(("[subs]   grid baseline attempt %d went %.3f rad off a commanded diagonal "
-			+ "(limit %.3f) — something shoved the bird, retaking") % [attempt + 1, clean, GRID_CLEAN])
+			+ "(limit %.3f), starting %.0f m off the path's centre; it touched %s — retaking")
+				% [attempt + 1, clean, GRID_CLEAN, side, str(_diag_hits) if not _diag_hits.is_empty() else "nothing"])
 
 	_ok(bool(subs.call("take", res, _dose_for(res))),
 		"%s could not be taken for the grid check." % res.id)
@@ -555,7 +568,7 @@ static func _the_grid(tree: SceneTree, goose: CharacterBody3D, subs: Node, res: 
 	# declares 0.16 s and a stick that has not arrived yet cannot be snapped.
 	for _i in 30:
 		await tree.physics_frame
-	var snapped := await _diagonal(tree, goose, cam)
+	var snapped := await _diagonal(tree, goose, cam, clean_side)
 	COMMON.hold_actors(tree, false)
 	print("[subs] %-14s diagonal off by %.3f rad sober, %.3f rad dosed (a full snap is %.3f)"
 		% [res.id, clean, snapped, PI * 0.25])
@@ -578,8 +591,19 @@ static func _the_grid(tree: SceneTree, goose: CharacterBody3D, subs: Node, res: 
 ## How far off a commanded 45° diagonal the bird actually travels, in radians,
 ## or -1.0 if it never got moving. The bearing is fixed by setting the camera
 ## yaw to 0, so the commanded direction is world (+x, -z) exactly.
-static func _diagonal(tree: SceneTree, goose: CharacterBody3D, cam: Node3D) -> float:
+##
+## `side` shifts the start that many metres across the path — perpendicular to
+## (+x, -z) — so a retake can go round whatever sank the first attempt.
+## `_diag_hits` names every non-floor body the bird slid against while settled.
+static var _diag_hits: Array[String] = []
+
+static func _diagonal(tree: SceneTree, goose: CharacterBody3D, cam: Node3D, side := 0.0) -> float:
 	await _reset(tree, goose)
+	if absf(side) > 0.001:
+		goose.global_position += Vector3(1.0, 0.0, 1.0).normalized() * side
+		for _s in 10:
+			await tree.physics_frame
+	_diag_hits.clear()
 	cam.set("_manual_t", 9999.0)
 	cam.set("_yaw", 0.0)
 	var want := Vector2(1.0, -1.0).normalized()
@@ -603,6 +627,17 @@ static func _diagonal(tree: SceneTree, goose: CharacterBody3D, cam: Node3D) -> f
 		# sample is the steady state, which is what "the diagonal is gone" means.
 		if i >= 40 and v.length() > 1.0:
 			settled = absf(v.angle_to(want))
+		if i >= 40:
+			for c in goose.get_slide_collision_count():
+				var hit := goose.get_slide_collision(c)
+				if hit.get_normal().y > 0.7:
+					continue
+				var who := hit.get_collider() as Node
+				# A chaos prop is an unnamed RigidBody3D; its `label` says what it is.
+				var what: Variant = null if who == null else who.get("label")
+				var tag := "?" if who == null else ("%s(%s)" % [who.name, who.get_class()] if what == null else str(what))
+				if not _diag_hits.has(tag):
+					_diag_hits.append(tag)
 	Input.action_release("gg_forward")
 	Input.action_release("gg_right")
 	return settled
