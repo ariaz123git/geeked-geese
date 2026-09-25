@@ -8,6 +8,8 @@
                               #   the PASS lines those eleven just printed
     .\verify.ps1 -Shots       # also render every zone and tell you where the PNGs are
     .\verify.ps1 -Quick       # skips the 20 s campaign run
+    .\verify.ps1 -StepTimeout 60   # kill any gate still running after 60 s (the
+                              #   default is per step, above its own failsafe)
 
   Run this after EVERY batch of edits. Nothing may be described as working until
   this passes and its output has been read.
@@ -41,7 +43,11 @@
 
 param(
     [switch]$Shots,
-    [switch]$Quick
+    [switch]$Quick,
+    # Seconds before a gate is killed. 0 = each step's own default, set above
+    # that step's in-engine failsafe so the engine's clearer message wins
+    # whenever main.gd can parse at all. See Godot() below.
+    [int]$StepTimeout = 0
 )
 
 $ErrorActionPreference = "Continue"
@@ -121,6 +127,48 @@ function SaveStamp($p) {
 }
 $saveBefore = SaveStamp $savePath
 
+# EVERY GATE RUNS UNDER A WALL-CLOCK LIMIT THAT THIS SCRIPT OWNS.
+#
+# docs/RECENT_FAILURES.md F-005. On 2026-08-19 a patch swallowed a newline in
+# main.gd, the main scene would not parse, and --gate printed nothing and never
+# exited. The in-engine failsafe could not help, because it lives in main.gd
+# too: a file that will not parse takes its own deadline down with it. Every
+# step below boots the same main.gd, so the same fault would have hung this
+# whole script, forever, with no line saying why.
+#
+# The shell that starts a process is the only thing that can always stop it.
+# Each run goes to temp files, waits at most $limit seconds, and on timeout
+# kills the whole process TREE (the console build can run the engine as a
+# child, and Windows PowerShell 5.1 has no Kill(entireProcessTree)), then
+# prints the last lines it caught - which is where "Parse Error ... main.gd:NNN"
+# would be. Exit code 124 means "killed by this script", as in coreutils.
+$script:killed = @()
+function Godot([string[]]$gargs, [int]$limit) {
+    if ($StepTimeout -gt 0) { $limit = $StepTimeout }
+    $outFile = [IO.Path]::GetTempFileName()
+    $errFile = [IO.Path]::GetTempFileName()
+    $argLine = ($gargs | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' '
+    $p = Start-Process -FilePath $GODOT -ArgumentList $argLine -NoNewWindow -PassThru `
+        -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+    $null = $p.Handle   # without this, ExitCode can read back as $null after exit
+    $timedOut = -not $p.WaitForExit($limit * 1000)
+    if ($timedOut) {
+        & taskkill.exe /PID $p.Id /T /F 2>&1 | Out-Null
+        $null = $p.WaitForExit(10000)
+    }
+    $text = [string](Get-Content $outFile -Raw -Encoding UTF8) + [string](Get-Content $errFile -Raw -Encoding UTF8)
+    Remove-Item $outFile, $errFile -ErrorAction SilentlyContinue
+    if ($timedOut) {
+        $script:killed += ($gargs -join ' ')
+        Write-Host "[timeout] killed after $limit s: $($gargs -join ' ')" -ForegroundColor Red
+        Write-Host "          the last lines it printed:" -ForegroundColor Red
+        ($text -split "`r?`n") | Where-Object { $_.Trim() -ne '' } | Select-Object -Last 12 |
+            ForEach-Object { Write-Host "          $_" -ForegroundColor DarkGray }
+        return @{ Out = $text; Code = 124 }
+    }
+    return @{ Out = $text; Code = $p.ExitCode }
+}
+
 function Pass($name, $line) {
     Write-Host "[ok] $name" -ForegroundColor Green
     if ($line) { Write-Host "      $line" -ForegroundColor DarkGray }
@@ -143,8 +191,9 @@ if (-not (Test-Path (Join-Path $root ".godot"))) {
 #    are registered and identifier resolution is real. tools/gate.gd.
 # ---------------------------------------------------------------------------
 Write-Host "`n=== compile gate ===" -ForegroundColor Cyan
-$gateOut = & $GODOT --headless --no-header --path $root -- --gate 2>&1 | Out-String
-$gateCode = $LASTEXITCODE
+$r = Godot @('--headless','--no-header','--path',$root,'--','--gate') 360
+$gateOut = $r.Out
+$gateCode = $r.Code
 $gateLines = ($gateOut -split "`r?`n") | Where-Object { $_ -match '^\[gate\]' }
 $gateLines | ForEach-Object { Write-Host $_ }
 if ($gateCode -ne 0) {
@@ -155,6 +204,15 @@ if ($gateCode -ne 0) {
     Fail "compile gate" "SCRIPT ERROR: $((ScriptErrors $gateOut)[0])"
 } else {
     Pass "compile gate" ($gateLines | Where-Object { $_ -match 'PASS' })
+}
+# A KILLED COMPILE GATE ENDS THE RUN. Every step after it boots the same
+# main.gd, so if this one could not finish, eleven more would each wait out
+# their own limit and say nothing new. The lines printed above are the evidence;
+# run the gate unfiltered to see all of it (CLAUDE.md, "The parser can HANG").
+if ($gateCode -eq 124) {
+    Write-Host "`nThe compile gate was killed, and every later step boots the same main.gd. Stopping here." -ForegroundColor Red
+    Write-Host "`nVERIFY FAILED" -ForegroundColor Red
+    exit 1
 }
 # Confirm the snapshot above was taken of the file the engine actually uses.
 $udLine = $gateLines | Where-Object { $_ -match '^\[gate\] user data: ' } | Select-Object -First 1
@@ -177,8 +235,9 @@ if ($udLine) {
 #    assertion in it is a bug that already got through once. tools/selftest.gd.
 # ---------------------------------------------------------------------------
 Write-Host "`n=== invariants ===" -ForegroundColor Cyan
-$stOut = & $GODOT --headless --no-header --path $root -- --selftest 2>&1 | Out-String
-$stCode = $LASTEXITCODE
+$r = Godot @('--headless','--no-header','--path',$root,'--','--selftest') 360
+$stOut = $r.Out
+$stCode = $r.Code
 $stLines = ($stOut -split "`r?`n") | Where-Object { $_ -match '^\[selftest\]' }
 $stLines | ForEach-Object { Write-Host $_ }
 if ($stCode -ne 0) {
@@ -199,8 +258,9 @@ if ($stCode -ne 0) {
 #    pressed a key. tools/inputtest.gd.
 # ---------------------------------------------------------------------------
 Write-Host "`n=== controller ===" -ForegroundColor Cyan
-$inOut = & $GODOT --headless --no-header --path $root -- --probe --inputtest 2>&1 | Out-String
-$inCode = $LASTEXITCODE
+$r = Godot @('--headless','--no-header','--path',$root,'--','--probe','--inputtest') 360
+$inOut = $r.Out
+$inCode = $r.Code
 $inLines = ($inOut -split "`r?`n") | Where-Object { $_ -match '^\[input\]' }
 $inLines | ForEach-Object { Write-Host $_ }
 if ($inCode -ne 0) {
@@ -227,8 +287,9 @@ if ($inCode -ne 0) {
 #    Every other gate passed on that build. tools/feeltest.gd, docs/FEEL_TARGETS.md.
 # ---------------------------------------------------------------------------
 Write-Host "`n=== feel ===" -ForegroundColor Cyan
-$feelOut = & $GODOT --headless --no-header --path $root -- --probe --feeltest 2>&1 | Out-String
-$feelCode = $LASTEXITCODE
+$r = Godot @('--headless','--no-header','--path',$root,'--','--probe','--feeltest') 360
+$feelOut = $r.Out
+$feelCode = $r.Code
 $feelLines = ($feelOut -split "`r?`n") | Where-Object { $_ -match '^\[feel\]' }
 $feelLines | ForEach-Object { Write-Host $_ }
 if ($feelCode -ne 0) {
@@ -258,8 +319,9 @@ if ($feelCode -ne 0) {
 # ---------------------------------------------------------------------------
 if (-not $Quick) {
     Write-Host "`n=== substances ===" -ForegroundColor Cyan
-    $subOut = & $GODOT --headless --no-header --path $root -- --probe --substancetest --failsafe:600 2>&1 | Out-String
-    $subCode = $LASTEXITCODE
+    $r = Godot @('--headless','--no-header','--path',$root,'--','--probe','--substancetest','--failsafe:600') 720
+    $subOut = $r.Out
+    $subCode = $r.Code
     $subLines = ($subOut -split "`r?`n") | Where-Object { $_ -match '^\[subs\]' }
     $subLines | ForEach-Object { Write-Host $_ }
     if ($subCode -ne 0) {
@@ -287,8 +349,9 @@ if (-not $Quick) {
 # ---------------------------------------------------------------------------
 if (-not $Quick) {
     Write-Host "`n=== flight ===" -ForegroundColor Cyan
-    $migOut = & $GODOT --headless --no-header --path $root -- --probe --migtest --failsafe:300 2>&1 | Out-String
-    $migCode = $LASTEXITCODE
+    $r = Godot @('--headless','--no-header','--path',$root,'--','--probe','--migtest','--failsafe:300') 420
+    $migOut = $r.Out
+    $migCode = $r.Code
     $migLines = ($migOut -split "`r?`n") | Where-Object { $_ -match '^\[mig\]' }
     $migLines | ForEach-Object { Write-Host $_ }
     if ($migCode -ne 0) {
@@ -309,8 +372,9 @@ if (-not $Quick) {
 #    headless, so the speed can just be measured. main.gd::_roll_test().
 # ---------------------------------------------------------------------------
 Write-Host "`n=== credit roll ===" -ForegroundColor Cyan
-$rollOut = & $GODOT --headless --no-header --path $root -- --probe --rolltest 2>&1 | Out-String
-$rollCode = $LASTEXITCODE
+$r = Godot @('--headless','--no-header','--path',$root,'--','--probe','--rolltest') 360
+$rollOut = $r.Out
+$rollCode = $r.Code
 $rollLines = ($rollOut -split "`r?`n") | Where-Object { $_ -match '^\[roll\]' }
 $rollLines | ForEach-Object { Write-Host $_ }
 if ($rollCode -ne 0) {
@@ -335,8 +399,9 @@ if ($rollCode -ne 0) {
 #     the day it was written. See tools/doctest.gd and docs/CLAIMS.md.
 # ---------------------------------------------------------------------------
 Write-Host "`n=== claims ===" -ForegroundColor Cyan
-$docOut = & $GODOT --headless --no-header --path $root -- --doctest 2>&1 | Out-String
-$docCode = $LASTEXITCODE
+$r = Godot @('--headless','--no-header','--path',$root,'--','--doctest') 360
+$docOut = $r.Out
+$docCode = $r.Code
 $docLines = ($docOut -split "`r?`n") | Where-Object { $_ -match '^\[doctest\]' }
 $docLines | ForEach-Object { Write-Host $_ }
 if ($docCode -ne 0) {
@@ -359,8 +424,9 @@ if ($docCode -ne 0) {
 #     0.700 s goose hiss that never looped, and every existence check passed it.
 # ---------------------------------------------------------------------------
 Write-Host "`n=== audio ===" -ForegroundColor Cyan
-$audOut = & $GODOT --headless --no-header --path $root -- --audiotest 2>&1 | Out-String
-$audCode = $LASTEXITCODE
+$r = Godot @('--headless','--no-header','--path',$root,'--','--audiotest') 360
+$audOut = $r.Out
+$audCode = $r.Code
 $audLines = ($audOut -split "`r?`n") | Where-Object { $_ -match '^\[audio\]' }
 $audLines | ForEach-Object { Write-Host $_ }
 if ($audCode -ne 0) {
@@ -384,8 +450,9 @@ if ($audCode -ne 0) {
 #     which is a look and therefore the human's call. D-036.
 # ---------------------------------------------------------------------------
 Write-Host "`n=== footprints ===" -ForegroundColor Cyan
-$geoOut = & $GODOT --headless --no-header --path $root -- --probe --geomtest 2>&1 | Out-String
-$geoCode = $LASTEXITCODE
+$r = Godot @('--headless','--no-header','--path',$root,'--','--probe','--geomtest') 360
+$geoOut = $r.Out
+$geoCode = $r.Code
 $geoLines = ($geoOut -split "`r?`n") | Where-Object { $_ -match '^\[geom\] (PASS|FAIL|REPORTED|  )' }
 $geoLines | ForEach-Object { Write-Host $_ }
 if ($geoCode -ne 0) {
@@ -406,8 +473,9 @@ if ($geoCode -ne 0) {
 # ---------------------------------------------------------------------------
 if (-not $Quick) {
     Write-Host "`n=== full campaign ===" -ForegroundColor Cyan
-    $loopOut = & $GODOT --headless --no-header --path $root -- --probe --loop-test 2>&1 | Out-String
-    $loopCode = $LASTEXITCODE
+    $r = Godot @('--headless','--no-header','--path',$root,'--','--probe','--loop-test') 360
+    $loopOut = $r.Out
+    $loopCode = $r.Code
     ($loopOut -split "`r?`n") | Where-Object { $_ -match '^\[run\]|^\[loop\] leg \d|^\[loop\] END' } | ForEach-Object { Write-Host $_ }
     if ($loopCode -ne 0) {
         Fail "full campaign" "exit $loopCode"

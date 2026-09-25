@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-062 · 2026-09-25 · `verify.ps1` owns a wall-clock limit on every gate; F-005 retired
+Status: Decided (agent)
+Decision: All eleven gate invocations in `verify.ps1` go through one `Godot()` helper — `Start-Process` to temp files, `WaitForExit(limit)`, `taskkill /T /F` on timeout, then the last twelve lines printed and exit code 124. Limits sit above each step's in-engine failsafe (360 s; substances 720, flight 420); `-StepTimeout` overrides. A killed compile gate ends the run. F-005 leaves `docs/RECENT_FAILURES.md` in the same commit, retired by this helper.
+Why: F-005 — a `main.gd` that will not parse hangs every gate forever, and the in-engine failsafe cannot help because it lives in `main.gd` too. **Canaried with the exact 2026-08-19 fault** (two statements joined onto one line): `-Quick -StepTimeout 45` killed the gate at 45 s, printed *"Parse Error: Expected end of statement after expression … (res://scripts/core/main.gd:136)"*, stopped, and left no Godot process running — 46 s end to end where it used to be forever. A normal full run through the helper then passed in 330 s with every PASS line intact. `taskkill /T` rather than `Process.Kill()` because the console build can run the engine as a child and Windows PowerShell 5.1 has no `Kill(entireProcessTree)`.
+Refs: `verify.ps1` (`Godot()`, the compile-gate early stop, `-StepTimeout`); `docs/RECENT_FAILURES.md` (F-005 removed).
+
 ## D-061 · 2026-09-25 · Restart, pressed end to end, was already right — and is now held
 Status: Decided (agent)
 Decision: `inputtest::_restart_test()` builds a run worth losing — leg 3's zone, chaos banked, a goose dead, tolerance built, grass still running with `Engine.time_scale` at 0.92 — and restarts it twice: R, R through real key events, and RESTART RUN pressed twice (asserting the first press relabels it). After each it asserts leg 1, zero chaos, six geese, no tolerance, nothing running, time scale 1.0, leg 1's zone and a clock within 5 s of its 240, the zone running and the mission on leg 1. 113 checks → 134.

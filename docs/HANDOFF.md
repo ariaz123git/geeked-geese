@@ -96,7 +96,7 @@ look for it and each now carrying the assertion that would have caught it:
 | Autoloads | 10 (see `docs/ARCHITECTURE.md` §2 for the order and why it matters) |
 | Gates | **11.** `.\verify.ps1`, about six minutes |
 | Decisions | `docs/DECISIONS.md` — **40 entries.** Five are `Open (human)` and must not be closed by an agent: D-005, D-006, D-007, D-019, **D-036** |
-| Failure log | `docs/RECENT_FAILURES.md` — 3 of a hard cap of 5. An entry leaves only by becoming a check |
+| Failure log | `docs/RECENT_FAILURES.md` — 2 of a hard cap of 5 (F-005 retired 2026-09-25 by `verify.ps1`'s timeout). An entry leaves only by becoming a check |
 
 ### The twelve gates, and what each one is the only thing that can see
 
@@ -109,7 +109,7 @@ look for it and each now carrying the assertion that would have caught it:
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, and the seven differ | 14 measurements |
 | `--probe --rolltest` | the credit roll travels |  |
-| `--doctest` | **the documents still tell the truth** | 196 claims |
+| `--doctest` | **the documents still tell the truth** | 195 claims |
 | `--audiotest` | **the WAVs are what their names claim, and the volume sliders reach a bus** | 254 over 68 files |
 | `--probe --geomtest` | **a model is the size its table says, nothing edible is buried in a solid, and the bird stands ON the ground** | 56 over 15 kinds, 74 pickups |
 | `--probe --loop-test` | seven legs, seven flights and the ending | + the shelf census |
