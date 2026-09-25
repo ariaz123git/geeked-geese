@@ -6,7 +6,7 @@ will be another autonomous."* That is still the instruction.
 **This file no longer carries the queue.** It did until 2026-09-25, when one
 session worked all six of its items — the controls sweep, the per-step timeout,
 `migtest`'s half crossing, F-001, the `CLAUDE.md` cut, leg 1's findability — and
-kept going (D-054 to D-082). `docs/HANDOFF.md` §3 ranks what comes next. What
+kept going (D-054 to D-084). `docs/HANDOFF.md` §3 ranks what comes next. What
 stays here is the material behind the decisions only the human can make, and the
 pattern that keeps producing bugs.
 
@@ -31,6 +31,8 @@ the command will not.
 - **Cat petting (§4).** The human said explicitly: *"needs to be discussed in
   detail in the next session."* Designed, deliberately unbuilt.
 - **Where leg 1's pickups go (§2, D-068).** Now measured; still level design.
+- **Whether two quick honks may rout the Ranger (D-084).** Measured; it is
+  difficulty, and the fix would change how hard the honk hits everything.
 - The `Open (human)` entries in `docs/DECISIONS.md`, listed in HANDOFF §3.
   **D-019 is worth raising first** — tolerance softening penalties is arguably
   part of why chemistry feels inconsequential.

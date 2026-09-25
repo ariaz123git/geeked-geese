@@ -37,6 +37,9 @@ static var _checks := 0
 static func run(tree: SceneTree, main: Node) -> void:
 	_fails.clear()
 	_checks = 0
+	# probe_common lesson 10: `_ranger_honk()` builds two props (D-084), and
+	# selftest's `_the_harnesses_settle()` holds every harness that builds to this.
+	await preload("res://tools/probe_common.gd").settled(tree)
 
 	var goose: CharacterBody3D = await _fresh_goose(tree, main)
 	if goose == null:
@@ -569,17 +572,29 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 		_ok(false, "leg 3 loaded without the Ranger or a goose, so he could not be honked at")
 		return
 	# Into the sweep: out of the truck, clipboard in hand. ARRIVE ends 4 s in.
+	# VALID, NOT MERELY NON-NULL, AT EVERY LOOKUP. Two runs in nine of the first
+	# version raised "Cannot call method 'get' on a previously freed instance" and
+	# skipped both rows — the cause is written at the Piper honk below. Each
+	# lookup now says which object was gone instead of raising.
 	var waited := 0
 	for _i in 900:
 		await tree.physics_frame
 		waited += 1
+		if not is_instance_valid(boss):
+			_ok(false, "the Ranger's encounter node was freed %d frames after leg 3 loaded — something reloaded the zone under the harness" % waited)
+			return
 		if int(boss.get("phase")) >= 2:
 			break
 	var man: Node3D = boss.get("_ranger")
 	var dog: Node3D = boss.get("_dog")
-	if man == null or dog == null:
-		_ok(false, "the Ranger's encounter reached phase %d without a man and a dog" % int(boss.get("phase")))
+	if man == null or dog == null or not is_instance_valid(man) or not is_instance_valid(dog):
+		_ok(false, "the Ranger's encounter reached phase %d without a live man (%s) and dog (%s)"
+			% [int(boss.get("phase")), is_instance_valid(man), is_instance_valid(dog)])
 		return
+	# And then hold them where they are (probe_common lesson on actors): a
+	# frozen body still answers `startle()`, which is a plain call from the
+	# honk, and a frozen dog cannot take the goose away mid-measurement.
+	preload("res://tools/probe_common.gd").hold_actors(tree, true)
 	var board: Node3D = man.get("held_board")
 	var held_before: bool = board != null and is_instance_valid(board) and board.visible
 	goose.global_position = Vector3(man.global_position.x + 2.2, goose.global_position.y, man.global_position.z)
@@ -590,20 +605,71 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 	var flinch: float = float(man.get("_flinch"))
 	var held_after: bool = board != null and is_instance_valid(board) and board.visible
 	var dropped: bool = boss.get_node_or_null("Clipboard") != null
+	var man_d: float = goose.global_position.distance_to(man.global_position)
+	# PIPER GETS HER OWN HONK. The first version honked once for both, because
+	# they spawn 1.6 m apart — and read her at 3.9 m, then 5.9 m, then out of the
+	# 7.5 m honk radius altogether: she runs at 9.5 m/s. Placed from where she
+	# is at the moment of the press.
+	#
+	# AND ONLY ONCE THE CLIPBOARD HAS LANDED. Two runs in nine, a second honk
+	# 0.43 s after the first shattered the clipboard while it was still in the
+	# air above the goose, which routs the encounter, walks the man the 0.8 m to
+	# his door and frees the dog — the "previously freed instance" this raised.
+	# That is the game, not the harness: D-084, and it is the human's call. This
+	# check is about Piper, so it waits the clipboard out.
+	for _w in 90:
+		await tree.physics_frame
+	goose.global_position = Vector3(dog.global_position.x + 2.0, goose.global_position.y, dog.global_position.z)
+	goose.velocity = Vector3.ZERO
+	for _w2 in 2:
+		await tree.physics_frame
+	await _key(tree, KEY_H)
 	var excite: float = float(dog.get("_excite"))
 	var distract: float = float(dog.get("_distract"))
-	print("[input] ranger: phase %d after %d frames; H from %.1f m -> man flinch %.2f s, board held %s -> %s, clipboard on the ground %s; Piper %.1f m away: excite %.2f, distract %.2f"
-		% [int(boss.get("phase")), waited, goose.global_position.distance_to(man.global_position),
-			flinch, held_before, held_after, dropped,
+	preload("res://tools/probe_common.gd").hold_actors(tree, false)
+	print("[input] ranger: phase %d after %d frames; H from %.1f m -> man flinch %.2f s, board held %s -> %s, clipboard on the ground %s; H from %.1f m of Piper -> excite %.2f, distract %.2f"
+		% [int(boss.get("phase")), waited, man_d, flinch, held_before, held_after, dropped,
 			goose.global_position.distance_to(dog.global_position), excite, distract])
 	_ok(flinch > 0.0 and held_before and dropped,
 		("a honk 2 m from the Ranger did not make him flinch and drop the clipboard (flinch %.2f, "
 		+ "held %s, dropped %s). honk.gd::_shove() calls startle() on the \"npc\" group by name.")
 			% [flinch, held_before, dropped])
 	_ok(excite > 0.0 and distract == 0.0,
-		("the same honk left Piper excite %.2f / distract %.2f. The rule is that the honk EXCITES the "
-		+ "dog and only a cat distracts her — the dog is the thing the honk does not work on.")
+		("a honk 2 m from Piper left her excite %.2f / distract %.2f. The rule is that the honk EXCITES "
+		+ "the dog and only a cat distracts her — the dog is the thing the honk does not work on.")
 			% [excite, distract])
+
+	# D-084, MEASURED WITH THE REAL HONK — observed, NOT asserted, because
+	# whether a honk may finish the Ranger is the human's call. Two props built
+	# exactly like his clipboard (mass 1.6, break_force 5.0) and frozen in place:
+	# one level with the honk 2 m away, one 1.2 m straight above it. honk.gd
+	# shoves with (n + 0.4 up) * 5.5 and ChaosProp breaks at 0.7 * |impulse|, so
+	# the arithmetic says 4.15 for the first and 5.39 for the second.
+	for _q in 25:
+		await tree.physics_frame
+	var cp := preload("res://scripts/world/chaos_prop.gd")
+	var honk_at: Vector3 = (goose.get("honker") as Node3D).global_position
+	var probes: Array = []
+	for off in [Vector3(2.0, 0.0, 0.0), Vector3(0.05, 1.2, 0.0)]:
+		var pr: RigidBody3D = cp.new()
+		zone.add_child(pr)
+		pr.setup(Vector3(0.38, 0.48, 0.05), Color(0.94, 0.94, 0.91), 1.6, 150, "D084 PROBE")
+		pr.set("break_force", 5.0)
+		pr.freeze = true
+		pr.global_position = honk_at + (off as Vector3)
+		probes.append(pr)
+	for _q2 in 2:
+		await tree.physics_frame
+	await _key(tree, KEY_H)
+	var broke: Array[bool] = []
+	for pr2 in probes:
+		broke.append(not is_instance_valid(pr2) or bool(pr2.get("_broken")))
+	print("[input] ranger: D-084 measured — a honk against a clipboard-weight prop: level at 2 m broke=%s; 1.2 m straight above broke=%s"
+		% [broke[0], broke[1]])
+	for pr3 in probes:
+		if is_instance_valid(pr3):
+			pr3.queue_free()
+
 
 
 ## BIG DOWN'S WAREHOUSE ANSWERS A HONK WITH ITSELF (D-081). The flock is not
@@ -677,6 +743,42 @@ static func _big_down_echo(tree: SceneTree, main: Node) -> void:
 	_ok(own[0] >= 2,
 		("the goose honked %d time(s) for two presses of H at leg 7. BIG DOWN listens in `_input` "
 		+ "ahead of the goose, and must leave the event for it.") % own[0])
+
+	# THE GLASS (D-083). A honk breaks BIG DOWN's panes through an "Ear" — a
+	# bodiless node in the "npc" group that honk.gd startles by name and that
+	# queues its pane for the next tick. The encounter's payoff, and the campaign
+	# loop had never honked at a pane. The lowest pane, the goose on top of it.
+	var pane_pos: Array = boss.get("_pane_pos")
+	var gone: Array = boss.get("_pane_gone")
+	var low := -1
+	for pi in pane_pos.size():
+		if low < 0 or (pane_pos[pi] as Vector3).y < (pane_pos[low] as Vector3).y:
+			low = pi
+	if low < 0:
+		_ok(false, "BIG DOWN built no panes, so its glass could not be honked")
+		return
+	var gone_before := 0
+	for g in gone:
+		if bool(g):
+			gone_before += 1
+	goose.global_position = (pane_pos[low] as Vector3) + Vector3(0.0, 0.2, 0.0)
+	goose.velocity = Vector3.ZERO
+	for _m in 25:
+		await tree.physics_frame
+	await _key(tree, KEY_H)
+	for _n in 4:
+		await tree.physics_frame
+	var gone_after := 0
+	for g2 in gone:
+		if bool(g2):
+			gone_after += 1
+	print("[input] big down: H %.1f m from pane %d -> pane gone=%s, panes broken %d -> %d of %d"
+		% [goose.global_position.distance_to(pane_pos[low]), low, bool(gone[low]),
+			gone_before, gone_after, gone.size()])
+	_ok(bool(gone[low]) and gone_after > gone_before,
+		("a honk %.1f m from BIG DOWN's pane %d left it standing (%d -> %d broken). The honk reaches "
+		+ "glass only through boss_big_down.gd's Ear nodes in the \"npc\" group.")
+			% [goose.global_position.distance_to(pane_pos[low]), low, gone_before, gone_after])
 
 
 ## THE ALMANAC'S OWN CONTROLS (D-078). The row that calls this proves the
