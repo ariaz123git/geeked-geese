@@ -157,10 +157,10 @@ fresh checkout and in headless CI.
 
 - **Forward slashes only.** `"res://scripts\new.gd"` parses as `res://scripts` +
   newline.
-- **Never `sed -i` a file in this repo.** Much of the tree is CRLF and GNU sed
-  rewrites it LF, so every line of the diff changes. Use the Edit tool, or Python
-  on `'rb'`/`'wb'` bytes; `git diff --stat` showing the whole file changed means
-  the line endings moved, not the code.
+- **Never `sed -i` a file in this repo.** Some files are CRLF (`verify.ps1`,
+  `selftest.gd`, `goose_controller.gd`…; `git ls-files --eol` says which — a
+  hand-rolled `grep $'\r$'` once reported every file CRLF) and GNU sed makes them
+  LF. Use the Edit tool or Python on bytes; a whole-file diff means endings moved.
 - **snake_case every file and folder.** The exported PCK is case-sensitive even
   on Windows.
 - `class_name` is one flat global namespace shared with every engine class and

@@ -1,108 +1,67 @@
-# NEXT SESSION IS AUTONOMOUS — HERE IS THE QUEUE
+# NEXT SESSION — AUTONOMOUS. THE QUEUE IS IN HANDOFF §3.
 
 **Set by the human on 2026-09-20:** *"wrap this session for now and next session
-will be another autonomous."*
+will be another autonomous."* That is still the instruction.
 
-> **This file used to say the opposite.** It was written on 2026-09-10 saying the
-> next session must be a PLANNING session and must not implement anything. The
-> human has since changed that twice — first *"idk wtf is going on but keep
-> building ts, making it better"*, then the line above. **The instruction below
-> is the current one.** The planning material underneath is still good reference,
-> and it is no longer a gate you have to pass first.
->
-> This is the third time in this project's history that a stale instruction in a
-> rarely-read file nearly sent a session the wrong way. CLAUDE.md's own banner
-> note is about exactly this. If you change what this file says, change the
-> banner at the top of `docs/HANDOFF.md` in the same commit.
+**This file no longer carries the queue.** It did until 2026-09-25, when one
+session worked all six of its items — the controls sweep, the per-step timeout,
+`migtest`'s half crossing, F-001, the `CLAUDE.md` cut, leg 1's findability — and
+kept going (D-054 to D-081). `docs/HANDOFF.md` §3 ranks what comes next. What
+stays here is the material behind the decisions only the human can make, and the
+pattern that keeps producing bugs.
 
-**This file is a working agenda, not a claim surface.** Consume it and rewrite
-it. Where it states a number, the command that recomputes it is next to it,
-because the number will rot and the command will not.
+> **This file has said three different things in three weeks** — a planning
+> session, then "keep building", then autonomous with a queue — and each time a
+> stale instruction in a rarely-read file nearly sent a session the wrong way.
+> CLAUDE.md's banner is about exactly this. If you change what this file says,
+> change the banner at the top of `docs/HANDOFF.md` in the same commit.
+
+**This file is a working agenda, not a claim surface.** Where it states a number,
+the command that recomputes it is next to it, because the number will rot and
+the command will not.
 
 ---
 
-## THE QUEUE, ranked, all of it autonomous
-
-**Work item 1 first — it is the seam that has produced four real bugs in four
-attempts and it is not exhausted.**
-
-1. **KEEP SWEEPING FOR CONTROLS THAT DO NOTHING.** See §6 for the full argument.
-   The pattern has now hit four times and the remaining untouched surfaces are:
-   the results screen and its ENTER/`gg_skip` path; the briefing card; the
-   settings widgets themselves (a slider that moves must write a pref — D-053
-   proved the pref reaching a *bus* works, not that dragging the control writes
-   the pref); the restart confirm end to end; and the roster's `gg_skip`. Every
-   one of these is reachable now that the pause menu opens, and none has ever
-   been driven.
-
-2. **`verify.ps1` has no per-step wall-clock timeout.** F-005, and the one hole
-   this project opened rather than closed. A `main.gd` that will not parse hangs
-   the whole script forever and **the in-engine failsafe cannot help, because it
-   lives in `main.gd` too**. One helper — `Start-Process -PassThru
-   -RedirectStandardOutput`, `WaitForExit(ms)`, `Kill()` — applied to twelve
-   invocations, printing the captured output when it fires.
-
-3. **`migtest`'s `lateral.half_cross` cannot fail unless `full_cross` does.**
-   It is derived from the same drive rather than measured. A check that cannot
-   fail independently is the thing CLAUDE.md calls worse than no check.
-
-4. **Retire F-001.** The audio leak. Two things were tried and measured —
-   `Music._exit_tree()` **does** run, and an equivalent in `sfx.gd` left the
-   count at exactly 17 — so the holder is not the autoload caches. Remaining
-   candidate: the AudioServer's playbacks. **Note D-053 added an SFX bus**, which
-   changes the audio teardown surface; re-measure before assuming the old
-   numbers still hold.
-
-5. **Cut `CLAUDE.md` toward 200.** It is at 373 against a ratchet that only goes
-   down, and it has already bitten: a needed addition was refused at 376 and had
-   to be paid for by tightening two paragraphs. The biggest remaining block is
-   the architecture description, which is derivable from `docs/ARCHITECTURE.md`.
-
-6. **Leg 1 discoverability** (§2). The shelf SIZE is the human's call and is one
-   constant. What is not taste: the human could only find the grass, because the
-   three grass patches are infinite and obvious while the other five pickups are
-   up a tree, elevated, or in a far corner. Measurable, and separable from the
-   shelf question.
-
-### NOT autonomous — still the human's
+## STILL THE HUMAN'S — do not decide these alone
 
 - **Substances as keys (§1).** It overrides a written design principle
-  (`BOSS_DESIGN.md` §3.5, *"chemistry is a lever, never a key"*). Do not decide
-  it alone. If you want to move it without them, the ONLY direction that does not
-  override the rule is making the lever steeper — and that is still taste, so
-  prefer the bug queue.
+  (`BOSS_DESIGN.md` §3.5, *"chemistry is a lever, never a key"*). If you want to
+  move it without them, the ONLY direction that does not override the rule is
+  making the lever steeper — and that is still taste.
 - **Cat petting (§4).** The human said explicitly: *"needs to be discussed in
   detail in the next session."* Designed, deliberately unbuilt.
-- The five `Open (human)` entries in `docs/DECISIONS.md`. **D-019** is worth
-  raising when they are next available — tolerance softening penalties is
-  arguably part of why chemistry feels inconsequential.
+- **Where leg 1's pickups go (§2, D-068).** Now measured; still level design.
+- The `Open (human)` entries in `docs/DECISIONS.md`, listed in HANDOFF §3.
+  **D-019 is worth raising first** — tolerance softening penalties is arguably
+  part of why chemistry feels inconsequential.
 
 ---
 
 ## 6. THE PATTERN WORTH CARRYING INTO THE NEXT SESSION
 
-Four bugs on 2026-09-20 and **all four were the same bug**: an advertised control
-wired to nothing, passing every gate because no gate asked whether the far end
-was attached.
-
-| | found |
-|---|---|
-| D-050 | the pause menu could close itself and never open itself |
-| D-051 | no input event had **ever** been sent through the viewport by any harness |
-| D-052 | the menu's seven buttons had never been clicked by anyone |
-| D-053 | the SFX volume slider had no bus; all 17 players were on Master |
-
-And a fifth before them, D-047: `stamina_restore` dead in six `.tres` files.
+**An advertised control wired to nothing, passing every gate because no gate
+asked whether the far end was attached.** Five on 2026-09-20 (D-047, D-050 to
+D-053). On 2026-09-25 the sweep kept going and the seam was nowhere near
+exhausted — HANDOFF §2 has the table: a pad that could not leave flight 1, four
+Settings rows that did nothing, a second share handler nobody had fixed, a card
+nothing called, a menu watch that could not see a menu, a right stick bound to
+nothing. **And the same sweep kept finding a second shape underneath the
+first:** once a control was finally driven, what it drove was sometimes wrong —
+the flight scored formation backwards (D-073), the card taught the draft
+backwards (D-075), the ending scored on the screen with no score (D-079).
 
 **The tell is always the same.** Something is declared in one place and consumed
 in another, the consumer looks it up *by name or by signal*, and the lookup fails
 softly — `get_bus_index()` returns `-1`, an unconnected signal does nothing, a
-`process_mode` gates the callback. No error is raised anywhere.
+`process_mode` gates the callback, a second handler takes the key first. No
+error is raised anywhere.
 
-**The method that works:** find the declaration, then go and check the far end
-exists, and drive it the way a player would rather than calling the handler.
-`Input.parse_input_event()` rather than `Input.action_press()`;
-`Button.pressed` rather than the callback; the pref path rather than `.new()`.
+**The method that works:** find the declaration, go and check the far end
+exists, and drive it the way a player would rather than calling the handler —
+`Input.parse_input_event()` for keys, pad buttons and sticks,
+`Viewport.push_input()` for the mouse (headless, a parsed mouse event never
+reaches the GUI), a click on the Button rather than its signal, the pref rather
+than the field. Then read what the far end did, not just that it ran.
 
 ---
 
@@ -236,14 +195,24 @@ godot --headless --path . -- --probe --geomtest | grep 'Per zone'   # live picku
 **The revert is one constant**: `FULL_SHELF_FROM_LEG := 1` restores the old leg
 1 completely. It was built to be revertible for exactly this reason.
 
-**A separate finding inside it, worth its own discussion:** the human could only
-*find* the grass. That is not the shelf size, that is placement — the three
-grass patches are infinite and obvious, while leg 1's other five pickups are two
-berry sources at tree feet, one up a tree at y 4.6, a double-double at y 2.6
-(elevated, needs a climb), and the bread over at (-34, -12) by the pond. **Even
-the narrowed shelf is not discoverable.** Widening it back would not fix that.
+**A separate finding inside it, now measured (D-068):** the human could only
+*find* the grass, and that is placement, not shelf size. `--probe --findtest`
+drives a goose to every leg-1 pickup and reports reach and the opening shot:
 
-Decide: revert, keep, or keep-and-fix-placement.
+```
+godot --headless --path . -- --probe --findtest 2>&1 | grep '^\[find\]'
+```
+
+The three grass patches are the nearest things and all in the opening shot. The
+**double-double — half of THE WOBBLER, leg 1's one named combo and its flagship
+(D-037) — is the least findable pickup in the leg**: the farthest from the
+spawn, the only one on a prop (it needs a flap onto the dumpster), and out of
+frame. Bread is findable, which is the point of bread, and since D-069 it looks
+like bread rather than a grey sphere. Widening the shelf would not fix this.
+
+Decide: revert the shelf, keep it, or keep it and move the pickups.
+**Recommended, not taken:** keep, and move the double-double off the dumpster to
+the lot's near side, because the combo it completes is what leg 1 is for.
 
 ---
 
@@ -254,25 +223,14 @@ was `WHEN_PAUSED`, which gates `_input()` too, so the menu could close itself an
 never open itself. Everything behind it (settings, Almanac, control card, roster,
 restart) was unreachable with it. `inputtest` now presses Escape through the
 viewport. **The finding that outlives it:** nothing in this project had ever sent
-an input event through the viewport at all, so the whole UI was unverified —
-D-051 swept TAB, R and J too, and those three were fine. Original text:
+an input event through the viewport at all, so the whole UI was unverified. Two
+sweeps since (D-051 to D-081) have driven every `_input` in the game.
 
-**"there is still no pause menu"** — reported from real play. Do not treat as
-missing; it is a live bug with a head start:
-- `scripts/ui/pause_menu.gd` exists, is built in `main.gd::_build_overlays()`,
-  sets `layer = 30`, and opens itself on `ui_cancel` in `_input()` (line 71).
-- So the fault is downstream of all that. First suspects, in order: the
-  `_suppressed` flag (line 44) that lets an overlay take ESC and may never hand
-  it back; another overlay eating `ui_cancel` first (`almanac.gd:46`,
-  `flock_roster.gd:260`, `briefing.gd`'s `DISMISS_ACTIONS`, `control_card.gd:88`
-  — **five things listen for `ui_cancel`**); or the human seeing the mouse
-  release (README: *"Escape releases it"*) and reading that as nothing happening.
-- **No gate covers UI input at all.** Whatever this turns out to be, it got
-  through twelve green gates, which is itself the finding.
+**"all I can find is grass"** — §2 above; measured, and the placement is the
+human's (D-068).
 
-**Everything else the human has hit belongs on this list too — collect it in the
-session rather than guessing at it here.** The instruction was explicit:
-*"listing bugs"* is part of the planning, with them.
+**Everything else the human hits belongs on this list — collect it in the
+session rather than guessing at it here.**
 
 ---
 
@@ -326,16 +284,8 @@ It is neither unused nor about nipping. Verify agent claims against the file.)*
 
 ---
 
-## 5. Carried over from the instrument work — still true, still second
+## 5. The instrument work
 
-`docs/HANDOFF.md` §3 is accurate and is **not** the queue to open with. Its item
-1 is real and cheap and should probably be swept up during implementation rather
-than planned: `verify.ps1` has no per-step wall-clock timeout, so a `main.gd`
-that will not parse hangs it forever, and the in-engine failsafe cannot help
-because it lives in `main.gd` too. Recorded as F-005 in
-`docs/RECENT_FAILURES.md`.
-
-The five `Open (human)` decisions in `docs/DECISIONS.md` are unchanged and an
-agent still must not close them. **D-019 is worth raising in the planning
-session** — tolerance softening penalties is arguably part of why chemistry
-feels inconsequential.
+Consumed. The per-step timeout this section used to point at is D-062, and
+`docs/RECENT_FAILURES.md` is empty. `docs/HANDOFF.md` §3 is the queue now, and
+it lists the `Open (human)` decisions in one table.

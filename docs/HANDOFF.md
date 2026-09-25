@@ -1,26 +1,24 @@
 # HANDOFF — current state
 
-> # ▶ READ `docs/NEXT_SESSION.md` FIRST — IT CARRIES THE QUEUE.
+> # ▶ THE QUEUE IS §3 BELOW.
 >
-> **The human set the next session's format on 2026-09-20: autonomous.** That
-> file used to say the opposite; it has been re-pointed. Work its ranked queue,
-> starting with the control-that-does-nothing sweep, which has produced four real
-> bugs in four attempts and is not exhausted.
+> **The human set the format on 2026-09-20: autonomous sessions.** The
+> 2026-09-25 session worked the whole of the queue `docs/NEXT_SESSION.md`
+> carried and kept going; §3 is the new queue, ranked. `NEXT_SESSION.md` now
+> holds what is the human's, with the reasoning behind each.
 >
-> **Two things there are still the human's and an agent must not decide them:**
-> making substances required (it overrides `BOSS_DESIGN.md` §3.5 in writing), and
-> cat petting (they asked to discuss it). §3 below is about INSTRUMENTS and is
-> the second queue, not the first.
+> **Still the human's, and an agent must not decide them:** making substances
+> required (it overrides `BOSS_DESIGN.md` §3.5 in writing), cat petting (they
+> asked to discuss it), and the `Open (human)` decisions listed in §3.
 
-**Updated:** 2026-09-20, after a short session that started from one sentence
-of real play — *"there is still no pause menu"* — and found **four bugs that
-were all the same bug**: an advertised control wired to nothing, passing twelve
-green gates because no gate asked whether the far end was attached.
-
-The pause menu could close itself and never open itself. No harness in this
-project had **ever** sent an input event through the viewport. The menu's seven
-buttons had never been clicked by anyone. And the SFX volume slider had no bus
-to write to, with all seventeen sound players routed past it to Master.
+**Updated:** 2026-09-25, after one long autonomous session — D-054 to D-081 —
+that kept sweeping for controls wired to nothing and found the seam was not
+exhausted. It found a pad that could play one zone and never leave it, a
+Settings panel that did not do what four of its rows said, a flight that paid
+the player NOT to fly in formation, a tutorial card that taught the flight's one
+rule backwards, and an ending that floated a score over the goose on the one
+screen specced to have none. Every gate now shares nothing with the player's
+save, and `docs/RECENT_FAILURES.md` is empty.
 
 > **How this file works.** `CLAUDE.md` holds the *rules* — they rarely change.
 > This file holds the *state* — it changes every session. Read this first, then
@@ -28,60 +26,33 @@ to write to, with all seventeen sound players routed past it to Master.
 > every session.**
 >
 > **Numbers in this file are checked.** `tools/doctest.gd` recomputes them from
-> the booted project on every `verify.ps1` run — see `docs/CLAIMS.md`. If you
-> write a new number in here, give it a claim row or take it out.
+> the booted project on every `verify.ps1` run — see `docs/CLAIMS.md` — and
+> `verify.ps1` checks the gate table below against the gates that printed it.
+> If you write a new number in here, give it a claim row or take it out.
 
 ---
 
 ## ⟳ 1. Where the project is right now
 
-**The campaign is built and it is no longer the same game twice.** Three things
-the design documents specified and the code had never implemented are now
-implemented, and all three had the same shape: **a spec written in the language
-of the code, sitting in a markdown file, that nothing loaded.**
+**The campaign is built, measured, and — as of this session — driven the way a
+player drives it.** Seven legs, seven flights that differ, two bosses and an
+ending. What changed is the verification: the gates used to prove that code did
+what code said, and a run of sessions found that this repo's most repeated bug
+is a control that is advertised and connected to nothing. So the gates now send
+real input — keys, pad buttons, both sticks, clicks pushed into the viewport —
+through the path a player's input takes, and assert what the far end did.
 
-- Legs 1 and 2 were 420 seconds of the same place with the same sixteen
-  substances. **Leg 1 now offers four**, and one of them is bread.
-- All seven interstitial flights were the same 85-second crossing. **Each now
-  has its own shape**, and flight 1 cannot take a bird.
-- Bread — `CAMPAIGN_SPEC.md` §2.1's "the obvious food is the trap", specced since
-  the campaign was — **is built**, and it removes the game's main verb for
-  twenty seconds.
-
-**And the instruments grew faster than the game did, on purpose.** Eight gates
-became twelve and the invariant count went 619 → 953. The new ones each close a
-category nothing could see before: the DOCS (`--doctest`), the AUDIO
-(`--audiotest`), the GEOMETRY (`--geomtest`) and the gate table itself
-(`verify.ps1` step 12). Between them they found seven stale facts, a bed that
-only loops because of a runtime patch, eleven props declared the wrong size, and
-two gate counts this repo had been quoting wrong for a session.
-
-**The second half of the session is a list of things that were WRONG, not of
-things that were missing.** Nine of them, each found by an instrument built to
-look for it and each now carrying the assertion that would have caught it:
-
-- **Six substance pickups had their model inside a solid** — two berry sources at
-  the centreline of a tree trunk, grass 0.5 m inside the cottage's west wall, a
-  thermos in a truck cab, a coffee cup in a fuel dispenser. Five are one bug: a
-  pickup written at a prop's ANCHOR as though the anchor were its SURFACE.
-- **Both goose models stood underground** — 101 mm on the lowpoly bird and 180 mm
-  on the classic one, on every frame the bird was still. The recorded estimate
-  was "5–10 cm" and named only one of the two.
-- **The substance gate had been measuring acid and percs at 1.6× their declared
-  badness** for its whole life, on `resolve()`'s overdose branch.
-- **`input_lag` — the field whose four-second ramp made eleven substances
-  unplayable — had no behavioural coverage in any gate.** Now measured, and the
-  nine that cannot be measured this way say so and say why.
-- **The eating verb had never been driven by a key**, which is why
-  `stamina_restore` could be dead in six `.tres` files with every gate green.
-- **The results card itemised a combo-multiplied CHAOS figure with raw rewards**,
-  so the itemisation drifted further out the better the player chained.
-- **The headless deadline was armed after the first zone was built**, which is
-  the largest body of code in the project and the likeliest thing to hang.
-- **The table that lists the gates was checked by none of them**, and two of its
-  counts were stale. It is now checked by the script that runs them.
-- **`grid_snap` was invisible to all 22 substance channels** because every one of
-  them holds forward, and a forward stick is already on an axis.
+- **Every menu, card and overlay is reachable and closable on a keyboard and a
+  pad**, every pause-menu button answers a real click, and every Settings row
+  reaches the thing it controls.
+- **Every verb the README names has been pressed by a harness except mouse
+  look**, which no headless run can drive — in the zone, in the flight and at
+  the ending, the flight's lead handoff and the ending's honk for the first time
+  this session.
+- **The gates are hermetic**: a run with arguments neither reads nor writes the
+  player's save, and `verify.ps1` fails if one does.
+- **A gate that hangs is killed** with its last lines printed, and **a gate
+  that leaks an audio stream at exit is red.**
 
 | | |
 |---|---|
@@ -95,7 +66,7 @@ look for it and each now carrying the assertion that would have caught it:
 | Assets | 40 textures (23 + 17 substance icons), 46 sounds (39 SFX + 7 zone ambience beds), 22 music stems — all procedurally generated |
 | Autoloads | 10 (see `docs/ARCHITECTURE.md` §2 for the order and why it matters) |
 | Gates | **11.** `.\verify.ps1`, about six minutes |
-| Decisions | `docs/DECISIONS.md` — **40 entries.** Five are `Open (human)` and must not be closed by an agent: D-005, D-006, D-007, D-019, **D-036** |
+| Decisions | `docs/DECISIONS.md`, newest on top. Six are `Open (human)` and must not be closed by an agent: D-005, D-006, D-007, D-019, D-036, **D-068** |
 | Failure log | `docs/RECENT_FAILURES.md` — **empty**, of a hard cap of 5 (F-005, F-003 and F-001 all retired 2026-09-25: by `verify.ps1`'s timeout, by `probe_common.settled()`, and by the audio exit wait plus `ScriptErrors` catching leaks — D-072). An entry leaves only by becoming a check |
 
 ### The twelve gates, and what each one is the only thing that can see
@@ -125,141 +96,65 @@ look for it and each now carrying the assertion that would have caught it:
 
 ## ⟳ 2. What changed last session
 
-### 1. Leg 1 is a different game from leg 2, and bread is the lesson
+The 2026-09-25 session. Every item has a DECISIONS entry with the measurement,
+the canary that proved its check can fail, and the files; this is the map.
 
-`zone_strip_mall.gd::_sources()` built all sixteen substances unconditionally
-with **no leg branch anywhere**, against `CAMPAIGN_SPEC.md` §2.1's three and
-§2.2's *"all sixteen — this is where the lid comes off"*. `TUTORIAL_SHELF` is
-now `berries, double_double, grass, bread`, and the set is closed under the
-game's own mixing rule: `MAX_STACK` is 2, leg 1's `double_parked` primary needs
-two at once, and `berries|double_double` is THE WOBBLER — exactly one
-discoverable named combo, and it is the flagship.
+### 1. The gates stopped sharing a save file with the player (D-054)
 
-**Bread is a substance, not a special case, and that is why it was cheap.**
-"For twenty seconds you cannot dose, and your chaos is halved" is *exactly* what
-a `Substance` already is, so it cost one export (`blocks_dosing`), one line in
-`resolve()`, one in `_empty_mods()`, one in `_aggregate()` and one refusal in
-`take()`. The HUD strip, the timer, the tolerance, the Almanac entry and the
-unlock it inherits. D-037.
+Three gates had been passing *because of* the save on the machine that ran them:
+it said the first-run cards had been seen, and without it those cards paused the
+tree in the middle of their measurements. Runs with arguments after `--`
+are now hermetic (`prefs.gd::hermetic`), `verify.ps1` hashes the player's save
+before and after and fails if it moved, and the first hermetic run found three
+gates that needed fixing to pass honestly. **The player's save on this machine
+was written by gates before this fix** (all seventeen substances unlocked, a
+nine-digit best chaos, both first-run briefings marked seen); it was left
+exactly as found, and resetting it is the human's call — §3 has the one line.
 
-The check is in two places and both are needed: `selftest` reads the
-declaration, and **`--loop-test` counts the pickups the DIRECTOR built** on every
-leg.
+### 2. Controls wired to nothing — the sweep, continued
 
-```
-[loop] shelf census: leg1=4 leg2=17 leg3=10 leg4=16 leg5=16 leg6=6 leg7=4
-```
+Driven the way a player drives them; bugs first, then what was merely covered.
 
-### 2. Seven flights, seven shapes
-
-`migration.gd` had one `TARGET_DISTANCE := 2000.0` and never read the leg, so
-every crossing ran 85.3 s and rolled hazards from a flat `randi() % 3`. Half the
-game was one flight served seven times, and `ROUTE_DATA.md` §1.3 had shipped the
-table the whole time. The shape is deliberately not a ramp — flight 5 drops to
-9.3 hazards because the Stopover is the run's one recovery beat. D-023.
-
-### 3. Three new gates, and each found something on its first run
-
-- **`--doctest`** (D-024) recomputes every number the docs state. **Seven stale
-  facts** across four root documents on day one — including `CLAUDE.md`'s own
-  line budget, exceeded by 90%. It later caught five more the moment bread added
-  one icon, which is the gate paying for itself.
-- **`--audiotest`** (D-035) opens the WAVs. Its canary showed **exactly four
-  files** depend on `sfx.gd`'s runtime loop patch and would otherwise play once
-  and stop.
-- **`--geomtest`** (D-028, D-036) compares every prop against the footprint its
-  builder declares. **Eleven of fifteen are out by more than 6%**, `hydrant` by
-  −28.5% and `stop_sign`'s depth by **+75%**.
-
-### 4. THE GLIDE NUMBER PUBLISHED TWO SESSIONS AGO WAS WRONG, AND IT WAS MINE
-
-`glidetest` first reported that widening the glide to 3:1 would take reachable
-surfaces from 42 of 113 to 86, and that "suburbia is the whole decision". Those
-went into `FEEL_TARGETS.md` §5.1 and were committed. **The true figures are 21 of
-84 rising to 31**, and suburbia goes 0 → 1 — close to the opposite conclusion.
-
-It was counting the four invisible boundary walls every zone rings itself with.
-**The tell was in the output and I did not read it:** every zone reported
-*exactly* four hazardous surfaces and two of them named the same position. Three
-filters were tried; the third (visibility) was the dangerous one, because
-`_hide_meshes()` hides the graybox of **the roof plateau**, so it threw away 73
-of 158 surfaces including every landable roof.
-
-The gate now prints what every walk discarded, asserts its own filter is stable,
-and fails if `FEEL_TARGETS.md` stops publishing the totals it measures. D-028.
-
-### 5. The harnesses stopped being shoved by cats
-
-Four consecutive sober fingerprints disagreed on bearing (0.775, 0.138, 0.462,
-1.211 rad) while `turnrate` and `climb` were bit-identical in all four — a cat
-camped on the pad, so retaking could not find a quiet window. It started because
-editing the LAWN SIGNS moved the cats: `randomize()` plus one shared draw
-sequence means **any zone-builder edit re-rolls every actor downstream of it.**
-`probe_common.hold_actors()` freezes cats and NPCs for controller measurements
-only — catnip still measures 7 of 7 in frenzy, which is the proof the scoping is
-right. Sober noise went to 0.000 with zero retakes. D-027.
-
-### 6. Nine smaller things, each with its arithmetic
-
-| | |
+| | found |
 |---|---|
-| 27.1% of the lawn-sign sampling rectangle was inside the pond | 2.4 signs in the water per run, in the first zone the player sees. D-033 |
-| `gg_share` paid 75 × combo on **every** press | no cooldown, and no check the dose landed. D-032 |
-| `no_early_exit` was read by one thing: a label in the Almanac | for a verb single-player does not have, **and it was in `CONTROL_KEYS`**. D-029 |
-| `main.gd` set `almanac.layer = 20`; `almanac.gd` sets 40 | 40 winning is the only reason the Almanac is visible. D-030 |
-| one standing hop left the wings beating at full rate for the rest of the leg | `_flap_anim` decayed only inside `_tick_fly` |
-| `Prefs` never flushed on quit | any setting changed in the last `SAVE_DEBOUNCE` seconds was lost |
-| six authored objectives could never appear | three redundant, one re-gated, two moved. D-034 |
-| the hitstop rule said "EXACTLY FIVE CALL SITES" | there were eight. D-038 |
-| `wedge()` closed one of its ridge's two ends | a hole in both cat ears, both dog ears and the human's nose. D-039 |
-| the results card quoted the NEXT leg's clock for a landing that replays THIS one | wrong on four of seven legs; leg 1 by a full minute. D-040 |
+| D-055 | **a pad could play one zone and never leave it**: no pause, and flight 1's results card waited on `gg_skip`, which had no pad button |
+| D-056 | Settings: **Invert Y and Show hints unreachable on a pad**, sliders 95–100 presses end to end, Art style left every cat and person unchanged, Show hints undone by closing the menu |
+| D-057 | the share key has two handlers, and D-032 had fixed one — **the pen paid for a saturated flock on every press** |
+| D-059 | the card that teaches the dose arc was designed, specced and built, and **nothing called it** |
+| D-060 | the director's menu watch lived in a pausable `_process` and **never saw a menu open** |
+| D-063 | the roster that announces a death closed on the press that skipped the flight |
+| D-073 | **the flight paid the player not to fly in formation** — the slot was scored against the V at rest while the V on screen moved |
+| D-075 | the flight's one card taught its one rule backwards: the draft does not burn slower, it pays |
+| D-077 | **a pad could not look around** — the right stick did nothing — and no harness had ever moved a stick |
+| D-079 | **honking a credit slab scored**, on the one screen specced to have no score |
 
-And an undefined escape sequence (`\*` in a RegEx) **stalls the GDScript parser
-with no output at all** — the same symptom `CLAUDE.md` attributed only to a
-reused local name. That is now 72 invariants, one per script. D-031.
+And pressed for the first time, all working, recorded so nobody re-sweeps them:
+restart end to end (D-061), the mouse wheel and click (D-065), every menu button
+by a real click (D-066), G at the flock pen (D-071), the flight's lead handoff
+in all four branches (D-073), the ending's honk and the credits it starts
+(D-076), the Almanac's arrows, D-pad and rows (D-078).
 
----
+### 3. The instruments
 
-### 7. THE HUMAN PRESSED ESCAPE, AND FOUR THINGS FELL OUT
+- **`verify.ps1` kills a hung gate** and prints its last lines (D-062). It used
+  to wait forever on a `main.gd` that would not parse.
+- **The audio leak at exit is closed, twice** (D-072, D-074): stopped streams
+  need the mixer thread to retire them, and positional players live in the zone
+  where no exit wait could reach. A leaked stream is now a red step, and
+  `--audiotest` quits mid-sound on purpose so that stays true.
+- **`migtest`'s half crossing is measured, not divided** (D-067), and
+  **every harness that builds settles first** (D-070).
+- **`--findtest`** counts how findable each leg's pickups are (D-068, report
+  only): leg 1's double-double — half of its one named combo — is the least
+  findable thing in the leg. Where it goes is the human's.
+- `CLAUDE.md` went 373 → 264 lines by pointer, not deletion (D-064).
+- `docs/RECENT_FAILURES.md` is **empty**: F-005, F-003 and F-001 each left by
+  becoming a check.
 
-One sentence of real play beat twelve gates. **`pause_menu.gd` set
-`process_mode = PROCESS_MODE_WHEN_PAUSED`, and that gates `_input()` as well as
-`_process()`** — so the node was inert whenever the tree was RUNNING, and the
-only thing that pauses the tree is the menu's own `_open_menu()`. It could close
-itself and could never open itself. Settings, the Almanac, the control card, the
-flock roster and restart went with it; the README advertises all of them.
+### 4. Bread has a model (D-069)
 
-**Why twelve gates missed it, and this is the part that generalises:** *nothing
-in this project had ever sent an input event through the viewport.* Every
-harness either calls `Input.action_press()` — which sets action STATE and never
-produces an `InputEvent`, so no `_input()` anywhere fires — or calls a handler
-directly. `main.gd`'s own restart probe does the latter, `_unhandled_input(rev)`
-invoked on main, which proves the handler works and proves nothing about whether
-the event reaches it. Same shape as D-047's eating verb: **the method was
-tested, the path was not.**
-
-`Input.parse_input_event()` is the difference, and the four fixes all come from
-pointing it at things nobody had driven:
-
-| | |
-|---|---|
-| D-050 | the pause menu. Its own gate was written first and failed on the unfixed code — the bug was its own canary |
-| D-051 | TAB, R and J swept the same way. **All three were fine**, and are now locked in |
-| D-052 | the menu's buttons, pressed through `Button.pressed`. ALMANAC / CONTROLS / FLOCK all worked; they were simply unreachable |
-| D-053 | **the SFX volume slider was connected to nothing** — `bus SFX index=-1`, `0 of 17` players on it |
-
-D-053 came with a second bug in the same breath: `Prefs` is autoload #1 and
-applies volumes before `Music` (#10) creates its bus, so **a saved music volume
-was written to a bus that did not exist** and the game came back at full music
-until the player touched the slider again. Both `Sfx` and `Music` now re-apply
-through a new public `Prefs.apply_audio()`.
-
-Checked and found INNOCENT, rather than assumed: `screen_shake`, `fx_intensity`
-and `show_hints` all connect to `pref_changed` and re-read live. `almanac.gd` is
-also `PROCESS_MODE_WHEN_PAUSED` and that one is **correct** — it is only ever
-opened from the pause menu, while the tree is already paused.
-
-Counts: `inputtest` 30 → 56, `audiotest` 246 → 254.
+It was the only substance with none — a glowing grey sphere — in the leg whose
+lesson is *recognise it before you eat it*.
 
 ---
 
@@ -268,97 +163,87 @@ Counts: `inputtest` 30 → 56, `audiotest` 246 → 254.
 **Nothing here is waiting on you.** See `CLAUDE.md`, *"Taste is the human's.
 Everything measurable is yours."*
 
-### The five that are genuinely yours
-`Open (human)` in `docs/DECISIONS.md`, and **an agent must not close them**:
+### Yours — an agent must not decide these
+
+`Open (human)` in `docs/DECISIONS.md`, plus the two design questions in
+`docs/NEXT_SESSION.md`:
 
 | | |
 |---|---|
-| **D-036** | eleven of fifteen props are declared the wrong size. Correcting one rescales the model *non-uniformly* — `stop_sign` would go to (1.07, 1.01, **0.57**) — so it is a look. `geomtest` prints a copy-paste baseline block for exactly this |
-| **D-006** | the glide ratio. Now costed: 3:1 opens **ten** surfaces across seven zones, not the 44 the first (wrong) measurement claimed |
-| **D-005** | the hard-landing threshold. Now costed: **one** surface in the whole game has no soft way down. A curiosity, not a design problem |
-| **D-019** | tolerance softens penalties, against the documented economy |
+| **D-068** | leg 1's double-double — half of THE WOBBLER, the leg's one named combo — is its least findable pickup: farthest from the spawn, the only one on a prop, out of the opening shot. **Recommended, not taken:** move it to the lot's near side. Where things go is level design |
+| **D-019** | tolerance softens penalties, against the documented economy — arguably part of why *"substances don't matter"* |
+| **D-036** | eleven of fifteen props are declared the wrong size; correcting one rescales its model non-uniformly, which is a look |
+| **D-006** | the glide ratio. 3:1 opens ten surfaces across seven zones |
+| **D-005** | the hard-landing threshold. One surface in the game has no soft way down |
 | **D-007** | the truck stop's closing beat is proportional, not absolute |
+| Substances as keys | `NEXT_SESSION.md` §1 — it overrides `BOSS_DESIGN.md` §3.5 in writing |
+| Cat petting | `NEXT_SESSION.md` §4 — you asked to discuss it |
+| **Your save file** | gates wrote it before D-054 made them hermetic: all 17 substances unlocked, `best_chaos` 131201955, both first-run cards marked seen. Which of that you earned cannot be told apart, so it was left exactly as found. To start clean (your volume and settings go with it): `Rename-Item "$env:APPDATA\Godot\app_userdata\Geeked Geese\geeked_geese.cfg" geeked_geese.cfg.polluted` |
 
 ### Ranked, for an agent
 
-> **This is the SECOND queue.** `docs/NEXT_SESSION.md` carries the first one,
-> and its item 1 — keep sweeping for controls that do nothing — outranks
-> everything here: it has produced four real bugs in four attempts and the
-> remaining surfaces (results screen, briefing card, the settings widgets
-> themselves, the restart confirm, the roster) have still never been driven.
-> The list below is about INSTRUMENTS, and items 1 and 3 of it are duplicated
-> there in priority order.
+1. **Keep sweeping, and read §2's table for the shape.** Every `_input` in
+   the game has now been pressed by a harness. Still never driven as a player
+   sends them: the Ranger's and BIG DOWN's reactions to the flap, the dive and
+   the share, which the campaign loop reaches by calling methods; and **mouse
+   look**, which no headless run can drive because `MOUSE_MODE_CAPTURED` is
+   never honoured headless (`GODOT_4.7_RULES` §4.5) — find a path or record it
+   as the known hole. And when something is finally driven, check what it did:
+   three of this session's bugs were a control that worked, driving something
+   that was wrong.
+2. **`hold_actors()` freezes the actors and not the physics** (§4). D-058
+   retook the one check that failed on a parked prop; nothing stops props
+   accumulating on the substance pad over a run.
+3. **The Ranger's leg 6 exam** — `BOSS_DESIGN.md` §2.1.4. D-013 records the
+   real blocker as the propane cannon's bang, which is a human one.
+4. **Cut `CLAUDE.md` toward 200.** It is at 264 against a ratchet that only goes
+   down; what remains is mostly real rules.
+5. **The remaining per-flight fields** (`ROUTE_DATA.md` §1.3's `sky`,
+   `ground`, `put_down`). Per D-017, none until the code that reads it exists.
+6. **Convert a zone to a real `.tscn`.** Accepted debt, and a candidate for
+   being retired as a decision, since everything it buys needs a human in the
+   editor.
 
-1. **Give `verify.ps1` a per-step wall-clock timeout.** Found the hard way this
-   session and written up in §4: a `main.gd` that will not parse hangs the
-   whole script forever, and **the in-engine failsafe cannot help because it
-   lives in `main.gd` too**. One helper — `Start-Process -PassThru
-   -RedirectStandardOutput`, `WaitForExit(ms)`, `Kill()` — applied to twelve
-   invocations. It is a refactor of the file that runs everything, which is why
-   it was not done in the same commit as the bug that revealed it.
-
-2. **Retire F-001 properly.** Every step of `verify.ps1` fails on
-   `SCRIPT ERROR`; the remaining half is the leak itself. Two things were tried
-   and measured — `Music._exit_tree()` **does** run, and an equivalent in
-   `sfx.gd` left the count at exactly 17 — so the holder is not the autoload
-   caches. The remaining candidate is the AudioServer's playbacks.
-
-3. **`migtest`'s `lateral.half_cross` cannot fail independently** of
-   `full_cross`; it is derived from the same drive rather than measured. The
-   last un-addressed gate gap in §4.
-
-4. **The Ranger's leg 6 exam** — `BOSS_DESIGN.md` §2.1.4. D-013 records the real
-   blocker as the propane cannon's bang, which is a human one.
-
-5. **Cut `CLAUDE.md` toward 200.** It is at 373 against a ratchet that only goes
-   down — which bit this session: a needed addition was refused at 376 and had
-   to be paid for by tightening two existing paragraphs. The biggest remaining
-   block is the architecture description, which is derivable from
-   `docs/ARCHITECTURE.md`, a file that exists.
-
-6. **The remaining per-flight fields.** `ROUTE_DATA.md` §1.3 also gives each
-   flight a `sky`, a `ground` and a `put_down` flag, and §5 a
-   max-birds-lost-per-flight of 2. Per D-017 none should be copied into
-   `FLIGHTS` until the code that reads it exists.
-
-7. **Convert a zone to a real `.tscn`.** Still accepted debt, and still a
-   candidate for being retired as a decision rather than carried as a task,
-   since everything it buys needs a human in the editor.
-
-**Retired since the last handoff:** F-002 (D-041, per-group seeded streams), the
-whole placement-arithmetic list (D-043, D-045), the `input_lag`/`grid_snap`
-coverage gap (D-046), the eating-verb gap (D-047), the results card (D-048) and
-the failsafe ordering (D-049).
 ### Recorded, decided without measuring, and revertible
-`stamina_restore` pays out (D-018). Leg 1's shelf is four substances (D-022,
-D-037). Bread's `charge_time`, sweet band and zero `stamina_restore` are mine
-and each is a one-line revert. The share cooldown of 1.0 s is pacing (D-032).
-`sustained_campaign` lives in the cut corn now, which is a design call (D-034).
-Fallen fruit lands 1.1 m from a trunk on the side away from the water, and leg
-6's thermos sits 1.60 m along the cab's local -x (D-043) — the distances are
-arithmetic, the directions are mine. The cottage grass patch moved 1.6 m west
-rather than onto the porch (D-045). Both goose models are lifted onto the
-capsule's contact point rather than the bird being made shorter (D-045).
+
+**This session's, each a small revert:** the dose hint appears the first time
+the bird stands on anything edible (D-059 — delete one call); the loss roster
+ignores presses for 0.34 s, matched to the results card (D-063); bread's look
+(D-069); the flight card's corrected sentence is in my words (D-075); the right
+stick pitches at 1.6 rad/s and Back toggles the objectives (D-077); the drafting
+slot is clamped to the corridor and still scored on X and Z only (D-073); the
+two restart windows stay 1.5 s and 3.0 s, now with the reason written down (D-080).
+
+**Carried forward:** `stamina_restore` pays out (D-018). Leg 1's shelf is four
+substances (D-022, D-037). Bread's `charge_time`, sweet band and zero
+`stamina_restore` are mine. The share cooldown of 1.0 s is pacing (D-032).
+`sustained_campaign` lives in the cut corn (D-034). Fallen fruit lands 1.1 m
+from a trunk on the side away from the water, and leg 6's thermos sits 1.60 m
+along the cab's local -x (D-043) — the distances are arithmetic, the directions
+are mine. The cottage grass patch moved 1.6 m west rather than onto the porch
+(D-045). Both goose models are lifted onto the capsule's contact point rather
+than the bird being made shorter (D-045).
 
 ---
 
 ## ⟳ 4. Known issues and honest gaps
 
 > **READ THIS INDEX BEFORE THE BODY.** Everything below was true when it was
-> written and **twelve of the entries have since been fixed** — each is struck
+> written and **most of it has since been fixed** — each fixed entry is struck
 > through in place with the decision that closed it, because the arithmetic in
 > them is why the fix is what it is and deleting it would cost the next reader
 > the reasoning. The entries that are NOT struck are live.
 >
-> **Still open, in rough order of cost:** `migtest`'s `lateral.half_cross`
-> cannot fail independently; **verify.ps1 has no per-step wall-clock timeout**,
-> so a main.gd that will not parse hangs it forever; and the three BIG DOWN
-> items, which need a render
-> or a judgement. **The placement list is empty** — all five are fixed and
-> `--geomtest` now has an assertion for each class.
+> **Still open, in rough order of cost:** `hold_actors()` freezes the actors
+> and not the physics, so props can pile up on a measuring pad (D-058 retook the
+> one check that failed on it); tolerance softens penalties (D-019, the human's);
+> and the three BIG DOWN items, which need a render or a judgement. **Fixed on
+> 2026-09-25:** `migtest`'s half crossing (D-067) and the missing per-step
+> timeout (D-062), struck through below. **The placement list is empty** — all
+> five are fixed and `--geomtest` has an assertion for each class.
 
 
-### NEW THIS SESSION — survived an adversarial refutation panel, NOT fixed
+### From an earlier audit — survived an adversarial refutation panel
 
 Twenty-seven of the audit's 37 survivors were left alone, deliberately: the ten
 that were fixed are in §2, and the ones below are recorded with their arithmetic
@@ -504,8 +389,10 @@ is overwritten by the Almanac's own `_ready()`.
   the RUNTIME half of what F-002 was about — D-041 retired the build-order half
   (seeded streams), not this one.
 
-- **`migtest`'s `lateral.half_cross` cannot fail unless `full_cross` fails too** —
-  it is derived from the same drive rather than measured independently.
+- ~~**`migtest`'s `lateral.half_cross` cannot fail unless `full_cross` fails too**~~
+  **FIXED, D-067** — timed from the corridor's centre on its own run; canaried
+  with a slow right half, which the old derivation passed. Original text: it is
+  derived from the same drive rather than measured independently.
 - ~~**`verify.ps1` checks for `SCRIPT ERROR` on one of its eight steps.**~~
   **Fixed 2026-08-18.** All nine steps do, through one shared `ScriptErrors`
   helper. It is `SCRIPT ERROR` and not a blanket `ERROR:` on purpose, and the
@@ -525,8 +412,10 @@ is overwritten by the Almanac's own `_ready()`.
   `_arm_failsafe()` runs partway through `_ready()`, so a crash or stall before
   that point is still an invisible process.
 
-- **NEW: `verify.ps1` has no per-step wall-clock timeout, and the in-engine
-  failsafe cannot substitute for one.** Found the hard way on 2026-08-19: a
+- ~~**`verify.ps1` has no per-step wall-clock timeout, and the in-engine
+  failsafe cannot substitute for one.**~~ **FIXED, D-062** — one `Godot()`
+  helper kills a hung gate with `taskkill /T`, prints its last lines and stops
+  the run; canaried with this exact fault. Original text: found the hard way on 2026-08-19: a
   swallowed newline in `main.gd` made the main scene fail to parse, so
   `_probe_if_headless()` never ran, `tree.quit()` was never called, and the
   process sat alive forever printing nothing past the `^[gate]` filter. **The
