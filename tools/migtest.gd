@@ -375,7 +375,35 @@ static func _lateral(tree: SceneTree, mig: Node, corridor: float) -> void:
 	# understand. See docs/FEEL_TARGETS.md §6.
 	_assert_window("lateral.full_cross", t, "s", 1.1, 2.4,
 		"edge to edge of the corridor. Under 1.1 s the whole lane is dodgeable inside one hazard gap and the corridor stops being a commitment; over 2.4 s even a half crossing misses leg 7's tightest gap")
-	_assert_window("lateral.half_cross", t * 0.5, "s", 0.45, 1.2,
+
+	# THE HALF CROSSING IS MEASURED, FROM THE CENTRE, NOT DIVIDED.
+	#
+	# It used to be `t * 0.5` — the full crossing halved — and its window
+	# [0.45, 1.20] contains every half of the full window [1.10, 2.40], so it
+	# could not fail unless `full_cross` failed first. HANDOFF §4 carried that as
+	# the last unaddressed gate gap. Half is only half with no lateral
+	# acceleration, a centred corridor and a symmetric clamp; `_tick_player()`
+	# has all three today (17.0 m/s straight onto `player_pos.x`), and this is
+	# what notices the day one of them changes. It is also the manoeuvre the
+	# flight is actually played with.
+	_release_all()
+	var ph: Vector3 = mig.get("player_pos")
+	ph.x = 0.0
+	mig.set("player_pos", ph)
+	for _i2 in 4:
+		await tree.physics_frame
+	var th := 0.0
+	Input.action_press("gg_right")
+	for _i3 in 400:
+		await tree.physics_frame
+		if _tick(tree):
+			th += TICK
+		var now2: Vector3 = mig.get("player_pos")
+		if now2.x >= corridor - 0.05:
+			break
+	Input.action_release("gg_right")
+	print("[mig] lateral: centre to edge in %.2f s (half the full crossing would be %.2f)" % [th, t * 0.5])
+	_assert_window("lateral.half_cross", th, "s", 0.45, 1.2,
 		"centre to edge — the manoeuvre that MUST fit inside leg 7's tightest 0.9 s hazard gap, and the one the flight is actually played with")
 
 

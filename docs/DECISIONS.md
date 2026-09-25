@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-067 · 2026-09-25 · `migtest`'s half crossing is measured, not divided
+Status: Decided (agent)
+Decision: `lateral.half_cross` is timed from the corridor's centre to its edge, on its own run, instead of being `full_cross * 0.5`.
+Why: HANDOFF §4's last unaddressed gate gap: the derived value's window [0.45, 1.20] contains every half of the full window [1.10, 2.40], so it could not fail unless `full_cross` failed first. Measured today it reads **0.77 s** against a halved 0.77 — identical, because `_tick_player()` moves the bird at a constant 17 m/s on a centred, symmetric corridor. The measurement exists for the day that stops being true. **Canaried with exactly that:** the corridor's right half crossed at 8 m/s — full crossing 2.40 s (in window), measured half **1.62 s (out)**, where the old derivation would have read 1.20 and passed.
+Refs: `tools/migtest.gd::_lateral`; `scripts/migration/migration.gd::_tick_player`.
+
 ## D-066 · 2026-09-25 · Menu buttons are clicked, not emitted
 Status: Decided (agent)
 Decision: Every Button `inputtest` presses — ALMANAC, CONTROLS, FLOCK, SETTINGS, RESTART RUN twice — is pressed by a left click pushed into the viewport at its centre (`_click()`), not by emitting `Button.pressed`. A button whose click does not land stops its own section with one row naming both possible causes. 142 checks → 143.
