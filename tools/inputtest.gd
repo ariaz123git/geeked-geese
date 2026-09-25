@@ -644,10 +644,21 @@ static func _gamepad_walk(tree: SceneTree, main: Node) -> void:
 				break
 		print("[input] pad: roster opened after the loss = %s" % got_roster)
 		if got_roster:
-			for _i7 in 20:
+			# A MASHED PRESS MUST NOT CLOSE IT. The press that skipped the flight's
+			# card is followed at once by the next, and the roster is the one card
+			# that says who died; the results card and every briefing have a
+			# lockout for exactly this (D-063).
+			await _pad(tree, JOY_BUTTON_A)
+			var survived: bool = bool(roster.call("is_open"))
+			for _i7 in 30:
 				await tree.physics_frame
 			await _pad(tree, JOY_BUTTON_A)
-			print("[input] pad: A -> roster closed=%s" % (not bool(roster.call("is_open"))))
+			print("[input] pad: A at once -> roster still open=%s; A half a second later -> closed=%s"
+				% [survived, not bool(roster.call("is_open"))])
+			_ok(survived,
+				("an A pressed the moment the loss roster appeared closed it. That is the press a "
+				+ "player mashing through the flight's card sends next, and the roster is the only "
+				+ "place a dead goose is announced."))
 			_ok(not bool(roster.call("is_open")),
 				("the roster that opens after a loss did not close on A. It closes on ui_cancel, "
 				+ "ui_accept, gg_skip or a mouse click, and a pad sent none of them."))

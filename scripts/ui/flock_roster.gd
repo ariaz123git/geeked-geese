@@ -89,6 +89,18 @@ var _sfx: Node = null
 var _open := false
 var _t := 0.0
 var _paused_by_me := false
+
+## How long after opening a press is swallowed instead of closing the card.
+##
+## After a flight that cost a bird this card opens on the frame the player
+## skipped the flight's own card — and a player skipping cards is pressing
+## again already. Driven with a pad on 2026-09-25, an A sent the moment the
+## roster appeared closed it: the one place a dead goose is announced, gone
+## before its first frame drew. The results card has held a 0.34 s lockout after
+## its grade for exactly this, and every briefing one of 0.22 s; this matches the
+## results card. D-063.
+const INPUT_LOCKOUT := 0.34
+var _lockout := 0.0
 var _restore_mouse: int = Input.MOUSE_MODE_VISIBLE
 
 var _backdrop: ColorRect = null
@@ -136,6 +148,10 @@ func open(headline: Array = []) -> void:
 	_place_card()
 
 	_open = true
+	# Only for a LOSS. A roster opened from the pause menu's FLOCK button carries
+	# no headline — the player just chose to look — and nobody is mashing through
+	# it; locking that one out swallowed the Escape that closes it.
+	_lockout = INPUT_LOCKOUT if not headline.is_empty() else 0.0
 	visible = true
 	_restore_mouse = Input.mouse_mode
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -247,6 +263,7 @@ func _process(delta: float) -> void:
 	# that fades in at a third speed because the player was on a whippet reads
 	# as the game hanging.
 	_t += delta / maxf(Engine.time_scale, 0.05)
+	_lockout = maxf(0.0, _lockout - delta / maxf(Engine.time_scale, 0.05))
 	if _card != null and is_instance_valid(_card):
 		_card.t = _t
 		_card.queue_redraw()
@@ -266,8 +283,10 @@ func _input(event: InputEvent) -> void:
 	if not wants_close:
 		return
 	# Consume it, or the same Escape that closed this immediately opens the
-	# pause menu underneath.
+	# pause menu underneath. Inside the lockout it is consumed and nothing else.
 	get_viewport().set_input_as_handled()
+	if _lockout > 0.0:
+		return
 	close()
 
 

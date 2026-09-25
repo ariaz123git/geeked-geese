@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-063 · 2026-09-25 · The roster that announces a death ignores the press that skipped the flight
+Status: Decided (agent) — the 0.34 s is matched to the results card, not measured against a human
+Decision: `flock_roster.gd` swallows presses for `INPUT_LOCKOUT` = 0.34 s after opening **with a headline** (a loss). A roster opened from the pause menu's FLOCK button has no headline and no lockout. The pad walk presses A on the loss roster's first frame (must stay open) and again half a second later (must close). 134 checks → 135.
+Why: After a flight that cost a bird, `main.gd::_on_migration_done()` opens the roster on the frame the player skipped the flight's card — and a player skipping cards is already pressing again. Driven with a pad: *"A at once -> roster still open=false"*. The one place a dead goose is announced was closed before its first frame drew. The results card has a 0.34 s lockout after its grade for this reason and each briefing one of 0.22 s; the roster had none. **The first version locked out every open and broke the deliberate one** — the FLOCK button's roster swallowed the Escape that closes it and three rows cascaded — so the lockout is keyed on the headline, which is exactly the distinction `main.gd` already draws (*"Deliberate open, so no headline — nobody just died"*).
+Refs: `scripts/ui/flock_roster.gd::INPUT_LOCKOUT`, `::open`, `::_input`; `tools/inputtest.gd::_gamepad_walk`.
+
 ## D-062 · 2026-09-25 · `verify.ps1` owns a wall-clock limit on every gate; F-005 retired
 Status: Decided (agent)
 Decision: All eleven gate invocations in `verify.ps1` go through one `Godot()` helper — `Start-Process` to temp files, `WaitForExit(limit)`, `taskkill /T /F` on timeout, then the last twelve lines printed and exit code 124. Limits sit above each step's in-engine failsafe (360 s; substances 720, flight 420); `-StepTimeout` overrides. A killed compile gate ends the run. F-005 leaves `docs/RECENT_FAILURES.md` in the same commit, retired by this helper.
