@@ -30,6 +30,8 @@ const CONTROLS := {
 	"Honk": "H or F / B",
 	"Eat / dose (hold)": "E / X",
 	"Share": "Q / Y",
+	"Name the DD (at the pen)": "G / LB",
+	"Objectives": "Tab",
 	"Restart": "R",
 	"Skip / continue": "Enter / A",
 	"Pause": "Esc / Start",

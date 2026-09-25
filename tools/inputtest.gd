@@ -116,6 +116,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 			+ "no-op there — clampf eats it — so the player is paid for a keypress that did nothing.")
 				% [where, shared.y])
 
+	await _designate_test(tree, main, goose)
 	await _pause_menu_test(tree, main)
 	await _ui_sweep_report(tree, main, goose)
 	await _menu_buttons_report(tree, main)
@@ -1652,6 +1653,61 @@ static func _share_test(tree: SceneTree, main: Node, goose: CharacterBody3D, at 
 
 	subs.call("reset_for_new_leg")
 	return Vector2i(mashed, saturated)
+
+
+## ═══════════════════════════════════════════════════════════════════════════
+## "[G] MAKE TERRY THE DD" — THE PROMPT IN THE WORLD, PRESSED
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## The flock pen floats a prompt over the nearest goose naming a key, and the
+## pen's `_input` answers G (and LB on a pad) by making that bird the designated
+## driver — the one lever the player has over who can lead the flight. No
+## harness had pressed it. So: stand beside a pen goose, press G as a real key
+## event, and the flock's DD must become THAT goose; then stand beside another
+## and press LB on a pad.
+static func _designate_test(tree: SceneTree, main: Node, goose: CharacterBody3D) -> void:
+	var pen := _pen(main)
+	if pen == null:
+		_ok(false, "leg 1 has no flock pen, so G was never pressed")
+		return
+	var was_dd: int = int(Flock.designated_driver())
+	var tried := {}
+	for which in ["G on the keyboard", "LB on a pad"]:
+		_release_all()
+		# The nearest goose that is not already the DD and has not been used.
+		var target := -1
+		var at := Vector3.INF
+		for b in pen.get("_birds"):
+			var bird: Dictionary = b
+			var idx: int = bird["index"]
+			var root: Node3D = bird["root"]
+			if idx == int(Flock.designated_driver()) or tried.has(idx) or root == null:
+				continue
+			target = idx
+			at = root.global_position + Vector3(1.0, 0.4, 0.0)
+			break
+		if target < 0:
+			_ok(false, "no pen goose left to designate with %s" % which)
+			continue
+		tried[target] = true
+		goose.global_position = at
+		goose.velocity = Vector3.ZERO
+		for _i in 12:
+			await tree.physics_frame
+		var focused: int = int(pen.get("focus_index"))
+		if which == "G on the keyboard":
+			await _key(tree, KEY_G)
+		else:
+			await _pad(tree, JOY_BUTTON_LEFT_SHOULDER)
+		var dd: int = int(Flock.designated_driver())
+		print("[input] designate: %s beside goose %d (pen focus %d) -> DD is now %d"
+			% [which, target, focused, dd])
+		_ok(dd == focused and focused >= 0,
+			("pressing %s beside pen goose %d left the designated driver at %d (the pen's focus was "
+			+ "%d). The pen prompts \"[G] MAKE ... THE DD\" over that bird; `flock_pen.gd::_input` "
+			+ "is what answers it.") % [which, target, dd, focused])
+	if was_dd >= 0:
+		Flock.set_dd(was_dd)
 
 
 ## The zone's flock pen, found by script.

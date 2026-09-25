@@ -30,8 +30,11 @@ by anyone, because nobody has played it yet.
 | **H** / **F** | HONK |
 | **E** *(hold)* | build a dose — **release** inside the green band |
 | **Q** | zone: share what you're on with the flock · flight: hand off the lead |
+| **G** | at the flock pen: make the goose you are standing by the designated driver |
+| **J** / **K** | swing the camera |
+| **TAB** | objectives: full · compact · off |
 | **ESC** | pause · settings · **Almanac** |
-| **R** | restart run |
+| **R** | restart run (press twice) |
 | **ENTER** | continue past the migration results |
 
 Gamepad: left stick move, A flap, B honk, X eat, Y share, RB dive, LB name the

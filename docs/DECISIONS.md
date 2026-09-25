@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-071 · 2026-09-25 · The flock pen's "[G] MAKE … THE DD", pressed — and the keys the docs never listed
+Status: Decided (agent)
+Decision: `inputtest::_designate_test()` stands the goose beside a pen goose and presses **G** as a real key event, then beside another and presses **LB** on a pad, asserting `Flock.designated_driver()` becomes the pen's focused bird each time. The README's control table gains G, J/K and TAB (and "press twice" on R); the pause menu's table gains "Name the DD (at the pen): G / LB" and "Objectives: Tab". 143 checks → 145.
+Why: The pen floats a prompt naming a key over the nearest goose, and nothing had ever pressed it. **Both paths work**; this is coverage. Canaried by disabling the pen's designate branch: both rows fail, each naming the bird and the pen's focus. The documentation half is D-051's finding closed: J/K and TAB were real, bound and working and appeared in neither the README nor the menu's own table, and G was advertised only by the prompt over the geese. Rendered: the pause menu with the new rows lays out in the same two columns, below the fold of its scrolling table.
+Refs: `tools/inputtest.gd::_designate_test`; `scripts/world/flock_pen.gd::_input`; `README.md` controls; `scripts/ui/pause_menu.gd::CONTROLS`.
+
 ## D-070 · 2026-09-25 · Every harness that builds settles first; F-003 retired
 Status: Decided (agent)
 Decision: `probe_common.gd` gains `settled(tree)` and lesson 10; `geomtest`, `glidetest`, `findtest` and `migtest` — every tool whose code calls `add_child()` — make it the first thing `run()` awaits; `selftest::_the_harnesses_settle()` checks exactly that by reading `res://tools`. F-003 leaves `docs/RECENT_FAILURES.md` in the same commit, which leaves one entry (F-001). 954 invariants → 960.
