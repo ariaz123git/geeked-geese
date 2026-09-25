@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-076 · 2026-09-25 · The ending's honk, pressed — it works, and the gate that owns the ending had never asked
+Status: Decided (agent)
+Decision: `main.gd::_roll_honk()` runs after `--rolltest`'s slab measurement: it settles the flock (by zeroing `_settle_cd` each frame — `_tick_settling()`'s own code without its 47 s of ceremony), presses **H** as a key event, and fails unless the player's goose honked, the course's wave fired once for every goose, every answering honk has played 3.5 s later, and the credits start well inside the 42 s no-honk fallback. The PASS line reads *"the course answers the honk, and the credit roll travels"*.
+Why: `zone_finale.gd` calls the course honking back *"the one sincere moment in Geeked Geese"*, and the credits are gated on it. `--rolltest` has owned the ending since it was written and spawned its slab by hand, so the path from a player's H to the credits had never been driven — nor the rule written beside the handler, that the finale listens in `_input` and must never mark the honk handled. **It all works**: the goose honked once, the wave queued **36** geese, all 36 played inside 3.5 s, and the credits started **5.5 s** after the honk, which is the designed wait. This is coverage, recorded so nobody re-sweeps it. **Canaried twice:** the finale marking the honk handled fails on *"the goose honked 0 time(s)"*; the finale listening for an action that never fires fails on *"the wave fired 0 times"*. Also fixed a comment in `zone_finale.gd` that still named `main.gd`'s `_process`, which D-060 renamed to `_poll_menus`.
+Refs: `scripts/core/main.gd::_roll_test`, `::_roll_honk`; `scripts/world/zone_finale.gd::_input`, `::_honk_wave`, `::_tick_credits`.
+
 ## D-075 · 2026-09-25 · The flight's one rule was taught backwards: the draft does not burn slower, it pays
 Status: Decided (agent) — the corrected sentence is mine, in the card's own voice, and a one-line revert
 Decision: The flight's first-run callout and the control card say the point *"gets no draft and burns out"* while *"everyone behind it gets their breath back"*, instead of *"burns out twice as fast"*; `docs/ONBOARDING_NOTES.md` quotes the new line. `selftest::_the_draft()` holds `DRAIN_LEAD > 0` and `DRAIN_DRAFT < 0`, and holds both texts to saying so. 961 invariants → 967.

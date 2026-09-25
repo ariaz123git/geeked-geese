@@ -880,22 +880,109 @@ func _roll_test() -> void:
 			break
 	if not is_instance_valid(slab):
 		print("[roll] slab despawned during the sample — it was moving")
-		get_tree().quit(0)
-		return
+	else:
+		var secs: float = float(ticks) / float(ProjectSettings.get_setting("physics/common/physics_ticks_per_second", 60))
+		var measured: float = (slab.global_position.z - z0) / maxf(secs, 0.001)
+		var want: float = float(current.get_script().get_script_constant_map().get("CREDIT_SPEED", 2.15))
+		print("[roll] measured %.2f m/s over %.2f s (CREDIT_SPEED = %.2f)" % [measured, secs, want])
+		# 70% of cruise is a generous floor: it passes a slab that is merely a bit
+		# draggy and fails every version of the bug this exists for, all of which
+		# landed between 0.3 and 0.6 m/s — under 30%.
+		if measured < want * 0.70:
+			printerr("[roll] FAIL — the roll is crawling at %.0f%% of CREDIT_SPEED. The ending takes minutes to say anything." % (100.0 * measured / maxf(want, 0.001)))
+			get_tree().quit(1)
+			return
 
-	var secs: float = float(ticks) / float(ProjectSettings.get_setting("physics/common/physics_ticks_per_second", 60))
-	var measured: float = (slab.global_position.z - z0) / maxf(secs, 0.001)
-	var want: float = float(current.get_script().get_script_constant_map().get("CREDIT_SPEED", 2.15))
-	print("[roll] measured %.2f m/s over %.2f s (CREDIT_SPEED = %.2f)" % [measured, secs, want])
-	# 70% of cruise is a generous floor: it passes a slab that is merely a bit
-	# draggy and fails every version of the bug this exists for, all of which
-	# landed between 0.3 and 0.6 m/s — under 30%.
-	if measured < want * 0.70:
-		printerr("[roll] FAIL — the roll is crawling at %.0f%% of CREDIT_SPEED. The ending takes minutes to say anything." % (100.0 * measured / maxf(want, 0.001)))
+	if not await _roll_honk():
 		get_tree().quit(1)
 		return
-	print("[roll] PASS — the credit roll travels")
+	print("[roll] PASS — the course answers the honk, and the credit roll travels")
 	get_tree().quit(0)
+
+
+## THE HONK THE ENDING WAITS FOR, PRESSED.
+##
+## `zone_finale.gd` calls the course answering a honk "the one sincere moment in
+## Geeked Geese", and the credits wait for it: they start 5.5 s after the wave,
+## or 42 s after the flock has settled for a player who never honks. For its
+## whole life this gate measured the roll by spawning a slab by hand, so the
+## path from a player's H to the credits — `zone_finale._input()`,
+## `_honk_wave()`, `_tick_honks()`, `_tick_credits()` — had never been driven,
+## and neither had the rule written beside it: the finale listens in `_input`
+## and never marks the honk handled, because the goose's own honk must still
+## fire.
+##
+## Runs AFTER the slab is measured: once the credits start, real slabs spawn
+## where the measurement slab does. Settling is run one bird a frame instead of
+## one every `SETTLE_EVERY` (7 s, after a 12 s pause) by zeroing its countdown —
+## `_tick_settling()`'s own code, without the ceremony in front of it.
+func _roll_honk() -> bool:
+	var fin := current
+	var goose: Node = fin.get("goose")
+	var honker: Node = null
+	if goose != null and is_instance_valid(goose):
+		honker = goose.get("honker")
+	if honker == null or not honker.has_signal("honked"):
+		printerr("[roll] FAIL — the finale's goose has no honker to listen to")
+		return false
+	var own := [0]
+	honker.connect("honked", func(_p: float) -> void: own[0] += 1)
+
+	for _i in 240:
+		fin.set("_settle_cd", 0.0)
+		await get_tree().physics_frame
+		if float(fin.get("_all_settled_t")) >= 0.0:
+			break
+	if float(fin.get("_all_settled_t")) < 0.0:
+		printerr("[roll] FAIL — the flock never settled, so the credits could only ever roll on the 42 s fallback")
+		return false
+
+	var geese: int = (fin.get("_geese") as Array).size()
+	var down := InputEventKey.new()
+	down.keycode = KEY_H
+	down.physical_keycode = KEY_H
+	down.pressed = true
+	Input.parse_input_event(down)
+	await get_tree().process_frame
+	var up := InputEventKey.new()
+	up.keycode = KEY_H
+	up.physical_keycode = KEY_H
+	up.pressed = false
+	Input.parse_input_event(up)
+	var peak := 0
+	for _i2 in 3:
+		await get_tree().process_frame
+		peak = maxi(peak, (fin.get("_honk_queue") as Array).size())
+	var waves: int = int(fin.get("_wave_count"))
+	print("[roll] honk: H on the 18th green -> the goose honked %d time(s); the course's wave fired %d time(s) for %d geese (%d queued)"
+		% [own[0], waves, geese, peak])
+	if own[0] < 1:
+		printerr("[roll] FAIL — H on the 18th green did not honk the goose. The finale listens in `_input` and must never mark the honk handled.")
+		return false
+	if waves != 1 or geese == 0:
+		printerr("[roll] FAIL — the course did not answer the honk (wave fired %d times, %d geese). It is the ending's one sincere beat." % [waves, geese])
+		return false
+
+	# The wave spans WAVE_SPAN (2.5 s) plus jitter, so by 3.5 s every queued
+	# honk has to have played, or the course only answered on paper.
+	for _i3 in 210:
+		await get_tree().physics_frame
+	var left: int = (fin.get("_honk_queue") as Array).size()
+	var roll_after := -1.0
+	for _i4 in 480:
+		if bool(fin.get("_credit_rolling")):
+			roll_after = float(fin.get("_t")) - float(fin.get("_last_wave_t"))
+			break
+		await get_tree().physics_frame
+	print("[roll] honk: %d of the course's honks still unplayed 3.5 s later; the credits started %s after the honk (they wait 5.5 s for one, 42 s without)"
+		% [left, ("%.1f s" % roll_after) if roll_after >= 0.0 else "NOT within 11.5 s"])
+	if left > 0:
+		printerr("[roll] FAIL — %d of the course's answering honks never played." % left)
+		return false
+	if roll_after < 0.0:
+		printerr("[roll] FAIL — the credits did not start after the honk. They are the answer to it; without one they wait 42 s.")
+		return false
+	return true
 
 
 ## Point the probe at something that is not the goose.

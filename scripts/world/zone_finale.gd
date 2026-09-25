@@ -1679,7 +1679,7 @@ func _process(delta: float) -> void:
 	# breaking three metres away.
 	var dt := delta / maxf(Engine.time_scale, 0.05)
 	_t += dt
-	# The clock and the HUD, held down for the whole ending. main.gd's _process
+	# The clock and the HUD, held down for the whole ending. main.gd's _poll_menus
 	# restores HUD visibility whenever a menu closes, so once is not enough.
 	Game.zone_running = false
 	_hide_hud()
