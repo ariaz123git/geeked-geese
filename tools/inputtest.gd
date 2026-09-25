@@ -444,6 +444,16 @@ static func _menu_buttons_report(tree: SceneTree, main: Node) -> void:
 			break
 		await _escape(tree)
 
+	# The Almanac's walk (D-078) needs somewhere to go, and a hermetic run has
+	# discovered nothing. Three entries are lent here and taken back below.
+	var unlocks: Node = main.get_node_or_null("/root/Unlocks")
+	var lent: Array[StringName] = []
+	if unlocks != null:
+		for id in [&"berries", &"grass", &"bread"]:
+			if not bool(unlocks.call("is_unlocked", id)):
+				unlocks.call("unlock", id)
+				lent.append(id)
+
 	var wiring := [
 		["ALMANAC", "almanac"],
 		["CONTROLS", "control_card"],
@@ -494,6 +504,8 @@ static func _menu_buttons_report(tree: SceneTree, main: Node) -> void:
 		_ok(tree.paused,
 			("%s opened and the tree is RUNNING. The game is live behind a menu the player "
 			+ "thinks has stopped it.") % overlay_name)
+		if overlay_name == "almanac":
+			await _almanac_nav(tree, overlay)
 
 		# Close the overlay the way a player would, and see the menu come back.
 		await _escape(tree)
@@ -513,8 +525,65 @@ static func _menu_buttons_report(tree: SceneTree, main: Node) -> void:
 				break
 			await _escape(tree)
 
+	# Take back what the Almanac's walk was lent, so nothing after this section
+	# runs with a discovery it did not make.
+	if unlocks != null:
+		var held: Dictionary = unlocks.get("_unlocked")
+		for id2 in lent:
+			held.erase(id2)
 	tree.paused = was_paused
 	_release_all()
+
+
+## THE ALMANAC'S OWN CONTROLS (D-078). The row that calls this proves the
+## Almanac opens; nothing had ever moved through it. `almanac.gd::_input` walks
+## the unlocked entries on `ui_down` / `ui_up` — the arrow keys, and the D-pad,
+## which Godot binds to those by default — and every unlocked row is a Button
+## that answers a click. It is `PROCESS_MODE_WHEN_PAUSED`, so this only means
+## anything with the Almanac opened the way a player opens it, from the pause
+## menu, which is how it got here.
+static func _almanac_nav(tree: SceneTree, alm: Node) -> void:
+	var name_lbl: Label = alm.get("_name_lbl")
+	var ids: Array = alm.get("_ids")
+	var rows: Dictionary = alm.get("_rows")
+	var at0: int = int(alm.get("_selected_index"))
+	var n0: String = name_lbl.text
+	await _key(tree, KEY_DOWN)
+	var at1: int = int(alm.get("_selected_index"))
+	var n1: String = name_lbl.text
+	await _pad(tree, JOY_BUTTON_DPAD_DOWN)
+	var at2: int = int(alm.get("_selected_index"))
+	await _key(tree, KEY_UP)
+	var at3: int = int(alm.get("_selected_index"))
+	print("[input] almanac: opened on %d \"%s\"; Down -> %d \"%s\"; D-pad down -> %d; Up -> %d"
+		% [at0, n0, at1, n1, at2, at3])
+	_ok(at1 != at0 and n1 != n0,
+		("Down in the Almanac left the selection on %d (\"%s\" -> \"%s\"). `almanac.gd::_input` "
+		+ "moves it on ui_down, and only while the tree is paused.") % [at1, n0, n1])
+	_ok(at2 != at1,
+		"the D-pad's down did not move the Almanac's selection (%d -> %d). Godot binds it to ui_down by default." % [at1, at2])
+	_ok(at3 == at1,
+		"Up after two downs landed on %d, not back on %d. ui_up walks the same list the other way." % [at3, at1])
+
+	# A click on the row it opened on, scrolled into view first the way a
+	# player's wheel would — a row outside the ScrollContainer cannot be hit.
+	var target: Button = null
+	if at0 >= 0 and at0 < ids.size():
+		target = rows.get(ids[at0], null) as Button
+	if target == null:
+		_ok(false, "the Almanac's selection %d has no row Button to click" % at0)
+		return
+	var scroll: ScrollContainer = alm.get("_scroll")
+	scroll.ensure_control_visible(target)
+	await tree.process_frame
+	await tree.process_frame
+	await _click(tree, target)
+	var at4: int = int(alm.get("_selected_index"))
+	print("[input] almanac: clicked the row of entry %d -> selected %d \"%s\"" % [at0, at4, name_lbl.text])
+	_ok(at4 == at0,
+		("clicking the Almanac row for entry %d selected %d. Unlocked rows connect `pressed` to "
+		+ "`_on_row_pressed`; a row that cannot be clicked is a list only a keyboard can read.")
+			% [at0, at4])
 
 
 ## ═══════════════════════════════════════════════════════════════════════════

@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-078 · 2026-09-25 · The Almanac, walked — it works, and it had only ever been opened
+Status: Decided (agent)
+Decision: `inputtest::_almanac_nav()` runs inside the ALMANAC row of the menu-button section, on an Almanac opened by a real click from the pause menu: Down (a key), down on the D-pad, Up, and a click on a row, each asserted to move the selection where it should. Three entries are lent to `Unlocks` for the walk and taken back after, because a hermetic run has discovered almost nothing. 150 checks → 154.
+Why: `almanac.gd` is `PROCESS_MODE_WHEN_PAUSED`, walks its list in `_input` on `ui_down` / `ui_up` and answers clicks through a `pressed` connection per unlocked row — the three soft-failing shapes D-050, D-060 and D-052 were made of — and the only thing any gate had done was open and close it. **All of it works**: opened on "BARS", Down to "BREAD", the D-pad skipped the locked rows to entry 6, Up came back, and a click on BARS's row selected it. Coverage, recorded so nobody re-sweeps it. Canaried by pointing the Almanac at an action that never fires and dropping the row connection: exactly the four rows fail, each naming its path.
+Refs: `tools/inputtest.gd::_almanac_nav`, `::_menu_buttons_report`; `scripts/ui/almanac.gd::_input`, `::_make_row`.
+
 ## D-077 · 2026-09-25 · A pad could not look around, and nothing had ever moved a stick
 Status: Decided (agent) — the bindings are convention; the pitch rate (1.6 rad/s) is mine, decided without playing it, and one constant
 Decision: `Game._setup_input()` binds the right stick's X to `gg_cam_left` / `gg_cam_right` (the actions J and K fire, which `goose_camera.gd` reads by strength, so the stick is analog) and its Y to two new pad-only actions, `gg_cam_up` / `gg_cam_down`; `goose_camera.gd` turns those into pitch at `PAD_PITCH_RATE` = 1.6 rad/s with the mouse's sign and the Invert Y pref. `mission_hud.gd` binds pad **Back** to `gg_objectives`. The README, the pause menu's control table and the control card name both; the control card's pad line gets its own row. `inputtest`'s sweep pushes both sticks as `InputEventJoypadMotion`s and presses Back. 145 checks → 150.
