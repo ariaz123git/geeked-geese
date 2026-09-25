@@ -64,10 +64,10 @@ project. Source and rationale: `tools/gate.gd`.
 input-lag bug that made *eleven of the sixteen substances unplayable* — the bird
 obeying four-second-old input — passed the compile gate, passed the whole
 headless campaign run, and would have passed any review that did not press a
-key. There are now 12 gates. One script runs them all, and is the twelfth:
+key. There are now 13 gates. One script runs them all, and is the last two:
 
 ```
-.\verify.ps1                     # all of them, then the counts the docs quote for them
+.\verify.ps1                     # all of them; the docs' counts; YOUR SAVE untouched
 godot --headless --path . -- --gate                # it compiles
 godot --headless --path . -- --selftest            # it agrees with itself
 godot --headless --path . -- --probe --inputtest   # the bird obeys

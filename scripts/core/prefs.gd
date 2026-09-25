@@ -38,26 +38,55 @@ var _values: Dictionary = {}
 var _save_timer: Timer = null
 var _dirty := false
 
+## TRUE FOR EVERY RUN LAUNCHED WITH ARGUMENTS AFTER `--`: every gate, every
+## render probe. Such a run starts from DEFAULTS and never writes the disk.
+##
+## Until 2026-09-25 the gates shared one save file with the player. Measured on
+## the machine this project is built on: `best_chaos=131201955`, a number no
+## run a human plays can reach, so the pause menu's BEST CHAOS line was dead for
+## the only person who reads it; all seventeen substances `unlocked`, because
+## the `--ui` and `--finale` probes unlock entries to photograph them and the
+## substance gate doses everything — so the Almanac, which is a DISCOVERY
+## mechanic, was fully revealed before the player had found anything; and both
+## first-run briefings marked seen, because `--probe` force-closes the card and
+## closing it is what records it. A full `verify.ps1` rewrote the file on every
+## run, and `audiotest` round-trips each volume slider through 0.25 and 1.00, so
+## a harness that died in the middle left the player's volume wherever it
+## stopped. It also ran the other way: every gate READ the player's settings,
+## so what they measured depended on how the person who owns the machine had
+## last configured the game.
+##
+## Keyed on "any user argument", not on a list of flags, so a harness added
+## tomorrow is hermetic without anyone remembering to add it anywhere. A player
+## launching the game has no arguments after `--`. `verify.ps1` hashes the real
+## save before and after the gates and fails if they touched it.
+var hermetic := false
+
 
 func _ready() -> void:
 	# Settings must be adjustable (and savable) while the game is paused —
 	# that's literally when the pause menu's SETTINGS panel is open.
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	hermetic = not OS.get_cmdline_user_args().is_empty()
 	load_prefs()
 
 
 func load_prefs() -> void:
 	_values = DEFAULTS.duplicate(true)
-	var cf := ConfigFile.new()
-	var err := cf.load(CONFIG_PATH)
-	if err == OK:
-		for key in DEFAULTS.keys():
-			if cf.has_section_key(SECTION, key):
-				_values[key] = cf.get_value(SECTION, key)
+	if not hermetic:
+		var cf := ConfigFile.new()
+		var err := cf.load(CONFIG_PATH)
+		if err == OK:
+			for key in DEFAULTS.keys():
+				if cf.has_section_key(SECTION, key):
+					_values[key] = cf.get_value(SECTION, key)
 	_apply_audio()
 
 
 func save_prefs() -> void:
+	if hermetic:
+		_dirty = false
+		return
 	var cf := ConfigFile.new()
 	for key in _values.keys():
 		cf.set_value(SECTION, key, _values[key])

@@ -526,6 +526,15 @@ static func _enter_flight(tree: SceneTree, main: Node) -> Node:
 			results.force_close()
 		var cur: Node = main.get("current")
 		if cur != null and is_instance_valid(cur) and cur.name.begins_with("Migration"):
+			# THE FLIGHT'S OWN FIRST-RUN CARD IS UP BY NOW, and the close above
+			# ran before it existed: `_load_migration()` builds the flight and
+			# then awaits `_brief_flight()`, which presents the card in the same
+			# continuation. This file only ever passed because the save on the
+			# machine that ran it said the card had been seen. Made hermetic
+			# (2026-09-25), it spent 1241 physics frames behind the card and
+			# measured every channel of the flight at 0.00.
+			if briefing != null and is_instance_valid(briefing) and briefing.has_method("force_close"):
+				briefing.force_close()
 			tree.paused = false
 			# Let the flight settle into its opening before measuring it.
 			for _j in 30:

@@ -98,6 +98,29 @@ function ScriptErrors($out) {
 # Every PASS line, kept, because step 12 checks them against docs/HANDOFF.md.
 $script:passLines = @{}
 
+# THE PLAYER'S SAVE, SNAPSHOTTED BEFORE ANY GATE RUNS.
+#
+# Until 2026-09-25 every gate read and wrote the same save file the player
+# does. On this project's own machine that file said best_chaos=131201955 and
+# had all seventeen substances unlocked - the pause menu's BEST CHAOS line and
+# the Almanac's whole discovery mechanic, both spent by harnesses - and a full
+# run of this script rewrote it every time. scripts/core/prefs.gd is hermetic
+# under any user argument now; this is the check that it stays that way, taken
+# by the only thing that sees all the gates at once.
+#
+# Hash AND write time: a rewrite with identical content is still a write, and
+# identical content is exactly what the old bug produced on most runs. The
+# directory is a guess here and is confirmed against the engine after step 1,
+# because a wrong guess makes this check vacuous - absent before, absent after.
+$saveDir = Join-Path $env:APPDATA "Godot\app_userdata\Geeked Geese"
+$savePath = Join-Path $saveDir "geeked_geese.cfg"
+function SaveStamp($p) {
+    if (-not (Test-Path $p)) { return "absent" }
+    $hash = (Get-FileHash $p -Algorithm SHA256).Hash
+    return "$hash @ $((Get-Item $p).LastWriteTimeUtc.ToString('o'))"
+}
+$saveBefore = SaveStamp $savePath
+
 function Pass($name, $line) {
     Write-Host "[ok] $name" -ForegroundColor Green
     if ($line) { Write-Host "      $line" -ForegroundColor DarkGray }
@@ -132,6 +155,19 @@ if ($gateCode -ne 0) {
     Fail "compile gate" "SCRIPT ERROR: $((ScriptErrors $gateOut)[0])"
 } else {
     Pass "compile gate" ($gateLines | Where-Object { $_ -match 'PASS' })
+}
+# Confirm the snapshot above was taken of the file the engine actually uses.
+$udLine = $gateLines | Where-Object { $_ -match '^\[gate\] user data: ' } | Select-Object -First 1
+$saveDirOk = $false
+if ($udLine) {
+    $engineDir = ($udLine -replace '^\[gate\] user data: ', '').Trim() -replace '/', '\'
+    $saveDirOk = ($engineDir.TrimEnd('\') -ieq $saveDir.TrimEnd('\'))
+    if (-not $saveDirOk) {
+        Fail "the player's save" ("this script snapshotted $saveDir but the engine's user data " +
+            "directory is $engineDir - the save check below would be checking the wrong file")
+    }
+} else {
+    Fail "the player's save" "the compile gate printed no '[gate] user data:' line, so the save path is unconfirmed"
 }
 
 # ---------------------------------------------------------------------------
@@ -520,6 +556,23 @@ if ($skipped.Count -gt 0) {
     Write-Host "      stating nothing, so checking nothing: $($skipped -join ", ")" -ForegroundColor DarkGray
 }
 if (-not $tableFail) { Pass "the gate table" "$checked numbers in docs/HANDOFF.md match the gate that produced them" }
+
+# ---------------------------------------------------------------------------
+# 13. THE PLAYER'S SAVE, AFTER EVERY GATE HAS RUN. See the snapshot at the top.
+#     A failure here means some run launched with arguments wrote to the file a
+#     player's settings, best score, unlocks and seen briefings live in - or that
+#     the game itself was being played while this script ran, which would also
+#     legitimately change it. prefs.gd::hermetic is where to look first.
+# ---------------------------------------------------------------------------
+Write-Host "`n=== the player's save ===" -ForegroundColor Cyan
+$saveAfter = SaveStamp $savePath
+if ($saveDirOk) {
+    if ($saveAfter -ne $saveBefore) {
+        Fail "the player's save" ("a gate wrote $savePath`n      before: $saveBefore`n      after:  $saveAfter")
+    } else {
+        Pass "the player's save" "untouched by every step above ($saveAfter)"
+    }
+}
 
 # --- verdict ----------------------------------------------------------------
 if ($script:fail) {

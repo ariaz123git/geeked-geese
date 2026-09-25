@@ -66,6 +66,17 @@ extends RefCounted
 ##      which is PI/4 to three decimals. **`maxf` is right for an excursion and
 ##      wrong for a direction.**
 ##
+##   9. **The machine's save decides what the first frame looks like.** Until
+##      2026-09-25 every harness read the player's own save file, so whether it
+##      booted behind the first-run briefing — tree paused, bird frozen —
+##      depended on whether someone had dismissed that card on this machine.
+##      Here someone had, so `inputtest` and `feeltest` passed; on a fresh
+##      checkout both failed their first run on a healthy game and passed their
+##      second. Runs with arguments are hermetic now (`prefs.gd::hermetic`),
+##      `main.gd` clears the screen before dispatching, and `fresh_goose()`
+##      refuses a paused tree. **If the result depends on a file outside the
+##      repo, the gate is testing that file.**
+##
 ## The habit that caught all of them: **measure the baseline twice and refuse to
 ## report anything if the two runs disagree.** A harness that cannot reproduce
 ## itself cannot accuse anything else.
@@ -101,6 +112,17 @@ static func fresh_goose(tree: SceneTree, main: Node) -> CharacterBody3D:
 		game.zone_running = true
 	for _i in 30:
 		await tree.physics_frame
+	# LESSON 9. A PAUSED TREE MEASURES ZERO, AND ZERO LOOKS LIKE A VERDICT.
+	# Made hermetic on 2026-09-25, every harness boots as a first-time player
+	# does — with the first-run briefing up and the tree paused behind it — and
+	# `feeltest` reported all thirteen of its windows at exactly 0.00, as though
+	# the controller had died, because nothing here asked whether the world was
+	# running. Refuse to hand out a goose that cannot move, and say why.
+	if tree.paused:
+		var menus: Variant = main.call("_menus_open") if main.has_method("_menus_open") else "?"
+		print("[harness] FAULT — the tree is PAUSED before the first measurement (a menu is up: %s). "
+			% str(menus) + "Every metric taken now would read zero; this is not a verdict on the game.")
+		return null
 	var cur: Node = main.get("current")
 	if cur == null or not is_instance_valid(cur):
 		return null

@@ -78,6 +78,13 @@ static func run(tree: SceneTree, verbose: bool = false) -> void:
 
 	var failed: Array[String] = []
 
+	# WHERE THE PLAYER'S SAVE LIVES, from the engine rather than from a rule
+	# written down somewhere. `verify.ps1` hashes the file under this directory
+	# before the first gate and after the last, and fails if any gate wrote it
+	# (see `prefs.gd::hermetic`). A path the script guessed could be wrong and
+	# make that check vacuous — absent before, absent after, green forever.
+	print("[gate] user data: %s" % OS.get_user_data_dir())
+
 	print("[gate] compiling %d scripts..." % scripts.size())
 	for p in scripts:
 		# Parse into a DETACHED GDScript rather than through ResourceLoader.

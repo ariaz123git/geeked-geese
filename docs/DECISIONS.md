@@ -69,6 +69,20 @@ IDs increment. Newest on top.
 
 ---
 
+## D-054 · 2026-09-25 · The gates stop sharing a save file with the player
+Status: Decided (agent)
+Decision: `Prefs` is **hermetic** in any run launched with arguments after `--` — it starts from `DEFAULTS` and never writes `user://geeked_geese.cfg`. `main.gd::_probe_if_headless()` force-closes the first-run briefing before dispatching any harness, `probe_common.fresh_goose()` refuses a paused tree, and `migtest::_enter_flight()` closes the flight's own first-run card where it actually appears. `verify.ps1` hashes the player's save (content + write time) before step 1 and after the last step and fails if they differ; the compile gate prints `OS.get_user_data_dir()` so that path is confirmed by the engine rather than guessed. That verdict is gate 13.
+Why: The save on the machine this is built on read **`best_chaos=131201955`** — no human run reaches that, so the pause menu's BEST CHAOS line was dead for the one person who reads it — and **all 17 substances `unlocked`**, because the `--ui` and `--finale` render probes unlock five and six entries to photograph them and the substance gate doses everything. The Almanac is a discovery mechanic and it had been fully spent by harnesses. Both first-run briefings were marked seen, because `--probe` force-closes the card and closing a card is what records it. A full `verify.ps1` rewrote the file on every run (write time moved Sep 20 → Sep 25 01:24 with identical content during this session's baseline), and `audiotest` round-trips each volume slider through 0.25 and 1.00, so a harness that died mid-way left the player's volume wherever it stopped.
+
+**It also ran the other way, and that is the bigger finding.** Every gate READ the player's save, and three of them only passed because of what it said. Made hermetic — which is exactly a fresh checkout — `inputtest` failed **8 of 36** (*"holding forward for a second moved the goose 0.00 m"*), `feeltest` reported **all 13** windows at 0.00, and `migtest` spent **1241 physics frames** paused behind the flight's first-run card and measured every flight channel at 0.00. The briefing re-asserts `paused` every frame, so `migtest`'s per-tick unpause could never win. On any machine where nobody had dismissed those cards, the first `verify.ps1` would have accused a healthy controller, and the second would have passed — because the first one had just dismissed them.
+
+**Keyed on "any user argument", not on a list of flags,** so a harness added tomorrow is hermetic without anyone remembering to list it. A player launching the game has none.
+
+**Canaried by setting `hermetic = false`:** `verify.ps1 -Quick` failed on **exactly one** verdict, the new one, naming the file — and the two stamps it printed had the **same SHA-256** and different write times. A hash-only guard would have passed that canary, because the old bug rewrote identical content on most runs. The write time is the half of the check that does the work.
+
+**Not touched: the player's file itself.** Its polluted values are still on disk (`best_chaos`, `unlocked`, `seen_briefings`); which of them a human earned cannot be told apart. Recorded in `docs/HANDOFF.md` §3 for the human, with the one-line reset.
+Refs: `scripts/core/prefs.gd::hermetic`; `scripts/core/main.gd::_probe_if_headless`; `tools/probe_common.gd::fresh_goose` (lesson 9); `tools/migtest.gd::_enter_flight`; `tools/gate.gd` (user data line); `verify.ps1` (the snapshot at the top, step 13).
+
 ## D-053 · 2026-09-20 · The SFX volume slider was connected to nothing
 Status: Decided (agent)
 Decision: `sfx.gd` creates an `SFX` bus sending to Master and routes all 17 players to it; `prefs.gd` gains a public `apply_audio()`; `sfx.gd` and `music.gd` both call it once their buses exist. `audiotest.gd::_the_volume_sliders()` asserts the buses exist, that every SFX player is on the SFX bus, and that moving each slider moves its bus. 246 checks → 254.

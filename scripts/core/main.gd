@@ -1027,6 +1027,21 @@ func _arm_headless_deadline() -> void:
 func _probe_if_headless() -> void:
 	var args := OS.get_cmdline_user_args()
 
+	# EVERY HARNESS STARTS FROM A CLEAR SCREEN, NOT FROM WHATEVER THIS MACHINE'S
+	# SAVE SAYS. A run with arguments is hermetic (`prefs.gd::hermetic`), so it
+	# boots as a first-time player does: with the first-run briefing up and the
+	# tree paused behind it. Before that change, the controller gate passed only
+	# because the save on the machine that ran it said the card had been seen —
+	# made hermetic, it failed 8 of 36 on "holding forward moved the goose 0.00 m",
+	# which is also exactly what its first run on any fresh checkout did. The
+	# `--probe` branch below always silenced the card; the tool branches above it
+	# never did, because on this machine they had never needed to.
+	#
+	# Closing it here marks it seen in memory only, so a harness that wants to
+	# see a first-run card still gets the flight's, at the first migration.
+	if not args.is_empty() and briefing and briefing.has_method("force_close"):
+		briefing.force_close()
+
 
 	# THE COMPILE GATE. Has to run from inside the booted project, because that
 	# is the only context where the autoload singletons are registered and
