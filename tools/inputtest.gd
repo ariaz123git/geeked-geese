@@ -85,19 +85,36 @@ static func run(tree: SceneTree, main: Node) -> void:
 	# error: "Cannot call non-static function ... on the class Goose directly."
 	var share_cd: float = float(goose.get_script()
 		.get_script_constant_map().get("SHARE_COOLDOWN", 0.0))
-	var shared := await _share_test(tree, main, goose)
-	print("[input] share: 3 presses in 6 frames fired %d time(s); a press with the flock saturated fired %d"
-		% [shared.x, shared.y])
-	_ok(shared.x > 0,
-		"three share presses fired the verb zero times. It is dead, not merely rate-limited.")
-	_ok(shared.x == 1,
-		("three share presses inside a %.2f s cooldown fired the verb %d times. It pays 75 x combo "
-		+ "every time, so without the cooldown the key is free chaos on repeat.")
-			% [share_cd, shared.x])
-	_ok(shared.y == 0,
-		("sharing with every bird already at intox 1.0 fired the verb %d time(s). The dose is a "
-		+ "no-op there — clampf eats it — so the player is paid for a keypress that did nothing.")
-			% shared.y)
+	# TWICE: WHEREVER THE BIRD HAPPENS TO BE, AND AT THE FLOCK PEN ON PURPOSE.
+	#
+	# The share key has TWO handlers. `flock_pen.gd::_share_nearby()` runs in
+	# `_input` and takes the key first whenever a pen goose is within
+	# SHARE_RANGE; the controller's blanket share only sees what the pen lets
+	# fall through. D-032 gave the controller a cooldown and a "moved somebody"
+	# check and gave the pen neither, so this test passed or failed depending on
+	# where the previous test had left the bird — it failed once on 2026-09-25,
+	# 3 fires in 6 frames, in a run that changed nothing near it. D-057. The
+	# invariant has to hold everywhere, so it is asserted at both.
+	var pen_at := _pen_spot(main)
+	for where in ["wherever the bird is", "at the flock pen"]:
+		var spot: Vector3 = Vector3.INF if where == "wherever the bird is" else pen_at
+		if where == "at the flock pen" and not spot.is_finite():
+			_ok(false, "leg 1 has no flock pen with a non-DD goose in it, so the pen's share path was not tested")
+			continue
+		var shared := await _share_test(tree, main, goose, spot)
+		print("[input] share (%s, %.1f m from the nearest pen goose): 3 presses in 6 frames fired %d time(s); saturated fired %d"
+			% [where, _pen_distance(main, goose.global_position), shared.x, shared.y])
+		_ok(shared.x > 0,
+			"three share presses %s fired the verb zero times. It is dead, not merely rate-limited." % where)
+		_ok(shared.x == 1,
+			("three share presses %s inside a %.2f s cooldown fired the verb %d times. It pays chaos "
+			+ "and a combo link every time, so without the cooldown the key is free chaos on repeat. "
+			+ "Both handlers — the controller's and flock_pen.gd's — have to honour the one cooldown.")
+				% [where, share_cd, shared.x])
+		_ok(shared.y == 0,
+			("sharing %s with every bird already at intox 1.0 fired the verb %d time(s). The dose is a "
+			+ "no-op there — clampf eats it — so the player is paid for a keypress that did nothing.")
+				% [where, shared.y])
 
 	await _pause_menu_test(tree, main)
 	await _ui_sweep_report(tree, main, goose)
@@ -1263,12 +1280,17 @@ static func _takeoff_test(tree: SceneTree, goose: CharacterBody3D) -> Vector2:
 ## carrying the share label.
 ##
 ## Returns [fires_on_mash, fires_when_saturated] as a Vector2i.
-static func _share_test(tree: SceneTree, main: Node, goose: CharacterBody3D) -> Vector2i:
+static func _share_test(tree: SceneTree, main: Node, goose: CharacterBody3D, at := Vector3.INF) -> Vector2i:
 	await _settle(tree, goose)
 	var game := main.get_node_or_null("/root/Game")
 	var subs := main.get_node_or_null("/root/Subs")
 	if game == null or subs == null:
 		return Vector2i(-1, -1)
+	if at.is_finite():
+		goose.global_position = at
+		goose.velocity = Vector3.ZERO
+		for _i0 in 20:
+			await tree.physics_frame
 
 	# The verb needs something to share. Any substance will do.
 	var res = subs.get_substance(&"grass")
@@ -1323,6 +1345,49 @@ static func _share_test(tree: SceneTree, main: Node, goose: CharacterBody3D) -> 
 
 	subs.call("reset_for_new_leg")
 	return Vector2i(mashed, saturated)
+
+
+## The zone's flock pen, found by script.
+static func _pen(main: Node) -> Node:
+	var cur: Node = main.get("current")
+	if cur == null or not is_instance_valid(cur):
+		return null
+	var pen_script: Script = preload("res://scripts/world/flock_pen.gd")
+	for c in cur.get_children():
+		if c.get_script() == pen_script:
+			return c
+	return null
+
+
+## A spot 1.2 m beside a pen goose that is NOT the designated driver — the pen
+## refuses to dose the DD and lets the key fall through, which would test the
+## controller's path instead of its own. INF when there is none.
+static func _pen_spot(main: Node) -> Vector3:
+	var pen := _pen(main)
+	if pen == null:
+		return Vector3.INF
+	var dd: int = int(Flock.designated_driver())
+	for b in pen.get("_birds"):
+		var bird: Dictionary = b
+		var idx: int = bird["index"]
+		var root: Node3D = bird["root"]
+		if idx != dd and root != null and is_instance_valid(root):
+			return root.global_position + Vector3(1.2, 0.4, 0.0)
+	return Vector3.INF
+
+
+## Metres from `pos` to the nearest pen goose; INF with no pen.
+static func _pen_distance(main: Node, pos: Vector3) -> float:
+	var pen := _pen(main)
+	var best := INF
+	if pen == null:
+		return best
+	for b in pen.get("_birds"):
+		var bird: Dictionary = b
+		var root: Node3D = bird["root"]
+		if root != null and is_instance_valid(root):
+			best = minf(best, root.global_position.distance_to(pos))
+	return best
 
 
 ## Honk and see whether the world reacted. Returns the chaos gained.

@@ -421,11 +421,17 @@ func _share_nearby() -> bool:
 		return false
 	if player == null or not is_instance_valid(player):
 		return false
-	# You can only share what you are on. Same rule the controller applies, kept
-	# identical so the key never behaves differently depending on where you're
-	# standing beyond WHO it lands on.
+	# You can only share what you are on, and not faster than the controller's
+	# cooldown allows. THE SAME RULES THE CONTROLLER APPLIES, and this comment
+	# used to claim that already — "kept identical so the key never behaves
+	# differently depending on where you're standing" — while D-032's cooldown and
+	# its "moved somebody" check lived on the controller's path only. Beside the
+	# pen the key paid on every press. The goose owns the one cooldown; this
+	# asks it and spends it. D-057.
 	var actives: Array = _subs.actives
 	if actives.is_empty():
+		return false
+	if player.has_method("share_ready") and not bool(player.call("share_ready")):
 		return false
 
 	var here := player.global_position
@@ -440,7 +446,13 @@ func _share_nearby() -> bool:
 		if _is_dd(index):
 			dd_skipped += 1
 			continue
+		# Counted only if the dose MOVED the bird. `dose_bird()` clamps at 1.0,
+		# so a saturated goose takes the dose and nothing happens — and that
+		# used to be paid for.
+		var was: float = float(_flock.birds[index].intox)
 		_flock.dose_bird(index, SHARE_DOSE)
+		if float(_flock.birds[index].intox) <= was + 0.0001:
+			continue
 		hit += 1
 		if _sfx != null:
 			_sfx.play_at(&"goose_grumble", root, -9.0, randf_range(0.86, 1.14))
@@ -456,6 +468,8 @@ func _share_nearby() -> bool:
 	# One score call, not one per goose: the `share_the_wealth` objective counts
 	# occurrences of this exact label, and paying it per-bird would let a player
 	# clear a four-share objective by standing in the middle of the gaggle once.
+	if player.has_method("spend_share"):
+		player.call("spend_share")
 	var game := get_node_or_null("/root/Game")
 	if game != null:
 		game.score(60 + 22 * hit, "SHARED WITH THE FLOCK")

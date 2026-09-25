@@ -976,13 +976,29 @@ func _unhandled_input(e: InputEvent) -> void:
 		#   * SHARE_COOLDOWN makes saturating the flock a four-second
 		#     commitment instead of four frames. The objective asks for two
 		#     shares (`share_the_wealth`), so it stays comfortably reachable.
-		if not Subs.actives.is_empty() and _share_cd <= 0.0:
+		if share_ready():
 			var moved := Flock.dose_flock(0.32)
-			_share_cd = SHARE_COOLDOWN
+			spend_share()
 			if moved > 0:
 				Game.score(75, "SHARED WITH THE FLOCK", global_position)
 				Juice.burst(global_position + Vector3.UP * 0.6,
 					Subs.primary_tint(), 10, &"sparkle")
+
+
+## THE SHARE KEY HAS TWO HANDLERS AND ONE COOLDOWN, AND THE COOLDOWN IS HERE.
+##
+## `flock_pen.gd::_share_nearby()` runs in `_input` and takes the key first
+## whenever a pen goose is in reach; the blanket share above only sees what the
+## pen lets fall through. D-032 put the cooldown and the "moved somebody" check
+## on this path alone, so next to the pen the key still paid on every press and
+## still paid for a saturated flock — measured 3 fires in 6 frames, and 1 for a
+## press that moved nobody. Both paths ask here now, and both spend here. D-057.
+func share_ready() -> bool:
+	return _share_cd <= 0.0 and not Subs.actives.is_empty()
+
+
+func spend_share() -> void:
+	_share_cd = SHARE_COOLDOWN
 
 
 # ---------------------------------------------------------------- blackout
