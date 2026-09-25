@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-085 · 2026-09-25 · BIG DOWN's glass, walked into — it works
+Status: Decided (agent)
+Decision: `inputtest::_big_down_echo()` stands the goose 3.5 m outside BIG DOWN's pane 5, turns the camera to face the glass, holds **W** as a key event, and asserts the pane breaks. 161 checks → 162.
+Why: The encounter's glass breaks two ways — a honk through the Ears (D-083), and *"a goose at speed"* through `_tick_panes()`, which breaks any pane whose trigger overlaps the goose while it moves at 4.0 m/s or more. Nothing had driven the second. The ground-floor panes start 0.32 m up and their triggers reach 0.55 m out, so a goose that simply walks into one at its 4.2 m/s top speed should go through — and it does: broke after 44 frames at 4.20 m/s. Coverage. Pane 5 is 8.6 m from pane 0, outside the honk check that follows. Canaried by raising the floor to 5.0 m/s: the goose stops at the glass, the pane stands, and exactly this row fails. This leaves the bosses' reactions to the flap and the dive as the last of the verbs still reached only by the campaign loop calling methods.
+Refs: `tools/inputtest.gd::_big_down_echo`; `scripts/world/boss_big_down.gd::_tick_panes`, `::_curtain_wall`.
+
 ## D-084 · 2026-09-25 · Two quick honks can rout the Ranger — the design allows it, the code's own comment does not
 Status: Open (human) — the arithmetic is the agent's; whether a honk may finish him is difficulty
 Decision: Nothing changed. Recorded with its arithmetic and a recommendation, because every fix changes either a boss's difficulty or how hard the game's signature verb hits.

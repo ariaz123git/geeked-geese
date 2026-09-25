@@ -750,6 +750,51 @@ static func _big_down_echo(tree: SceneTree, main: Node) -> void:
 	# loop had never honked at a pane. The lowest pane, the goose on top of it.
 	var pane_pos: Array = boss.get("_pane_pos")
 	var gone: Array = boss.get("_pane_gone")
+
+	# THE OTHER WAY THROUGH THE GLASS (D-085): a goose at speed.
+	# `_tick_panes()` breaks any pane whose trigger overlaps the goose while it
+	# moves at 4.0 m/s or more — "below that you are bouncing off a window". The
+	# ground-floor panes start 0.32 m up and their triggers reach 0.55 m out, so a
+	# goose WALKING into one at its 4.2 m/s top speed should go through. Pane 5,
+	# the far end of the floor: 8.6 m from pane 0, outside the honk below.
+	# Movement is camera-relative, so the camera is turned to face the glass
+	# (yaw 0 looks down -Z, and the atrium's outside is +Z of its panes).
+	var run_pane := mini(5, pane_pos.size() - 1)
+	var run_from: Vector3 = (pane_pos[run_pane] as Vector3) + Vector3(0.0, 0.0, 3.5)
+	run_from.y = 0.5
+	goose.global_position = run_from
+	goose.velocity = Vector3.ZERO
+	var run_cam: Node = goose.get("cam") as Node
+	if run_cam != null:
+		run_cam.set("_yaw", 0.0)
+		run_cam.set("_manual_t", 3.0)
+	for _r in 20:
+		await tree.physics_frame
+	var w_down := InputEventKey.new()
+	w_down.keycode = KEY_W
+	w_down.physical_keycode = KEY_W
+	w_down.pressed = true
+	Input.parse_input_event(w_down)
+	var top_speed := 0.0
+	var run_frames := 0
+	for _r2 in 150:
+		await tree.physics_frame
+		run_frames += 1
+		top_speed = maxf(top_speed, Vector2(goose.velocity.x, goose.velocity.z).length())
+		if bool(gone[run_pane]):
+			break
+	var w_up := InputEventKey.new()
+	w_up.keycode = KEY_W
+	w_up.physical_keycode = KEY_W
+	w_up.pressed = false
+	Input.parse_input_event(w_up)
+	print("[input] big down: W held from 3.5 m in front of pane %d -> broke=%s after %d frames, top speed %.2f m/s, goose at (%.1f, %.1f, %.1f)"
+		% [run_pane, bool(gone[run_pane]), run_frames, top_speed,
+			goose.global_position.x, goose.global_position.y, goose.global_position.z])
+	_ok(bool(gone[run_pane]),
+		("a goose walking into BIG DOWN's pane %d at %.2f m/s left it standing. `_tick_panes()` breaks glass "
+		+ "for a goose moving at 4.0 m/s or more whose body overlaps a pane's trigger.") % [run_pane, top_speed])
+
 	var low := -1
 	for pi in pane_pos.size():
 		if low < 0 or (pane_pos[pi] as Vector3).y < (pane_pos[low] as Vector3).y:

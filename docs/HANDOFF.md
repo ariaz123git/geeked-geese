@@ -11,7 +11,7 @@
 > required (it overrides `BOSS_DESIGN.md` §3.5 in writing), cat petting (they
 > asked to discuss it), and the `Open (human)` decisions listed in §3.
 
-**Updated:** 2026-09-25, after one long autonomous session — D-054 to D-084 —
+**Updated:** 2026-09-25, after one long autonomous session — D-054 to D-085 —
 that kept sweeping for controls wired to nothing and found the seam was not
 exhausted. It found a pad that could play one zone and never leave it, a
 Settings panel that did not do what four of its rows said, a flight that paid
@@ -75,7 +75,7 @@ through the path a player's input takes, and assert what the far end did.
 |---|---|---|
 | `--gate` | every `.gd` compiles and every resource loads, inside the booted project | 73 scripts |
 | `--selftest` | the game agrees with itself | **968 invariants** |
-| `--probe --inputtest` | the bird obeys a key, **including the one that eats** — and so does the UI, **and a pad can get from leg 1 to leg 2**, and every Settings row reaches what it controls, and the dose hint appears on the grass, and restart resets a whole run, and the wheel and the click, and every menu button clicked for real, and G at the flock pen, **and both sticks and Back, and the Almanac walked, and BIG DOWN's echo, and the Ranger honked, and BIG DOWN's glass** | 161 checks |
+| `--probe --inputtest` | the bird obeys a key, **including the one that eats** — and so does the UI, **and a pad can get from leg 1 to leg 2**, and every Settings row reaches what it controls, and the dose hint appears on the grass, and restart resets a whole run, and the wheel and the click, and every menu button clicked for real, and G at the flock pen, **and both sticks and Back, and the Almanac walked, and BIG DOWN's echo, and the Ranger honked, and BIG DOWN's glass by honk and by body** | 162 checks |
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, the seven differ, **and Q hands off the lead — and flying the V is scored as holding your slot** | 22 measurements |
@@ -134,7 +134,7 @@ by a real click (D-066), G at the flock pen (D-071), the flight's lead handoff
 in all four branches (D-073), the ending's honk and the credits it starts
 (D-076), the Almanac's arrows, D-pad and rows (D-078), BIG DOWN's
 warehouse echo (D-081), the Ranger's two-body rule (D-082), and BIG DOWN's glass
-breaking to a honk (D-083).
+breaking to a honk (D-083) and to a goose walking into it (D-085).
 
 ### 3. The instruments
 
@@ -188,8 +188,8 @@ Everything measurable is yours."*
 1. **Keep sweeping, and read §2's table for the shape.** Every `_input` in
    the game has now been pressed by a harness, and both bosses answer the honk
    (D-081, D-082). Still never driven as a player sends them: the bosses'
-   reactions to the flap, the dive and a body at speed, which the campaign loop
-   reaches by calling methods; and **mouse
+   reactions to the flap and the dive, which the campaign loop reaches by
+   calling methods (a body at speed now breaks BIG DOWN's glass, D-085); and **mouse
    look**, which no headless run can drive because `MOUSE_MODE_CAPTURED` is
    never honoured headless (`GODOT_4.7_RULES` §4.5) — find a path or record it
    as the known hole. And when something is finally driven, check what it did:

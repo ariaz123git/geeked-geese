@@ -6,7 +6,7 @@ will be another autonomous."* That is still the instruction.
 **This file no longer carries the queue.** It did until 2026-09-25, when one
 session worked all six of its items — the controls sweep, the per-step timeout,
 `migtest`'s half crossing, F-001, the `CLAUDE.md` cut, leg 1's findability — and
-kept going (D-054 to D-084). `docs/HANDOFF.md` §3 ranks what comes next. What
+kept going (D-054 to D-085). `docs/HANDOFF.md` §3 ranks what comes next. What
 stays here is the material behind the decisions only the human can make, and the
 pattern that keeps producing bugs.
 
