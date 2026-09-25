@@ -46,6 +46,7 @@ extends RefCounted
 ## import as QOA and the gate says so on every run.
 
 const AUDIO_DIR := "res://audio/"
+const COMMON := preload("res://tools/probe_common.gd")
 
 ## THREE FAMILIES LOOP, AND THEY ARE NOT THE SAME THING. The first version of
 ## this file had one floor for all of them and immediately accused two healthy
@@ -87,6 +88,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_fails.clear()
 	_checks = 0
 	_skipped_qoa = 0
+	await COMMON.settled(tree)   # probe_common lesson 10: _quit_mid_sound() adds a node
 
 	var sfx := main.get_node_or_null("/root/Sfx")
 	if sfx == null:
@@ -163,6 +165,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 		% [beds.size(), _skipped_qoa])
 
 	_the_volume_sliders(main)
+	await _quit_mid_sound(tree, main)
 
 	if _fails.is_empty():
 		print("[audio] PASS — %d checks over %d files" % [_checks, names.size()])
@@ -173,6 +176,44 @@ static func run(tree: SceneTree, main: Node) -> void:
 		print("[audio]   %s" % f)
 	tree.quit(1)
 
+
+
+## ═══════════════════════════════════════════════════════════════════════════
+## QUITTING WITH SOUNDS STILL PLAYING — the exit this gate takes on purpose
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## D-074. A positional sound still playing at quit leaked its stream:
+## `Sfx.play_at()` parents its player under a zone node, a player that leaves
+## the tree only PAUSES its playback, and the stop came with deletion, after
+## every exit wait had already run. Twelve of them leaked 4 streams on 6 runs of
+## 6. The full campaign found it only because it happened to quit on a green
+## full of honking geese — which is a gate catching a bug by luck.
+##
+## The engine prints that report AFTER `quit()`, where nothing in here can read
+## it. So this does not assert the leak: it guarantees the condition on every
+## run, and `verify.ps1`'s ScriptErrors — which fails any step whose exit
+## reports a resource still in use — is the assertion. The one thing asserted
+## here is that the condition was really arranged: an exit with nothing playing
+## would prove nothing.
+static func _quit_mid_sound(tree: SceneTree, main: Node) -> void:
+	var sfx := main.get_node_or_null("/root/Sfx")
+	var at := Node3D.new()
+	at.name = "AudiotestExitSounds"
+	main.add_child(at)
+	for k in [&"honk_a", &"honk_b", &"honk_c", &"thud_land"]:
+		for _j in 3:
+			sfx.call("play_at", k, at, -60.0, 1.0)
+	await tree.process_frame
+	await tree.process_frame
+	var playing := 0
+	for c in at.get_children():
+		var p := c as AudioStreamPlayer3D
+		if p != null and p.playing:
+			playing += 1
+	print("[audio] exit: quitting with %d positional sounds still playing — verify.ps1 fails this step if the engine then reports a stream still in use"
+		% playing)
+	_ok(playing >= 12,
+		"only %d of 12 positional sounds were still playing at quit, so this exit proves nothing about a leak" % playing)
 
 
 ## ═══════════════════════════════════════════════════════════════════════════

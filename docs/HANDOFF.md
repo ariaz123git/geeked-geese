@@ -103,14 +103,14 @@ look for it and each now carrying the assertion that would have caught it:
 | gate | proves | count |
 |---|---|---|
 | `--gate` | every `.gd` compiles and every resource loads, inside the booted project | 73 scripts |
-| `--selftest` | the game agrees with itself | **960 invariants** |
+| `--selftest` | the game agrees with itself | **961 invariants** |
 | `--probe --inputtest` | the bird obeys a key, **including the one that eats** — and so does the UI, **and a pad can get from leg 1 to leg 2**, and every Settings row reaches what it controls, and the dose hint appears on the grass, and restart resets a whole run, and the wheel and the click, and every menu button clicked for real, and G at the flock pen | 145 checks |
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, the seven differ, **and Q hands off the lead — and flying the V is scored as holding your slot** | 22 measurements |
 | `--probe --rolltest` | the credit roll travels |  |
 | `--doctest` | **the documents still tell the truth** | 193 claims |
-| `--audiotest` | **the WAVs are what their names claim, and the volume sliders reach a bus** | 254 over 68 files |
+| `--audiotest` | **the WAVs are what their names claim, the volume sliders reach a bus, and quitting mid-sound leaks nothing** | 255 over 68 files |
 | `--probe --geomtest` | **a model is the size its table says, nothing edible is buried in a solid, and the bird stands ON the ground** | 56 over 15 kinds, 74 pickups |
 | `--probe --loop-test` | seven legs, seven flights and the ending | + the shelf census |
 | `verify.ps1` | **every count in this table matches the gate that printed it** | |

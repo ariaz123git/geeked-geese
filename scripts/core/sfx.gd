@@ -37,6 +37,12 @@ var _loop_tweens: Dictionary = {}    # StringName (bus_key) -> Tween (volume ram
 
 var _amb_zone: StringName = &""      # the zone id whose bed is currently up
 
+## Every AudioStreamPlayer3D `play_at()` started and has not seen finish. They
+## live under zone nodes, not here, and `_exit_tree()` has to stop them (D-074).
+## Untyped on purpose: a player freed with its parent stays in here as a dead
+## reference until `_prune_positional()` or `_exit_tree()` skips it.
+var _positional: Array = []
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -61,12 +67,24 @@ func _ready() -> void:
 ## to change nothing, which is exactly what that predicts. Stopping and then
 ## pausing 60 ms for the mixer took `--gate` from 17 to 0 and cleared nine of ten
 ## gates; the tenth leaked one sound once in eight runs, a sound started in the
-## last frames. 100 ms here bought the margin — 0 leaks in 20 runs of all ten
-## gates — and it covers Music's stems too: a node's children leave the tree
-## last-first, so Sfx (autoload 3) exits after Music (autoload 10). `music.gd`
-## stops and waits for its own stems as well. This is guarded, not trusted:
-## `verify.ps1`'s ScriptErrors fails any gate whose exit reports resources still
-## in use, and setting both waits to 0 fails the run (canaried 2026-09-25).
+## last frames. 100 ms here gave 0 leaks in 20 runs of those ten gates, and it
+## covers Music's stems too: a node's children leave the tree last-first, so Sfx
+## (autoload 3) exits after Music (autoload 10). `music.gd` stops and waits for
+## its own stems as well. This is guarded, not trusted: `verify.ps1`'s
+## ScriptErrors fails any gate whose exit reports resources still in use, and
+## setting both waits to 0 fails the run (canaried 2026-09-25).
+##
+## THE STRAGGLER WAS NOT A TIMING MARGIN, AND THE CAMPAIGN FOUND IT (D-074).
+## The first full campaign after that check was armed leaked `honk_b.wav`. The
+## ten gates above never ran long enough to be making positional sound when they
+## quit; the campaign ends on a green full of honking geese. `play_at()` parents
+## its player under a ZONE node, so nothing above could reach it — and a player
+## that leaves the tree only PAUSES its playback, which is stopped when the node
+## is deleted, after every exit wait has already run. Twelve positional sounds
+## playing at quit leaked 4 streams on 6 runs of 6. So `play_at()` keeps a list,
+## and this stops them too. `tools/audiotest.gd::_quit_mid_sound()` now quits
+## with twelve playing on every run; with this loop disabled that gate leaked on
+## 10 runs of 11, and verify.ps1 fails it when it does.
 const EXIT_MIX_WAIT_MS := 100
 
 func _exit_tree() -> void:
@@ -78,6 +96,11 @@ func _exit_tree() -> void:
 		var lp := _loops[k] as AudioStreamPlayer
 		if lp != null and is_instance_valid(lp):
 			lp.stop()
+	# Validity BEFORE the cast: a player freed with its zone leaves a dead
+	# reference here, and `as` on a freed object raises.
+	for q in _positional:
+		if is_instance_valid(q):
+			(q as AudioStreamPlayer3D).stop()
 	OS.delay_msec(EXIT_MIX_WAIT_MS)
 
 
@@ -240,11 +263,26 @@ func play_at(key: StringName, parent: Node3D, volume_db: float = 0.0,
 	parent.add_child(p3d)
 	p3d.finished.connect(_on_positional_finished.bind(p3d))
 	p3d.play()
+	if _positional.size() >= 64:
+		_prune_positional()
+	_positional.append(p3d)
 
 
 func _on_positional_finished(p3d: AudioStreamPlayer3D) -> void:
+	_positional.erase(p3d)
 	if is_instance_valid(p3d):
 		p3d.queue_free()
+
+
+## Drop the players that were freed with their parent before they finished — a
+## prop that broke mid-sound, a zone unloaded under a honk — so the list tracks
+## what is playing and does not grow for the length of a run.
+func _prune_positional() -> void:
+	var live: Array = []
+	for q in _positional:
+		if is_instance_valid(q):
+			live.append(q)
+	_positional = live
 
 
 ## --- Persistent named loops ------------------------------------------------

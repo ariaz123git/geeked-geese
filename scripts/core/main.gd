@@ -1101,7 +1101,7 @@ func _probe_if_headless() -> void:
 	# nothing is silent or clipping, and that the layered stems share a length.
 	# It cannot tell you anything SOUNDS good and says so. See tools/audiotest.gd.
 	if args.has("--audiotest"):
-		preload("res://tools/audiotest.gd").run(get_tree(), self)
+		await preload("res://tools/audiotest.gd").run(get_tree(), self)
 		return
 
 	# THE ELEVENTH GATE. `prop_models*.gd::build()` sizes every model with
