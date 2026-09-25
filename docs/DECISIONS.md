@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-081 · 2026-09-25 · BIG DOWN's warehouse echo, pressed — it works, and the first run accused it
+Status: Decided (agent)
+Decision: `inputtest::_big_down_echo()` runs last: it loads leg 7, starts its clock, waits for the dock to open (three seconds under `--probe`), presses **H** outside the site and then inside the warehouse, and asserts no echo outside, two inside, both played within 0.8 s, and the goose's own honk firing both times. 154 checks → 158.
+Why: The last `_input` consumer in the game no harness had pressed. At BIG DOWN the flock is a hundred metres away, so a honk gets no reply — *"What it gets instead is itself, twice"* — and `boss_big_down.gd` states the rule that it must never mark the honk handled. **All of it works:** outside 0 echoes; inside the warehouse 2, both played; the goose honked twice. **The first run said otherwise** — both echoes queued and never played — because the harness had loaded leg 7 without starting its clock: `_tick_echo()` runs inside `_tick_cosmetics()`, which the encounter only calls once it is live. In play the warehouse cannot be entered before the dock opens, so that was the instrument, and the fix is in the harness with the reason beside it — probe_common's warning, met again. **Canaried twice:** BIG DOWN marking the honk handled fails only *"the goose honked 1 time(s)"*; BIG DOWN listening for an action that never fires fails only the echo row (the "no echo outside" row passes vacuously then, which is why it is only asserted beside the inside row).
+Refs: `tools/inputtest.gd::_big_down_echo`; `scripts/world/boss_big_down.gd::_input`, `::_tick_echo`, `::_tick_cosmetics`.
+
 ## D-080 · 2026-09-25 · The two restart windows differ on purpose, and the comment now says so
 Status: Decided (agent) — pacing, decided without playing it; a one-constant revert either way
 Decision: Keep R's confirmation window at 1.5 s (`main.gd::RESTART_CONFIRM_MS`) and the pause menu button's at 3.0 s (`pause_menu.gd::RESTART_ARM_SECS`). The comment above `_on_restart_pressed()`, which said the two "behave identically", now says they share the two-press contract and why the windows differ.

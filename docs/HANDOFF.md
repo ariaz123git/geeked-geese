@@ -104,7 +104,7 @@ look for it and each now carrying the assertion that would have caught it:
 |---|---|---|
 | `--gate` | every `.gd` compiles and every resource loads, inside the booted project | 73 scripts |
 | `--selftest` | the game agrees with itself | **967 invariants** |
-| `--probe --inputtest` | the bird obeys a key, **including the one that eats** — and so does the UI, **and a pad can get from leg 1 to leg 2**, and every Settings row reaches what it controls, and the dose hint appears on the grass, and restart resets a whole run, and the wheel and the click, and every menu button clicked for real, and G at the flock pen, **and both sticks and Back, and the Almanac walked** | 154 checks |
+| `--probe --inputtest` | the bird obeys a key, **including the one that eats** — and so does the UI, **and a pad can get from leg 1 to leg 2**, and every Settings row reaches what it controls, and the dose hint appears on the grass, and restart resets a whole run, and the wheel and the click, and every menu button clicked for real, and G at the flock pen, **and both sticks and Back, and the Almanac walked, and BIG DOWN's echo** | 158 checks |
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, the seven differ, **and Q hands off the lead — and flying the V is scored as holding your slot** | 22 measurements |

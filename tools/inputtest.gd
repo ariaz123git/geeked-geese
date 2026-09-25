@@ -125,6 +125,8 @@ static func run(tree: SceneTree, main: Node) -> void:
 	await _restart_test(tree, main)
 	# LAST, because it ends the leg: everything above needs the zone it leaves.
 	await _gamepad_walk(tree, main)
+	# After even that: it throws whatever is loaded away for leg 7.
+	await _big_down_echo(tree, main)
 
 	if _fails.is_empty():
 		print("[input] PASS — %d controller checks" % _checks)
@@ -533,6 +535,79 @@ static func _menu_buttons_report(tree: SceneTree, main: Node) -> void:
 			held.erase(id2)
 	tree.paused = was_paused
 	_release_all()
+
+
+## BIG DOWN'S WAREHOUSE ANSWERS A HONK WITH ITSELF (D-081). The flock is not
+## at this encounter, so a honk gets no reply — "What it gets instead is itself,
+## twice, off forty metres of concrete and corrugated steel." `boss_big_down.gd`
+## listens in `_input` for a honk from inside the warehouse or the atrium, and
+## never marks it handled, because the goose's own honk must still fire. The
+## campaign loop reaches this boss on every run and had never pressed H in it.
+## Both sides are asserted: outside the site a honk must NOT echo.
+static func _big_down_echo(tree: SceneTree, main: Node) -> void:
+	_release_all()
+	for _a in 6:
+		if not bool(main.call("_menus_open")):
+			break
+		await _escape(tree)
+	tree.paused = false
+	Flock.leg = 7
+	main.call("_load_zone")
+	# THE LEG'S CLOCK, AND THE DOCK OPEN. The first run of this loaded leg 7
+	# without starting its clock and reported both echoes queued and neither
+	# ever played: `_tick_echo()` runs inside `_tick_cosmetics()`, which the
+	# encounter only calls once it is live, and it is never live on a stopped
+	# clock or before the dock opens. In play the warehouse cannot be entered
+	# before then, so that was the harness, not the game. Under `--probe` the
+	# dock opens three seconds in.
+	Game.start_zone(float(main.call("leg_seconds", 7)))
+	for _i in 240:
+		await tree.physics_frame
+	var zone: Node = main.get("current")
+	var boss: Node = null
+	var goose: CharacterBody3D = null
+	if zone != null:
+		boss = zone.get_node_or_null("BossBigDown")
+		goose = zone.get("goose") as CharacterBody3D
+	if boss == null or goose == null:
+		_ok(false, "leg 7 loaded without BIG DOWN or a goose, so its warehouse echo could not be pressed")
+		return
+	var own := [0]
+	var honker: Node = goose.get("honker")
+	if honker != null and honker.has_signal("honked"):
+		honker.connect("honked", func(_p: float) -> void: own[0] += 1)
+
+	# Outside: wherever leg 7 spawns the bird, on the near side of the berm.
+	var outside: Vector3 = goose.global_position
+	await _key(tree, KEY_H)
+	var echo_out: int = (boss.get("_echo_t") as Array).size()
+
+	# Inside: the middle of the warehouse, on its dock-height floor.
+	var consts: Dictionary = boss.get_script().get_script_constant_map()
+	var wh: Vector3 = consts.get("WH_AT", Vector3.ZERO)
+	goose.global_position = wh + Vector3(0.0, 1.6, 0.0)
+	goose.velocity = Vector3.ZERO
+	for _j in 20:
+		await tree.physics_frame
+	var inside: Vector3 = goose.global_position
+	var indoors: bool = bool(boss.call("_in_warehouse", inside))
+	await _key(tree, KEY_H)
+	var echo_in: int = (boss.get("_echo_t") as Array).size()
+	for _k in 50:
+		await tree.physics_frame
+	var echo_left: int = (boss.get("_echo_t") as Array).size()
+	print("[input] big down: H outside at (%.0f, %.1f, %.0f) -> %d echoes; H in the warehouse at (%.0f, %.1f, %.0f, indoors=%s) -> %d echoes, %d unplayed 0.8 s later; the goose honked %d time(s)"
+		% [outside.x, outside.y, outside.z, echo_out, inside.x, inside.y, inside.z, indoors, echo_in, echo_left, own[0]])
+	_ok(echo_out == 0,
+		"a honk outside BIG DOWN's site queued %d echoes. The echo is the sound of the warehouse being empty; the lot has none." % echo_out)
+	_ok(indoors and echo_in == 2,
+		("a honk inside BIG DOWN's warehouse (indoors=%s) queued %d echoes, not 2. boss_big_down.gd::_input listens "
+		+ "for gg_honk and must never mark it handled.") % [indoors, echo_in])
+	_ok(echo_left == 0,
+		"%d of the warehouse's echoes never played. They are due at 0.26 s and 0.53 s." % echo_left)
+	_ok(own[0] >= 2,
+		("the goose honked %d time(s) for two presses of H at leg 7. BIG DOWN listens in `_input` "
+		+ "ahead of the goose, and must leave the event for it.") % own[0])
 
 
 ## THE ALMANAC'S OWN CONTROLS (D-078). The row that calls this proves the
