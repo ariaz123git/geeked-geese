@@ -136,6 +136,32 @@ func _on_enter(body: Node3D) -> void:
 	if body is Goose and available:
 		_goose = body
 		body.set_eat_target(self)
+		_first_dose_hint()
+
+
+const BRIEF_DEFS := preload("res://scripts/ui/briefing_defs.gd")
+
+## THE DOSE HINT, THE FIRST TIME ANYONE STANDS ON ANYTHING EDIBLE.
+##
+## `briefing_defs.gd::dose_hint()` is the card that teaches the dose arc — with a
+## miniature of the HUD's own arc on it — and it was designed with this exact
+## hook in `docs/ONBOARDING_NOTES.md` §5.4, specced to fire on leg 1 in
+## `docs/CAMPAIGN_SPEC.md` §2.1, and built. Nothing ever called it. It is also
+## the only card the Settings "Show hints" checkbox gates, so that half of the
+## checkbox switched off a card nobody could have seen. D-059.
+##
+## `show_once()` does the rest: never twice on any run, never while another card
+## is up, marked seen without showing when hints are off. The pause it takes
+## leaves the bird standing in this trigger, ready to eat when it closes.
+func _first_dose_hint() -> void:
+	var director := get_tree().current_scene
+	if director == null or not director.has_method("_menus_open"):
+		return
+	if bool(director.call("_menus_open")):
+		return
+	var brief: Node = director.get("briefing")
+	if brief != null and brief.has_method("show_once"):
+		brief.call("show_once", &"dose_hint", BRIEF_DEFS.dose_hint())
 
 
 func _on_exit(body: Node3D) -> void:

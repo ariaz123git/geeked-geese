@@ -1044,6 +1044,12 @@ func _probe_if_headless() -> void:
 	# see a first-run card still gets the flight's, at the first migration.
 	if not args.is_empty() and briefing and briefing.has_method("force_close"):
 		briefing.force_close()
+		# And the contextual hint, which a harness would otherwise meet the first
+		# time any measurement put the bird within 1.6 m of a pickup — mid-run,
+		# tree paused, every number after it zero. `inputtest` un-sees it on
+		# purpose to drive it (D-059).
+		if briefing.has_method("mark_seen"):
+			briefing.mark_seen(&"dose_hint")
 
 
 	# THE COMPILE GATE. Has to run from inside the booted project, because that
@@ -1460,7 +1466,8 @@ func _probe_if_headless() -> void:
 		var id := StringName(forced if forced != "" else "berries")
 		Subs.take(Subs.get_substance(id), 0.6)
 
-	if args.has("--brief-zone") or args.has("--brief-flight") or args.has("--brief-recap"):
+	if args.has("--brief-zone") or args.has("--brief-flight") or args.has("--brief-recap") \
+			or args.has("--brief-dose"):
 		var data: Dictionary = BRIEF_DEFS.zone_first_run()
 		var tag := "brief_zone"
 		if args.has("--brief-flight"):
@@ -1469,6 +1476,10 @@ func _probe_if_headless() -> void:
 		elif args.has("--brief-recap"):
 			data = BRIEF_DEFS.flight_recap()
 			tag = "brief_recap"
+		elif args.has("--brief-dose"):
+			# Never shown to anyone until D-059 wired it; this is its first render.
+			data = BRIEF_DEFS.dose_hint()
+			tag = "brief_dose"
 		briefing.show_now(data)
 		for i in 30:
 			await get_tree().process_frame

@@ -69,6 +69,14 @@ IDs increment. Newest on top.
 
 ---
 
+## D-059 · 2026-09-25 · The dose hint is wired, as specced — decided without playing it
+Status: Decided (agent) — **revertible in one line**: delete the `_first_dose_hint()` call in `substance_pickup.gd::_on_enter()`
+Decision: `substance_pickup.gd::_on_enter()` raises `briefing.show_once(&"dose_hint", BRIEF_DEFS.dose_hint())` the first time the bird steps onto anything edible, unless a menu or card is already up. Harness runs mark the hint seen at boot (`main.gd`), so no measurement meets it mid-run; `briefing.gd` gains a public `mark_seen()` for that. `inputtest::_eat_test()` un-sees it, walks onto leg 1's grass, asserts the card appears and pauses the tree, closes it with Enter, and asserts the bird is still standing on the grass ready to eat. `--probe --brief-dose` photographs it. 108 checks → 111.
+Why: The card that teaches the dose arc — the game's one input-timing skill, with a miniature of the HUD's own arc on it — was designed with this exact hook in `docs/ONBOARDING_NOTES.md` §5.4, specced to fire on leg 1 in `docs/CAMPAIGN_SPEC.md` §2.1 (*"the existing … `dose_hint()` cards fire here"*), and built. **Nothing called it.** `grep dose_hint` finds the definition, two docs and no caller. It is also the only card the Settings "Show hints" checkbox gates, so — with D-056's HUD half — that checkbox was dead twice over. Its first render (this session) reads correctly: nothing clipped, the arc in the green, the callout and FINE button clear.
+
+**This is a feel call made without playing it, and it is said so here.** A modal the first time you stand on grass is exactly what the onboarding research this repo cites warns can read as friction; the docs argued it through (*"teach at the moment of use"*, one screen, never twice, honours Show hints) and chose it, and this implements their choice rather than a new one. If it grates in play, the revert is one line.
+Refs: `scripts/world/substance_pickup.gd::_first_dose_hint`; `scripts/ui/briefing.gd::mark_seen`; `scripts/core/main.gd::_probe_if_headless` (harness pre-mark, `--brief-dose`); `tools/inputtest.gd::_eat_test`, `::_key`.
+
 ## D-058 · 2026-09-25 · The grid baseline retakes from somewhere else, and says what it hit
 Status: Decided (agent)
 Decision: `substancetest.gd::_the_grid()` retakes its sober diagonal from three lanes — the pad's centre, then 3 m either side of the path — reuses whichever came back clean for the dosed run, and prints the bodies the bird slid against on any disturbed attempt (a chaos prop by its `label`).

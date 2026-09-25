@@ -119,6 +119,13 @@ func has_seen(key: StringName) -> bool:
 	return _seen_list().has(String(key))
 
 
+## Record a card as seen without showing it. Harness runs do this for the
+## contextual hints (`main.gd::_probe_if_headless`) so no measurement is
+## interrupted by one; `tools/inputtest.gd` un-sees the dose hint to drive it.
+func mark_seen(key: StringName) -> void:
+	_mark_seen(key)
+
+
 ## Dev / "replay the intro" hook. Pass a key to forget just that one.
 func reset_seen(key: StringName = &"") -> void:
 	if key == &"":

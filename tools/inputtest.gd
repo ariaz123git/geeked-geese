@@ -994,6 +994,24 @@ static func _press(tree: SceneTree, action: String) -> void:
 	for _i in 3:
 		await tree.process_frame
 
+## One press-and-release of a real key, through the viewport. `InputEventKey`,
+## not `InputEventAction`: several overlays (the results card among them) only
+## count a key, a pad button or a click as a press.
+static func _key(tree: SceneTree, code: Key) -> void:
+	var down := InputEventKey.new()
+	down.keycode = code
+	down.physical_keycode = code
+	down.pressed = true
+	Input.parse_input_event(down)
+	await tree.process_frame
+	var up := InputEventKey.new()
+	up.keycode = code
+	up.physical_keycode = code
+	up.pressed = false
+	Input.parse_input_event(up)
+	for _i in 3:
+		await tree.process_frame
+
 ## One Escape, through the viewport rather than at a handler.
 static func _escape(tree: SceneTree) -> void:
 	var down := InputEventAction.new()
@@ -1055,6 +1073,13 @@ static func _eat_test(tree: SceneTree, goose: CharacterBody3D) -> void:
 		return
 	var res: Substance = pick.get("substance")
 
+	# The dose hint is marked seen for every harness run (main.gd), so no other
+	# measurement is ambushed by it. This one wants it: un-see it, the way a
+	# first-time player has never seen it.
+	var brief: Node = tree.current_scene.get("briefing") if tree.current_scene != null else null
+	if brief != null and brief.has_method("reset_seen"):
+		brief.call("reset_seen", &"dose_hint")
+
 	# WALK INTO IT. `SubstancePickup` is an Area3D whose `body_entered` calls
 	# `set_eat_target()`; nothing else sets `_eating`, so being in range is part
 	# of what is under test rather than something to fake.
@@ -1073,6 +1098,30 @@ static func _eat_test(tree: SceneTree, goose: CharacterBody3D) -> void:
 		+ "this ran."))
 	if not in_range:
 		return
+
+	# THE DOSE HINT, which is the card that teaches the arc this test is about to
+	# drive. It was designed, built and specced to fire here on leg 1 — and
+	# nothing called it (D-059). A first-time player standing on the grass meets
+	# it; so does this, and dismisses it with Enter the way they would.
+	var hint_up := false
+	for _h in 10:
+		await tree.process_frame
+		if brief != null and bool(brief.call("is_open")) and str(brief.get("_pending_key")) == "dose_hint":
+			hint_up = true
+			break
+	print("[input] eat: standing on the grass raised the dose hint = %s (tree paused = %s)" % [hint_up, tree.paused])
+	_ok(hint_up,
+		("a first-time player stood on the grass and no dose hint appeared. `briefing_defs.gd::"
+		+ "dose_hint()` is the card that teaches the arc, `CAMPAIGN_SPEC.md` §2.1 says it fires "
+		+ "here, and `substance_pickup.gd::_on_enter()` is where it is raised."))
+	if hint_up:
+		for _l in 20:
+			await tree.physics_frame   # past INPUT_LOCKOUT, which swallows the first 0.22 s
+		await _key(tree, KEY_ENTER)
+		_ok(not bool(brief.call("is_open")) and not tree.paused,
+			"Enter did not close the dose hint, or it left the tree paused behind it.")
+		_ok(goose.get("_eating") != null,
+			"closing the dose hint dropped the eat target. The card is supposed to leave the bird standing on the grass, ready.")
 
 	# EVERY LABEL THE DOSE SCORES. `Game.score()` emits `chaos_scored` with the
 	# label as its fourth argument, which is the only observable that separates
