@@ -95,6 +95,7 @@ var _idle := 0.0
 var _hidden_seen := 0
 var _hidden_total := 0
 var _bonus_queue: Array = []   ## bonus rows waiting for a free slot
+var _host_visible := true      ## see set_host_visible()
 
 
 func _ready() -> void:
@@ -441,11 +442,27 @@ func _on_pref_changed(key: StringName, _value) -> void:
 		_refresh_visibility()
 
 
+## Whether the director wants gameplay HUD on screen at all — false while a menu
+## or a card owns it. `main.gd::_set_hud_visible()` calls this.
+##
+## TWO WRITERS, ONE PROPERTY, AND THE LAST ONE WON. The director used to set
+## `visible` on this layer directly, on every menu open and every menu close, so
+## "Show hints" OFF held exactly until the player resumed from the very menu
+## they had turned it off in — and then the panel came back. Measured through
+## the checkbox on 2026-09-25: show_hints=false, menu closed, panel visible=true.
+## The last session's handoff recorded this pref as "checked and innocent", on
+## the strength of the `pref_changed` listener above, which is real and was
+## never the problem. D-056.
+func set_host_visible(v: bool) -> void:
+	_host_visible = v
+	_refresh_visibility()
+
+
 func _refresh_visibility() -> void:
 	var show_it := true
 	if _prefs != null:
 		show_it = bool(_prefs.get_pref(&"show_hints", true))
-	visible = show_it
+	visible = _host_visible and show_it
 
 
 # ═══════════════════════════════════════════════════════════════ DRAWABLES

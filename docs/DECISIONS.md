@@ -69,6 +69,27 @@ IDs increment. Newest on top.
 
 ---
 
+## D-056 · 2026-09-25 · Every row of Settings, driven by hand, and four of them did not do what they said
+Status: Decided (agent)
+Decision: `inputtest.gd::_settings_walk()` walks the Settings panel with the D-pad, moves each slider five presses, toggles each checkbox with A, picks Classic through the Art style popup, and asserts the **consumer** of each row — the camera's sensitivity, FOV and invert flag, all three buses, Juice's shake and FX scales, the HUD's FX, the objectives panel, the goose, the cats and the people. Four fixes: `pause_menu.gd::_chain_focus()` gives the rows an explicit D-pad order; `_step_focused_slider()` moves a focused slider one twentieth of its range; `cat.gd` and `npc_human.gd` rebuild their visual on `pref_changed`; `mission_hud.gd::set_host_visible()` composes "a menu is up" with the Show hints pref instead of `main.gd` overwriting `visible`. 70 checks → 105.
+Why: **Shipped as a report and read before it was armed**, and its first run found four real things:
+
+| row | measured |
+|---|---|
+| Invert Y, Show hints | **unreachable on a pad.** D-pad down went art style → six sliders → BACK. A CheckBox sits at the left of its row and a slider in the middle of the next, and Godot's geometric guess skipped both checkboxes |
+| every slider | **95–100 presses end to end** on a pad: a focused Slider moves by `step`, 0.01, and pad buttons do not auto-repeat. Now 17–20 |
+| Art style | *"Cats and people follow the goose. Takes effect immediately."* The goose did; **7 of 7 cats and 9 of 9 people** stayed low-poly until the next zone |
+| Show hints | **OFF held until the menu closed.** `main.gd::_set_hud_visible()` wrote the panel's `visible` on every menu open and close, so resuming from the menu you turned it off in put it back |
+
+The last session recorded `show_hints` as *"checked and innocent — re-reads on pref_changed"*. The listener is real and was never the problem; a **second writer** of the same property was. Checking that a consumer listens is not checking that nothing else writes after it.
+
+**A Godot 3 API got in, and the compile gate passed it.** The first slider fix set `HSlider.custom_step`, which 4.7 does not have (`ClassDB` lists only `step` on `Range`, nothing on `Slider`) — it raised `SCRIPT ERROR` on every row at run time and the walk saw no sliders at all. A property write on a native-typed variable is resolved at run time, so `--gate` cannot see it; `verify.ps1`'s `SCRIPT ERROR` check on every step can. Raising `step` instead would have coarsened the mouse drag and knocked FOV's 68° default off its grid, so the menu takes left / right itself.
+
+**Canaried in two runs:** chain + cat and person listeners removed → exactly 3 failures (both checkboxes unreached; 7 of 7 cats; 9 of 9 people). Slider step + host visibility removed → 8 (seven sliders at 50–100 presses; Show hints after the close).
+
+**The same canary run surfaced something unrelated, and it is D-057.**
+Refs: `scripts/ui/pause_menu.gd::_chain_focus`, `::_step_focused_slider`; `scripts/world/cat.gd::_on_pref_changed`, `::_build_visual`; `scripts/world/npc_human.gd` (same, plus `_vis` held by reference); `scripts/ui/mission_hud.gd::set_host_visible`; `scripts/core/main.gd::_set_hud_visible`; `tools/inputtest.gd::_settings_walk`, `::_style_counts`, `::_far_value`.
+
 ## D-055 · 2026-09-25 · A pad can get through the game, not just around one zone
 Status: Decided (agent)
 Decision: `Game._setup_input()` binds pad **Start → `ui_cancel`** (pause) and pad **A → `ui_accept` and `gg_skip`** (confirm / continue). `pause_menu.gd` gives RESUME focus on open, the Art style picker focus on SETTINGS, and SETTINGS focus again on BACK. `briefing.gd::DISMISS_ACTIONS` gains `gg_honk`, so B closes a card. The flight card reads `[ENTER · A]`; the README, the pause menu's control table and the control card name Start. `inputtest.gd::_gamepad_walk()` drives it with `InputEventJoypadButton`s only. 56 checks → 70.

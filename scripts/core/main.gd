@@ -254,8 +254,11 @@ func _build_overlays() -> void:
 func _set_hud_visible(v: bool) -> void:
 	if hud and is_instance_valid(hud):
 		hud.visible = v
+	# Through the panel, not onto its `visible`: the panel also answers to the
+	# "Show hints" setting, and writing `visible` here undid that setting on
+	# every menu close. See mission_hud.gd::set_host_visible().
 	if mission_hud and is_instance_valid(mission_hud):
-		mission_hud.visible = v
+		mission_hud.set_host_visible(v)
 
 
 ## Mouse capture is a global concern: the camera only steers while captured,

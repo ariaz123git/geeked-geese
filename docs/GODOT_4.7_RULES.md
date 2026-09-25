@@ -507,6 +507,26 @@ add_theme_stylebox_override(name: StringName, stylebox: StyleBox)
 See §1.10 for the new offset-transform properties, which are the right tool for
 new UI animation.
 
+**Measured on 4.7.1, 2026-09-25, by printing the engine — not remembered** (D-055,
+D-056):
+
+- **The built-in `ui_*` actions have no pad buttons for accept or cancel.**
+  `ui_cancel` is Escape alone; `ui_accept` is Enter, Keypad Enter and Space;
+  `ui_select` is Space and pad Y; `ui_up/down/left/right` do carry the D-pad and
+  the left stick. Older Godot put pad A and B on accept and cancel, and two of this
+  repo's own documents still said so. `Game._setup_input()` adds Start and A.
+- **`Slider` has no `custom_step`.** `ClassDB` lists `Range` as `min_value,
+  max_value, step, page, value, ratio, exp_edit, rounded, allow_greater,
+  allow_lesser` and `Slider` as `editable, scrollable, tick_count,
+  ticks_on_borders, ticks_position`. Assigning `custom_step` compiles — a property
+  write on a native type is resolved at run time, so `--gate` cannot see it — and
+  raises `SCRIPT ERROR` when it runs. A focused slider moves by `step` on the arrow
+  keys and the D-pad.
+- **Hiding a `CanvasLayer` releases focus from any Control inside it.** Measured by
+  disabling an explicit `release_focus()` and seeing nothing focused anyway.
+- **Pad buttons do not auto-repeat;** held keys send echoes. `is_action_pressed(a,
+  true)` accepts the echoes.
+
 ### 4.6 `Tween`
 
 All of these are confirmed in 4.7:

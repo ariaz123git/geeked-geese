@@ -16,6 +16,10 @@ var _home := Vector3.ZERO
 var _sfx: Node
 ## Faceted variant, used when settings ask for the low-poly art style.
 var _lp: Node3D
+## The primitive variant. Held by reference now rather than found by the name
+## "Vis", because a mid-leg rebuild frees one and adds the other in one frame.
+var _vis: Node3D
+var _shirt := Color(0.5, 0.5, 0.55)
 
 
 func _ready() -> void:
@@ -23,6 +27,20 @@ func _ready() -> void:
 	add_to_group("npc")
 	_home = global_position
 	_new_wander()
+	var prefs := get_node_or_null("/root/Prefs")
+	if prefs != null and prefs.has_signal("pref_changed"):
+		prefs.pref_changed.connect(_on_pref_changed)
+
+
+## Same promise as the cats — "cats and people follow the goose. Takes effect
+## immediately" — and the same break: read once in setup(), never again. Nine
+## people in leg 1 stayed faceted after the goose went classic. D-056.
+func _on_pref_changed(key: StringName, _value) -> void:
+	if key != &"goose_model":
+		return
+	if (_lp != null) == _use_lowpoly():
+		return
+	_build_visual()
 
 
 ## People are authored twice, same as the cats, so the crowd matches whichever
@@ -43,6 +61,22 @@ func setup(shirt: Color) -> void:
 	cs.shape = cap
 	cs.position.y = 0.85
 	add_child(cs)
+	_shirt = shirt
+	_build_visual()
+
+
+## Build whichever visual the art style asks for, replacing any that exists.
+## The outgoing one is renamed before it is freed, for the reason main.gd's
+## `_clear()` gives: a queued node keeps its name until the end of the frame.
+func _build_visual() -> void:
+	for old in [_lp, _vis]:
+		var n := old as Node3D
+		if n != null and is_instance_valid(n):
+			n.name = "VisOutgoing"
+			n.queue_free()
+	_lp = null
+	_vis = null
+	var shirt := _shirt
 
 	if _use_lowpoly():
 		_lp = preload("res://scripts/world/human_visual_lowpoly.gd").new()
@@ -63,6 +97,7 @@ func setup(shirt: Color) -> void:
 	var vis := Node3D.new()
 	vis.name = "Vis"
 	add_child(vis)
+	_vis = vis
 
 	# torso
 	var torso := MeshInstance3D.new()
@@ -121,7 +156,7 @@ func startle(from: Vector3) -> void:
 	# on every person in the lot, on every honk — and depenetration then shoved
 	# the whole crowd. cat.gd has carried the comment explaining exactly this
 	# for as long as this line has been wrong, and boss_ranger.gd cites it.
-	var vis: Node3D = _lp if _lp != null else (get_node_or_null("Vis") as Node3D)
+	var vis: Node3D = _lp if _lp != null else _vis
 	if vis != null and is_instance_valid(vis):
 		Juice.pop(vis, 0.22, 0.20)
 	if _sfx:
@@ -144,9 +179,8 @@ func _physics_process(delta: float) -> void:
 		speed = FLEE_SPEED
 		dir = _flee_dir
 		# Flailing run.
-		var vis := get_node_or_null("Vis")
-		if vis:
-			vis.rotation.z = sin(Time.get_ticks_msec() * 0.02) * 0.3
+		if _vis != null and is_instance_valid(_vis):
+			_vis.rotation.z = sin(Time.get_ticks_msec() * 0.02) * 0.3
 		if _lp:
 			_lp.animate(delta, speed / FLEE_SPEED, 1.0)
 	else:
@@ -156,9 +190,8 @@ func _physics_process(delta: float) -> void:
 		# Drift back toward home so they don't all end up in one corner.
 		if global_position.distance_to(_home) > 22.0:
 			dir = (_home - global_position).normalized()
-		var vis := get_node_or_null("Vis")
-		if vis:
-			vis.rotation.z = lerpf(vis.rotation.z, 0.0, 1.0 - pow(0.01, delta))
+		if _vis != null and is_instance_valid(_vis):
+			_vis.rotation.z = lerpf(_vis.rotation.z, 0.0, 1.0 - pow(0.01, delta))
 		if _lp:
 			_lp.animate(delta, speed / FLEE_SPEED, 0.0)
 

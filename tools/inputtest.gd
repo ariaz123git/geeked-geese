@@ -102,6 +102,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	await _pause_menu_test(tree, main)
 	await _ui_sweep_report(tree, main, goose)
 	await _menu_buttons_report(tree, main)
+	await _settings_walk(tree, main, goose)
 	# LAST, because it ends the leg: everything above needs the zone it leaves.
 	await _gamepad_walk(tree, main)
 
@@ -627,6 +628,298 @@ static func _gamepad_walk(tree: SceneTree, main: Node) -> void:
 			break
 	print("[input] pad: next zone running = %s" % back_in_zone)
 	_ok(back_in_zone, "after the flight the next zone never started running. The pad walk stopped somewhere between them.")
+
+
+## ═══════════════════════════════════════════════════════════════════════════
+## EVERY ROW OF SETTINGS, MOVED BY HAND, AND THE FAR END OF EACH ONE
+## ═══════════════════════════════════════════════════════════════════════════
+##
+## D-053 proved one thing about the Settings panel: that a volume PREF reaches
+## a bus. It did not prove that moving the control writes the pref, and it did
+## not look at the other nine rows at all. The last session's commit recorded
+## `screen_shake`, `fx_intensity` and `show_hints` as "checked and innocent —
+## all three re-read on pref_changed", which checks that a listener exists and
+## not that nothing else writes the same property afterwards.
+##
+## So: focus each row with the D-pad the way a pad or keyboard player does,
+## move it with left / right or toggle it with A, and then read the CONSUMER —
+## the camera's sensitivity, the bus, Juice's shake scale, the HUD, the goose,
+## and the cats and people the Art style row promises "follow the goose. Takes
+## effect immediately." Every pref is put back afterwards.
+##
+## SHIPPED AS A REPORT AND READ BEFORE IT WAS ARMED. Its first run found four
+## things, all real (D-056): the D-pad walked straight past both checkboxes, so
+## Invert Y and Show hints could not be reached on a pad; every slider took 95 to
+## 100 presses end to end; the Art style row switched the goose and left all 7
+## cats and all 9 people in leg 1 in the old style; and Show hints OFF held only
+## until the menu closed. It also found one error of its own — pressing right
+## from 0.9 hit the ceiling after two presses and reported 50 presses end to end
+## — so it now presses toward whichever side of the range has room.
+static func _settings_walk(tree: SceneTree, main: Node, goose: CharacterBody3D) -> void:
+	var menu: Node = main.get("pause_menu")
+	var prefs := main.get_node_or_null("/root/Prefs")
+	var mh: Node = main.get("mission_hud")
+	_ok(menu != null and prefs != null and mh != null,
+		"main has no pause menu, Prefs or mission HUD, so the Settings panel was never walked")
+	if menu == null or prefs == null or mh == null:
+		return
+	_release_all()
+	tree.paused = false
+	for _attempt in 6:
+		if not bool(main.call("_menus_open")):
+			break
+		await _escape(tree)
+
+	var keys := ["goose_model", "mouse_sensitivity", "invert_y", "fov", "master_volume",
+		"sfx_volume", "music_volume", "screen_shake", "fx_intensity", "show_hints"]
+	var before := {}
+	for k in keys:
+		before[k] = prefs.call("get_pref", StringName(k), null)
+
+	await _escape(tree)
+	var sbtn := _find_button(menu, "SETTINGS")
+	_ok(sbtn != null and bool(menu.call("is_open")), "could not open the pause menu and find SETTINGS")
+	if sbtn == null or not bool(menu.call("is_open")):
+		return
+	sbtn.emit_signal("pressed")
+	for _i in 4:
+		await tree.process_frame
+
+	# ── the panel, walked with the D-pad: every row has to be reachable ──
+	var sliders: Dictionary = menu.get("_slider_refs")
+	var boxes: Dictionary = menu.get("_checkbox_refs")
+	var order: Array[String] = [_settings_focus(menu, sliders, boxes)]
+	for _i2 in 16:
+		await _pad(tree, JOY_BUTTON_DPAD_DOWN)
+		var d := _settings_focus(menu, sliders, boxes)
+		order.append(d)
+		if d == "BACK":
+			break
+	print("[input] settings: D-pad walk -> %s" % ", ".join(order))
+	var unreached: Array[String] = []
+	for k3 in sliders.keys():
+		if not order.has("slider:%s" % k3):
+			unreached.append(str(k3))
+	for k4 in boxes.keys():
+		if not order.has("check:%s" % k4):
+			unreached.append(str(k4))
+	_ok(unreached.is_empty() and order[0] == "option:art style" and order[-1] == "BACK",
+		("walking the Settings panel top to bottom with the D-pad never reached %s. A row a pad "
+		+ "cannot focus is a setting a pad player does not have. `pause_menu.gd::_chain_focus()` "
+		+ "sets the order; without it Godot guesses geometrically and skips the checkboxes.")
+			% ", ".join(unreached))
+
+	# ── every slider, moved five presses, then its pref and its consumer ──
+	for key in sliders.keys():
+		var s: HSlider = sliders[key]
+		s.grab_focus()
+		await tree.process_frame
+		var v0: float = s.value
+		# Toward the side with room, so five presses never meet a bound.
+		var mid := (s.min_value + s.max_value) * 0.5
+		var dir := JOY_BUTTON_DPAD_RIGHT if v0 <= mid else JOY_BUTTON_DPAD_LEFT
+		for _p in 5:
+			await _pad(tree, dir)
+		var v1: float = s.value
+		var pv: float = float(prefs.call("get_pref", key, -1.0))
+		var per_press: float = absf(v1 - v0) / 5.0
+		var presses_full: float = INF if per_press <= 0.0 else (s.max_value - s.min_value) / per_press
+		var got := _far_value(main, goose, str(key))
+		var want: float = pv
+		if str(key).ends_with("_volume"):
+			want = linear_to_db(clampf(pv, 0.0001, 1.0))
+		print("[input] settings: %-18s %.3f -> %.3f (pref %.3f)  %.0f presses end to end  far end: %s"
+			% [key, v0, v1, pv, presses_full, _far_end(main, goose, str(key))])
+		_ok(absf(pv - v1) < 0.0005,
+			"moving the %s slider left the setting at %.3f while the slider reads %.3f. The control does not write its pref." % [key, pv, v1])
+		_ok(presses_full <= 25.0,
+			("the %s slider takes %.0f D-pad presses end to end. Pad buttons do not auto-repeat, so "
+			+ "every one is a separate press; `pause_menu.gd::_step_focused_slider()` moves a "
+			+ "twentieth of the range.") % [key, presses_full])
+		_ok(absf(got - want) < 0.01,
+			"the %s slider set the pref to %.3f and its consumer reads %.3f (wanted %.3f): %s"
+				% [key, pv, got, want, _far_end(main, goose, str(key))])
+	var hud: Node = main.get("hud")
+	var fx_pref: float = float(prefs.call("get_pref", &"fx_intensity", -1.0))
+	var fx_hud: float = float(hud.get("_fx_intensity")) if hud != null else -1.0
+	_ok(absf(fx_hud - fx_pref) < 0.001,
+		"FX intensity is %.3f and the HUD's post-processing still reads %.3f" % [fx_pref, fx_hud])
+
+	# ── the two checkboxes: A on each ──
+	for key2 in boxes.keys():
+		var cb: CheckBox = boxes[key2]
+		cb.grab_focus()
+		await tree.process_frame
+		var b0: bool = cb.button_pressed
+		await _pad(tree, JOY_BUTTON_A)
+		var bp: bool = bool(prefs.call("get_pref", key2, null))
+		print("[input] settings: %-18s %s -> %s (pref %s)  far end: %s"
+			% [key2, b0, cb.button_pressed, bp, _far_end(main, goose, str(key2))])
+		_ok(cb.button_pressed != b0 and bp == cb.button_pressed,
+			"A on the focused %s checkbox left it %s and the pref %s. It did not toggle the setting." % [key2, cb.button_pressed, bp])
+	var cam: Node = null if goose == null else goose.get("cam") as Node
+	var inv_pref: bool = bool(prefs.call("get_pref", &"invert_y", false))
+	var inv_cam: bool = cam != null and bool(cam.get("_invert"))
+	_ok(cam != null and inv_cam == inv_pref,
+		"Invert Y is %s and the camera's own flag is %s" % [inv_pref, inv_cam])
+
+	# ── Art style, through its popup, on the pad ──
+	var opt: OptionButton = menu.get("_model_opt")
+	var styled := false
+	if opt != null:
+		opt.grab_focus()
+		await tree.process_frame
+		await _pad(tree, JOY_BUTTON_A)
+		var popup_up: bool = opt.get_popup().visible
+		if popup_up:
+			await _pad(tree, JOY_BUTTON_DPAD_DOWN)
+			await _pad(tree, JOY_BUTTON_A)
+		styled = str(prefs.call("get_pref", &"goose_model", "")) == "classic"
+		for _i3 in 6:
+			await tree.process_frame
+		print("[input] settings: goose_model -> %s through the popup on the pad (popup opened=%s)  far end: %s"
+			% [str(prefs.call("get_pref", &"goose_model", "")), popup_up, _far_end(main, goose, "goose_model")])
+	_ok(styled, "A, D-pad down, A on the Art style row did not select Classic. Its popup cannot be driven from a pad.")
+	if styled:
+		var counts := _style_counts(main)
+		var gkey: String = str(goose.get("_model_key")) if goose != null else "?"
+		_ok(gkey == "classic", "Art style is Classic and the goose is still %s" % gkey)
+		_ok(counts.x > 0 and counts.y == 0,
+			("Art style says \"Cats and people follow the goose. Takes effect immediately.\" After "
+			+ "switching to Classic, %d of %d cats are still low-poly.") % [counts.y, counts.x])
+		_ok(counts.z > 0 and counts.w == 0,
+			"...and %d of %d people are still low-poly." % [counts.w, counts.z])
+
+	# ── Show hints, AFTER the menu closes: that is where it used to come undone ──
+	await _escape(tree)
+	for _i4 in 6:
+		await tree.process_frame
+	var hints: bool = bool(prefs.call("get_pref", &"show_hints", true))
+	var panel_up: bool = bool(mh.get("visible"))
+	print("[input] settings: menu closed; show_hints=%s and the objectives panel is visible=%s" % [hints, panel_up])
+	_ok(not hints and not panel_up,
+		("Show hints is %s and the objectives panel is %s now the menu has closed. It hides while "
+		+ "the menu is up either way, so the only moment the setting means anything is after a "
+		+ "close — which is exactly when main.gd used to put the panel back.")
+			% [hints, "visible" if panel_up else "hidden"])
+
+	# Put everything back, through the same pref path the controls use.
+	for k2 in keys:
+		if before[k2] != null:
+			prefs.call("set_pref", StringName(k2), before[k2])
+	for _i5 in 6:
+		await tree.process_frame
+	_ok(bool(mh.get("visible")) == bool(prefs.call("get_pref", &"show_hints", true)),
+		"Show hints was turned back on with no menu up and the objectives panel did not come back.")
+	var back := _style_counts(main)
+	_ok(back.y == back.x and back.w == back.z,
+		"Art style went back to low-poly and %d of %d cats, %d of %d people did not follow."
+			% [back.x - back.y, back.x, back.z - back.w, back.z])
+	tree.paused = false
+
+
+## (cats, low-poly cats, people, low-poly people) in the tree right now.
+static func _style_counts(main: Node) -> Vector4i:
+	var out := Vector4i.ZERO
+	for c in main.get_tree().get_nodes_in_group("cat"):
+		out.x += 1
+		if c.get("_lp") != null:
+			out.y += 1
+	for n in main.get_tree().get_nodes_in_group("npc"):
+		var sc: Script = n.get_script()
+		if sc == null or not sc.resource_path.ends_with("npc_human.gd"):
+			continue
+		out.z += 1
+		if n.get("_lp") != null:
+			out.w += 1
+	return out
+
+
+## The consumer of a setting, as the one number it should equal. -INF when it
+## cannot be read, which no assertion above will mistake for a match.
+static func _far_value(main: Node, goose: CharacterBody3D, key: String) -> float:
+	var cam: Node = null if goose == null else goose.get("cam") as Node
+	var juice := main.get_node_or_null("/root/Juice")
+	match key:
+		"mouse_sensitivity":
+			return float(cam.get("_sens")) if cam != null else -INF
+		"fov":
+			return float(cam.get("fov_base")) if cam != null else -INF
+		"master_volume", "sfx_volume", "music_volume":
+			var bus := {"master_volume": "Master", "sfx_volume": "SFX", "music_volume": "Music"}[key] as String
+			var idx := AudioServer.get_bus_index(bus)
+			return AudioServer.get_bus_volume_db(idx) if idx >= 0 else -INF
+		"screen_shake":
+			return float(juice.call("shake_scale")) if juice != null else -INF
+		"fx_intensity":
+			return float(juice.call("fx_scale")) if juice != null else -INF
+	return -INF
+
+
+## What has focus in the settings panel, named by the pref it drives.
+static func _settings_focus(menu: Node, sliders: Dictionary, boxes: Dictionary) -> String:
+	var f: Control = menu.get_viewport().gui_get_focus_owner()
+	if f == null:
+		return "<nothing>"
+	for k in sliders.keys():
+		if sliders[k] == f:
+			return "slider:%s" % k
+	for k2 in boxes.keys():
+		if boxes[k2] == f:
+			return "check:%s" % k2
+	if f is OptionButton:
+		return "option:art style"
+	if f is Button:
+		return (f as Button).text.to_upper()
+	return "<%s>" % f.get_class()
+
+
+## The CONSUMER of a setting, read back, as one short string.
+static func _far_end(main: Node, goose: CharacterBody3D, key: String) -> String:
+	var cam: Node = null if goose == null else goose.get("cam") as Node
+	var juice := main.get_node_or_null("/root/Juice")
+	match key:
+		"mouse_sensitivity":
+			return "camera _sens=%.3f" % float(cam.get("_sens")) if cam != null else "no camera"
+		"invert_y":
+			return "camera _invert=%s" % str(cam.get("_invert")) if cam != null else "no camera"
+		"fov":
+			return "camera fov_base=%.1f" % float(cam.get("fov_base")) if cam != null else "no camera"
+		"master_volume", "sfx_volume", "music_volume":
+			var bus := {"master_volume": "Master", "sfx_volume": "SFX", "music_volume": "Music"}[key] as String
+			var idx := AudioServer.get_bus_index(bus)
+			return "bus %s %.1f dB" % [bus, AudioServer.get_bus_volume_db(idx)] if idx >= 0 else "bus %s MISSING" % bus
+		"screen_shake":
+			return "Juice.shake_scale()=%.3f" % float(juice.call("shake_scale")) if juice != null else "no Juice"
+		"fx_intensity":
+			var hud: Node = main.get("hud")
+			return "Juice.fx_scale()=%.3f hud._fx_intensity=%.3f" % [
+				float(juice.call("fx_scale")) if juice != null else -1.0,
+				float(hud.get("_fx_intensity")) if hud != null else -1.0]
+		"show_hints":
+			var mh: Node = main.get("mission_hud")
+			return "objectives panel visible=%s" % (mh != null and bool(mh.get("visible")))
+		"goose_model":
+			var cats_lp := 0
+			var cats_classic := 0
+			for c in main.get_tree().get_nodes_in_group("cat"):
+				if c.get("_lp") != null:
+					cats_lp += 1
+				else:
+					cats_classic += 1
+			var ppl_lp := 0
+			var ppl_classic := 0
+			for n in main.get_tree().get_nodes_in_group("npc"):
+				var sc: Script = n.get_script()
+				if sc == null or not sc.resource_path.ends_with("npc_human.gd"):
+					continue
+				if n.get("_lp") != null:
+					ppl_lp += 1
+				else:
+					ppl_classic += 1
+			return "goose=%s, cats lowpoly/classic=%d/%d, people lowpoly/classic=%d/%d" % [
+				str(goose.get("_model_key")) if goose != null else "?", cats_lp, cats_classic, ppl_lp, ppl_classic]
+	return "?"
 
 
 ## One press-and-release of a pad button, through the viewport.

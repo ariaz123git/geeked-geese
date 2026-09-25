@@ -35,6 +35,8 @@ var _vis: Node3D
 var _lp: Node3D
 var _sfx: Node
 var _meow_t := 0.0
+## Kept so the visual can be rebuilt in the other art style mid-leg.
+var _fur := Color(0.5, 0.45, 0.4)
 
 
 func _ready() -> void:
@@ -45,6 +47,22 @@ func _ready() -> void:
 	if randomise_nip:
 		responds_to_nip = randf() < 0.67
 	_new_wander()
+	var prefs := get_node_or_null("/root/Prefs")
+	if prefs != null and prefs.has_signal("pref_changed"):
+		prefs.pref_changed.connect(_on_pref_changed)
+
+
+## THE SETTINGS ROW SAYS "CATS AND PEOPLE FOLLOW THE GOOSE. TAKES EFFECT
+## IMMEDIATELY", and for cats it did not: the style was read once, in setup(),
+## and never again. Switched to classic mid-leg on 2026-09-25 with the pad, the
+## goose changed and all seven cats in the lot stayed faceted until the next
+## zone was built. D-056.
+func _on_pref_changed(key: StringName, _value) -> void:
+	if key != &"goose_model":
+		return
+	if (_lp != null) == _use_lowpoly():
+		return
+	_build_visual()
 
 
 const LP_PATTERNS := [&"tabby", &"grey", &"tuxedo"]
@@ -68,6 +86,23 @@ func setup(fur: Color) -> void:
 	cs.rotation_degrees = Vector3(90, 0, 0)
 	cs.position.y = 0.24
 	add_child(cs)
+	_fur = fur
+	_build_visual()
+
+
+## Build whichever visual the art style asks for, replacing any that exists.
+## The outgoing one is renamed before it is freed: `queue_free()` holds the name
+## until the end of the frame, and `add_child()` answers a collision by
+## discarding the requested name — main.gd's `_clear()` has the long version.
+func _build_visual() -> void:
+	for old in [_lp, _vis]:
+		var n := old as Node3D
+		if n != null and is_instance_valid(n):
+			n.name = "VisOutgoing"
+			n.queue_free()
+	_lp = null
+	_vis = null
+	var fur := _fur
 
 	if _use_lowpoly():
 		_lp = preload("res://scripts/world/cat_visual_lowpoly.gd").new()

@@ -59,6 +59,8 @@ var _main_vb: VBoxContainer
 
 var _slider_refs: Dictionary = {}    # StringName -> HSlider
 var _checkbox_refs: Dictionary = {}  # StringName -> CheckBox
+## Every focusable row of the settings panel, top to bottom. See `_chain_focus`.
+var _settings_order: Array[Control] = []
 
 
 func _ready() -> void:
@@ -90,6 +92,36 @@ func _input(event: InputEvent) -> void:
 		else:
 			_open_menu()
 		get_viewport().set_input_as_handled()
+		return
+	if _open and _showing_settings:
+		_step_focused_slider(event)
+
+
+## A PAD OR AN ARROW KEY MOVES A SLIDER ONE TWENTIETH OF ITS RANGE.
+##
+## Left alone, a focused Slider moves by its `step` — 0.01 on every 0..1 row
+## here — so measured with a pad it was 95 to 100 presses end to end, and pad
+## buttons do not auto-repeat the way a held key does. Godot 4.7 has no separate
+## keyboard step to set: `custom_step` was Godot 3, and the first draft of this
+## fix assigned it and raised on every row (the compile gate passed it, because
+## a property write on a native type is resolved at run time). Raising `step`
+## instead would coarsen the mouse drag and knock Field of view's 68° default off
+## its grid. So the menu takes left / right itself, before the slider sees them.
+## Echoes count, so a held arrow key still sweeps. D-056.
+func _step_focused_slider(event: InputEvent) -> void:
+	var dir := 0.0
+	if event.is_action_pressed("ui_right", true):
+		dir = 1.0
+	elif event.is_action_pressed("ui_left", true):
+		dir = -1.0
+	if dir == 0.0:
+		return
+	var s := get_viewport().gui_get_focus_owner() as HSlider
+	if s == null or not is_ancestor_of(s):
+		return
+	var nudge: float = maxf(s.step, snappedf((s.max_value - s.min_value) / 20.0, s.step))
+	s.value = clampf(s.value + dir * nudge, s.min_value, s.max_value)
+	get_viewport().set_input_as_handled()
 
 
 func is_open() -> bool:
@@ -468,8 +500,29 @@ func _build_settings_panel() -> PanelContainer:
 
 	var back_btn := _menu_button("BACK", _back_from_settings)
 	vb.add_child(back_btn)
+	_settings_order.append(back_btn)
+	_chain_focus(_settings_order)
 
 	return panel
+
+
+## THE D-PAD WALKS THE ROWS IN THE ORDER THEY ARE DRAWN.
+##
+## Godot picks a focus neighbour geometrically when none is set, and on this
+## panel geometry chose wrong: a CheckBox sits at the left of its row and a
+## slider in the middle of the next, so D-pad down from Mouse sensitivity went
+## straight to Field of view. Walked with a pad on 2026-09-25 the order was
+## art style, six sliders, BACK — INVERT Y AND SHOW HINTS COULD NOT BE REACHED
+## AT ALL. `inputtest.gd::_settings_walk()` holds the order now. D-056.
+func _chain_focus(order: Array[Control]) -> void:
+	for i in order.size():
+		var c: Control = order[i]
+		if i > 0:
+			c.focus_neighbor_top = c.get_path_to(order[i - 1])
+			c.focus_previous = c.focus_neighbor_top
+		if i < order.size() - 1:
+			c.focus_neighbor_bottom = c.get_path_to(order[i + 1])
+			c.focus_next = c.focus_neighbor_bottom
 
 
 ## Goose model picker. Both meshes expose an identical API, so switching is a
@@ -498,6 +551,7 @@ func _model_row(parent: Control) -> void:
 		cur = str(prefs.get_pref(&"goose_model", "lowpoly"))
 	opt.selected = 1 if cur == "classic" else 0
 	_model_opt = opt
+	_settings_order.append(opt)
 	opt.item_selected.connect(func(i: int):
 		var p2 := get_node_or_null("/root/Prefs")
 		if p2:
@@ -527,6 +581,7 @@ func _slider_row(parent: Control, title: String, key: StringName, min_v: float, 
 	slider.min_value = min_v
 	slider.max_value = max_v
 	slider.step = step
+	_settings_order.append(slider)
 	slider.custom_minimum_size = Vector2(190, 0)
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
@@ -567,6 +622,7 @@ func _checkbox_row(parent: Control, title: String, key: StringName) -> void:
 		initial = bool(_prefs.get_pref(key, false))
 	cb.button_pressed = initial
 	row.add_child(cb)
+	_settings_order.append(cb)
 
 	cb.toggled.connect(func(v: bool):
 		if _prefs != null:
