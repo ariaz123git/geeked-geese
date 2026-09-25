@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-082 · 2026-09-25 · The Ranger's two-body rule, honked — it works
+Status: Decided (agent)
+Decision: `inputtest::_ranger_honk()` loads leg 3 with the Ranger due in a second, starts the clock, waits for his sweep, stands the goose 2 m from him and presses **H**, then asserts both halves of the boss's rule: the man flinches and the clipboard leaves his hands for the ground, and Piper is excited but not distracted. 158 checks → 160.
+Why: `boss_ranger.gd` builds the whole encounter on a two-body split — the man *"flinches at a honk and drops it"*, the dog *"does not care about honks. DOES care about cats"* — and both halves are reached by `honk.gd::_shove()` calling `startle()` on the `"npc"` group by name, the soft-failing shape this repo keeps shipping. The campaign loop reaches this boss on every run and had never pressed H near him. **It works:** flinch 1.78 s, clipboard on the ground, Piper excite 1.58 and distract 0.00. Coverage, recorded so nobody re-sweeps it. **Canaried in one run, independently:** the man out of the `"npc"` group fails only his row (*"flinch 0.00, held true, dropped false"*); Piper reading every honk as a cat fails only hers (*"distract 2.98"*).
+Refs: `tools/inputtest.gd::_ranger_honk`; `scripts/world/boss_ranger.gd` (`Ranger.startle`, `Piper.startle`, `on_flinch`, `_drop_board`); `scripts/goose/honk.gd::_shove`.
+
 ## D-081 · 2026-09-25 · BIG DOWN's warehouse echo, pressed — it works, and the first run accused it
 Status: Decided (agent)
 Decision: `inputtest::_big_down_echo()` runs last: it loads leg 7, starts its clock, waits for the dock to open (three seconds under `--probe`), presses **H** outside the site and then inside the warehouse, and asserts no echo outside, two inside, both played within 0.8 s, and the goose's own honk firing both times. 154 checks → 158.

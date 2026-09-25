@@ -125,7 +125,8 @@ static func run(tree: SceneTree, main: Node) -> void:
 	await _restart_test(tree, main)
 	# LAST, because it ends the leg: everything above needs the zone it leaves.
 	await _gamepad_walk(tree, main)
-	# After even that: it throws whatever is loaded away for leg 7.
+	# After even that: these two throw whatever is loaded away for legs 3 and 7.
+	await _ranger_honk(tree, main)
 	await _big_down_echo(tree, main)
 
 	if _fails.is_empty():
@@ -535,6 +536,74 @@ static func _menu_buttons_report(tree: SceneTree, main: Node) -> void:
 			held.erase(id2)
 	tree.paused = was_paused
 	_release_all()
+
+
+## THE RANGER'S TWO-BODY RULE, HONKED (D-082). `boss_ranger.gd`: the man
+## "flinches at a honk and drops it" — the clipboard, which costs him seconds —
+## and the dog "does not care about honks. DOES care about cats": a honk EXCITES
+## Piper and only a cat at the spot distracts her. Both halves are reached by
+## `honk.gd::_shove()` calling `startle()` on the "npc" group, looked up by name
+## — the soft-failing shape — and the campaign loop reaches this boss on every
+## run without ever pressing H near him. They spawn 1.6 m apart, so one honk
+## tests both halves of the rule at once.
+static func _ranger_honk(tree: SceneTree, main: Node) -> void:
+	_release_all()
+	for _a in 6:
+		if not bool(main.call("_menus_open")):
+			break
+		await _escape(tree)
+	tree.paused = false
+	Flock.leg = 3
+	var was_delay: float = float(main.get("_ranger_delay"))
+	main.set("_ranger_delay", 1.0)
+	main.call("_load_zone")
+	Game.start_zone(float(main.call("leg_seconds", 3)))
+	main.set("_ranger_delay", was_delay)
+	var zone: Node = main.get("current")
+	var boss: Node = null
+	var goose: CharacterBody3D = null
+	if zone != null:
+		boss = zone.get_node_or_null("BossRanger")
+		goose = zone.get("goose") as CharacterBody3D
+	if boss == null or goose == null:
+		_ok(false, "leg 3 loaded without the Ranger or a goose, so he could not be honked at")
+		return
+	# Into the sweep: out of the truck, clipboard in hand. ARRIVE ends 4 s in.
+	var waited := 0
+	for _i in 900:
+		await tree.physics_frame
+		waited += 1
+		if int(boss.get("phase")) >= 2:
+			break
+	var man: Node3D = boss.get("_ranger")
+	var dog: Node3D = boss.get("_dog")
+	if man == null or dog == null:
+		_ok(false, "the Ranger's encounter reached phase %d without a man and a dog" % int(boss.get("phase")))
+		return
+	var board: Node3D = man.get("held_board")
+	var held_before: bool = board != null and is_instance_valid(board) and board.visible
+	goose.global_position = Vector3(man.global_position.x + 2.2, goose.global_position.y, man.global_position.z)
+	goose.velocity = Vector3.ZERO
+	for _j in 4:
+		await tree.physics_frame
+	await _key(tree, KEY_H)
+	var flinch: float = float(man.get("_flinch"))
+	var held_after: bool = board != null and is_instance_valid(board) and board.visible
+	var dropped: bool = boss.get_node_or_null("Clipboard") != null
+	var excite: float = float(dog.get("_excite"))
+	var distract: float = float(dog.get("_distract"))
+	print("[input] ranger: phase %d after %d frames; H from %.1f m -> man flinch %.2f s, board held %s -> %s, clipboard on the ground %s; Piper %.1f m away: excite %.2f, distract %.2f"
+		% [int(boss.get("phase")), waited, goose.global_position.distance_to(man.global_position),
+			flinch, held_before, held_after, dropped,
+			goose.global_position.distance_to(dog.global_position), excite, distract])
+	_ok(flinch > 0.0 and held_before and dropped,
+		("a honk 2 m from the Ranger did not make him flinch and drop the clipboard (flinch %.2f, "
+		+ "held %s, dropped %s). honk.gd::_shove() calls startle() on the \"npc\" group by name.")
+			% [flinch, held_before, dropped])
+	_ok(excite > 0.0 and distract == 0.0,
+		("the same honk left Piper excite %.2f / distract %.2f. The rule is that the honk EXCITES the "
+		+ "dog and only a cat distracts her — the dog is the thing the honk does not work on.")
+			% [excite, distract])
 
 
 ## BIG DOWN'S WAREHOUSE ANSWERS A HONK WITH ITSELF (D-081). The flock is not
