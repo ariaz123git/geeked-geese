@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-066 · 2026-09-25 · Menu buttons are clicked, not emitted
+Status: Decided (agent)
+Decision: Every Button `inputtest` presses — ALMANAC, CONTROLS, FLOCK, SETTINGS, RESTART RUN twice — is pressed by a left click pushed into the viewport at its centre (`_click()`), not by emitting `Button.pressed`. A button whose click does not land stops its own section with one row naming both possible causes. 142 checks → 143.
+Why: Emitting the signal proves the wiring and says nothing about whether a player's click can reach the button. D-065 found the path (`Viewport.push_input`) that makes a real click possible headless. **All six clicks landed**; the result is coverage, not a bug. Canaried by drawing the menu's full-screen `MOUSE_FILTER_STOP` backdrop over its buttons — a menu a player would find completely dead — and the first version failed **32** rows, most of them the settings walk and the menu restart reporting nonsense downstream of a click that never landed. Each section now stops at its own failed click: the same canary fails **5** rows, one per button, and nothing else.
+Refs: `tools/inputtest.gd::_click`, `::_menu_buttons_report`, `::_settings_walk`, `::_restart_test`.
+
 ## D-065 · 2026-09-25 · The mouse controls work, and the first check of them could not fail
 Status: Decided (agent)
 Decision: `inputtest::_mouse_report()` pushes a scroll-wheel event at six points of the screen (the middle and over every HUD panel) and asserts the camera zooms at each, and pushes a left click with the cursor free and asserts it reaches `main.gd::_unhandled_input` (read off `_mouse_was_captured`, since headless cannot honour CAPTURED). Every mouse event goes through `Viewport.push_input()`. 135 checks → 142.

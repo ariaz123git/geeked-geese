@@ -352,10 +352,11 @@ static func _ui_sweep_report(tree: SceneTree, main: Node, goose: CharacterBody3D
 ## and that whole handoff (suppress the menu, open the overlay, hand the screen
 ## back when it closes) has never run outside the render probe.
 ##
-## Pressed through `Button.pressed`, which is the signal the real click emits,
-## rather than by calling the callback: the wiring in `_build_overlays()` is
-## the part most likely to be wrong, and calling the lambda directly would
-## skip it.
+## CLICKED, pushed into the viewport at each button's centre (D-066). This used to
+## emit `Button.pressed`, which proves the wiring in `_build_overlays()` and
+## nothing about whether a player's click can land on the button at all — a
+## backdrop drawn over the menu would have left every emitted press green. With
+## real clicks, that exact canary fails one row per button and nothing else.
 ##
 ## Shipped as a report and read before it was armed. All three handoffs were
 ## already correct — overlay opens, menu hides, tree stays paused, Escape brings
@@ -398,7 +399,7 @@ static func _menu_buttons_report(tree: SceneTree, main: Node) -> void:
 			await _escape(tree)
 			continue
 
-		btn.emit_signal("pressed")
+		await _click(tree, btn)
 		for _i in 4:
 			await tree.process_frame
 		var opened: bool = overlay.has_method("is_open") and bool(overlay.call("is_open"))
@@ -406,9 +407,17 @@ static func _menu_buttons_report(tree: SceneTree, main: Node) -> void:
 		print("[input] menu: %s -> %s open=%s, menu hidden=%s, paused=%s"
 			% [label, overlay_name, opened, menu_hidden, tree.paused])
 		_ok(opened,
-			("the pause menu's %s button did not open %s. The button emits a signal that "
-			+ "`main.gd::_build_overlays()` connects; nothing else does, so an unwired "
+			("clicking the pause menu's %s button did not open %s. Either the click never landed "
+			+ "on it — covered, clipped, or off screen — or its signal is not wired: "
+			+ "`main.gd::_build_overlays()` is the only thing that connects it, and an unwired "
 			+ "signal is a dead button with no error anywhere.") % [label, overlay_name])
+		if not opened:
+			# The rows below would only restate this one.
+			for _back in 4:
+				if not bool(main.call("_menus_open")):
+					break
+				await _escape(tree)
+			continue
 		_ok(menu_hidden,
 			("%s opened and the pause menu is still drawn underneath it. `hide_for_overlay()` "
 			+ "is what hands the screen over, and without it the player reads two menus at "
@@ -821,9 +830,15 @@ static func _settings_walk(tree: SceneTree, main: Node, goose: CharacterBody3D) 
 	_ok(sbtn != null and bool(menu.call("is_open")), "could not open the pause menu and find SETTINGS")
 	if sbtn == null or not bool(menu.call("is_open")):
 		return
-	sbtn.emit_signal("pressed")
+	await _click(tree, sbtn)
 	for _i in 4:
 		await tree.process_frame
+	var in_settings: bool = bool(menu.get("_showing_settings"))
+	_ok(in_settings,
+		"clicking SETTINGS did not open the settings panel, so none of its rows could be walked. The click did not land, or the button is not wired to `_show_settings`.")
+	if not in_settings:
+		await _escape(tree)
+		return
 
 	# ── the panel, walked with the D-pad: every row has to be reachable ──
 	var sliders: Dictionary = menu.get("_slider_refs")
@@ -1092,13 +1107,20 @@ static func _restart_test(tree: SceneTree, main: Node) -> void:
 			if btn == null:
 				_ok(false, "the pause menu has no RESTART RUN button")
 				continue
-			btn.emit_signal("pressed")
+			await _click(tree, btn)
 			for _i in 3:
 				await tree.process_frame
 			var armed := _find_button(menu, "PRESS AGAIN — THIS ENDS THE RUN")
-			_ok(armed != null, "one press of RESTART RUN did not arm it (no 'PRESS AGAIN' label)")
-			if armed != null:
-				armed.emit_signal("pressed")
+			_ok(armed != null,
+				"clicking RESTART RUN once did not arm it (no 'PRESS AGAIN' label): the click did not land, or the button is not wired")
+			if armed == null:
+				# Nothing below this can be about the reset if the reset never ran.
+				for _back2 in 4:
+					if not bool(main.call("_menus_open")):
+						break
+					await _escape(tree)
+				continue
+			await _click(tree, armed)
 		# The zone rebuild happens on the next phase change; give it room.
 		for _i2 in 60:
 			await tree.physics_frame
@@ -1186,6 +1208,22 @@ static func _focus_text(n: Node) -> String:
 	if b == null:
 		return "<%s>" % f.get_class()
 	return b.text.to_upper()
+
+
+## A real left click at the centre of `c`, pushed into its viewport the way the
+## OS delivers one (D-065). Not `Button.pressed.emit()`: a click also has to land
+## on the button, which means the button is on screen, not scrolled out of its
+## container, and not under anything else that takes the mouse.
+static func _click(tree: SceneTree, c: Control) -> void:
+	var at: Vector2 = c.get_global_rect().get_center()
+	for pressed in [true, false]:
+		var ev := InputEventMouseButton.new()
+		ev.button_index = MOUSE_BUTTON_LEFT
+		ev.pressed = pressed
+		ev.position = at
+		ev.global_position = at
+		c.get_viewport().push_input(ev, true)
+		await tree.process_frame
 
 
 ## The first Button under `root` whose text matches, case-insensitively.
