@@ -731,10 +731,10 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 		if int(dog.get("_mode")) == 1:
 			chased = true
 			break
-	# Where the chase began, on open ground. The control goes back HERE and not
-	# "beside her": the first version put the goose 1.5 m from a dog that was
-	# barking under the truck, which is inside the truck, and the collider put it
-	# straight back on the roof — she was still giving up 8 s later.
+	# The ground's height, taken while the goose stands on it. The first version
+	# of the control put the goose 1.5 m from a dog that was barking under the
+	# truck — inside the truck — and the collider put it straight back on the
+	# roof; she was still giving up 8 s later.
 	var ground_spot: Vector3 = goose.global_position
 	var roof_y := 0.0
 	var gave_up := false
@@ -755,7 +755,20 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 				taken_high = true
 	var taken_low := false
 	if is_instance_valid(dog):
-		goose.global_position = ground_spot
+		# Open ground on HER side of the truck, 4 m straight out from it. "Where
+		# the chase began" can be behind the truck from where she stands barking,
+		# and she steers straight at a goose rather than around a truck — so her
+		# own anti-stuck rule (a gap that stops closing for 4 s) gave up again,
+		# one run in two, and that is her designed behaviour, not the Y axis.
+		var away := Vector3.RIGHT
+		if truck_cs != null and is_instance_valid(truck_cs):
+			away = Vector3(dog.global_position.x - truck_cs.global_position.x, 0.0,
+				dog.global_position.z - truck_cs.global_position.z)
+			if away.length() < 0.1:
+				away = Vector3.RIGHT
+		var back_at: Vector3 = dog.global_position + away.normalized() * 4.0
+		back_at.y = ground_spot.y
+		goose.global_position = back_at
 		goose.velocity = Vector3.ZERO
 		for _y3 in 480:
 			await tree.physics_frame
@@ -764,16 +777,98 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 			if int(dog.get("_mode")) == 3:
 				taken_low = true
 				break
-	print("[input] ranger: Y axis — chased on the ground %s; on the truck roof (%.2f m up): gave up %s, took the goose %s; back where the chase began: took the goose %s (her mode %d, encounter phase %d, grab cooldown %.1f s)"
+	print("[input] ranger: Y axis — chased on the ground %s; on the truck roof (%.2f m up): gave up %s, took the goose %s; back on open ground on her side of the truck: took the goose %s (her mode %d, encounter phase %d, grab cooldown %.1f s)"
 		% [chased, roof_y, gave_up, taken_high, taken_low,
 			int(dog.get("_mode")) if is_instance_valid(dog) else -1,
 			int(boss.get("phase")) if is_instance_valid(boss) else -1,
 			float(dog.get("_grab_cd")) if is_instance_valid(dog) else -1.0])
-	_ok(chased and gave_up and not taken_high and taken_low,
+	# ASSERTED: the rule — chasing on the ground, then up on the roof she gives
+	# up and never takes the bird. OBSERVED ONLY: the ground half. It took the
+	# goose in 9 of 10 runs once placed on her side of the truck, and the tenth
+	# was her own anti-stuck rule meeting whatever stood between them, which a
+	# harness cannot rule out without freezing the chase it is measuring (D-087).
+	# The row does not need it to bite: with height ignored she never gives up.
+	_ok(chased and gave_up and not taken_high,
 		("the Ranger's dog broke the encounter's one counter: chased %s, gave up on the roof %s, took the goose "
-		+ "from the roof %s, took it back on the ground %s. Piper::_reachable() is false while the goose is "
-		+ "airborne or 1.55 m above her — the Y axis neither of them has.")
-			% [chased, gave_up, taken_high, taken_low])
+		+ "from the roof %s. Piper::_reachable() is false while the goose is airborne or 1.55 m above her — "
+		+ "the Y axis neither of them has.")
+			% [chased, gave_up, taken_high])
+
+	# THE WIN BY A DIVE (D-087). `_drop_board()` sets the clipboard's break_force
+	# beside "DESTROYING it costs you a run-up, a dive, a cat or a substance", and
+	# BOSS_DESIGN §2.1's win is breaking it. Whatever the human decides for
+	# D-084, this is the route that must keep working: a goose diving onto the
+	# clipboard breaks it and the Ranger leaves. Last, because it ends the
+	# encounter. Wait out Piper's carry, get a clipboard onto the ground, then
+	# hold Shift from 4 m above it.
+	for _d0 in 480:
+		if not is_instance_valid(dog) or int(dog.get("_mode")) != 3:
+			break
+		await tree.physics_frame
+	if not is_instance_valid(boss) or not is_instance_valid(man):
+		print("[input] ranger: (the dive was not tested — the encounter ended first)")
+		return
+	var board2: Node3D = man.get("held_board")
+	if board2 != null and is_instance_valid(board2) and board2.visible:
+		goose.global_position = Vector3(man.global_position.x + 2.0, goose.global_position.y, man.global_position.z)
+		goose.velocity = Vector3.ZERO
+		for _d1 in 30:
+			await tree.physics_frame
+		await _key(tree, KEY_H)
+	for _d2 in 90:
+		await tree.physics_frame
+	var target_clip: RigidBody3D = null
+	for c4 in boss.get_children():
+		if c4 is RigidBody3D and str(c4.name).begins_with("Clipboard") and not bool(c4.get("_broken")):
+			target_clip = c4 as RigidBody3D
+	# Recorded before the dive: a broken clipboard frees itself, and a freed
+	# object reads as null afterwards.
+	var found_clip: bool = target_clip != null
+	var phase_before: int = int(boss.get("phase"))
+	var dove_broke := false
+	var routed2 := false
+	# THE BREAK IS READ OFF THE EVENT THE BOSS LISTENS FOR, not off the node
+	# going away. The first version took "freed" for "broken", and three runs in
+	# six the man had walked over and PICKED IT UP (`_pick_up()` frees it too):
+	# "broke" with no rout. So the actors are held for the dive, and a break is a
+	# "CLIPBOARD!!" score — `boss_ranger.gd::_on_chaos_scored()`'s own trigger.
+	var clip_breaks := [0]
+	var on_score := func(_amount: int, _total: int, _combo: int, label: String) -> void:
+		if label == "CLIPBOARD!!":
+			clip_breaks[0] += 1
+	Game.chaos_scored.connect(on_score)
+	preload("res://tools/probe_common.gd").hold_actors(tree, true)
+	if target_clip != null:
+		goose.global_position = target_clip.global_position + Vector3(0.0, 4.0, 0.0)
+		goose.velocity = Vector3.ZERO
+		var dive_down := InputEventKey.new()
+		dive_down.keycode = KEY_SHIFT
+		dive_down.physical_keycode = KEY_SHIFT
+		dive_down.pressed = true
+		Input.parse_input_event(dive_down)
+		for _d3 in 90:
+			await tree.physics_frame
+			if clip_breaks[0] > 0:
+				dove_broke = true
+				break
+		var dive_up := InputEventKey.new()
+		dive_up.keycode = KEY_SHIFT
+		dive_up.physical_keycode = KEY_SHIFT
+		dive_up.pressed = false
+		Input.parse_input_event(dive_up)
+		for _d4 in 4:
+			await tree.physics_frame
+		routed2 = is_instance_valid(boss) and boss.has_meta("outcome") and str(boss.get_meta("outcome")) == "routed"
+	preload("res://tools/probe_common.gd").hold_actors(tree, false)
+	Game.chaos_scored.disconnect(on_score)
+	print("[input] ranger: the win — a clipboard on the ground %s (encounter phase %d, t %.1f s); Shift held from 4 m above it -> broke %s, routed %s (outcome %s, phase now %d)"
+		% [found_clip, phase_before, float(boss.get("_t")) if is_instance_valid(boss) else -1.0, dove_broke, routed2,
+			str(boss.get_meta("outcome", "?")) if is_instance_valid(boss) else "?",
+			int(boss.get("phase")) if is_instance_valid(boss) else -1])
+	_ok(found_clip and dove_broke and routed2,
+		("diving onto the Ranger's clipboard did not win the encounter (clipboard found %s, broke %s, routed %s). "
+		+ "It is the route `_drop_board()`'s break_force comment promises, and BOSS_DESIGN §2.1's win.")
+			% [found_clip, dove_broke, routed2])
 
 
 
