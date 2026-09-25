@@ -307,6 +307,48 @@ static func _ui_sweep_report(tree: SceneTree, main: Node, goose: CharacterBody3D
 			await _pad(tree, JOY_BUTTON_BACK)
 			seen_pad.append(int(mh.get("mode")))
 		print("[input] sweep: pad Back x3 -> mission_hud mode %s" % str(seen_pad))
+
+		# TAB AFTER AN OBJECTIVE HAS COMPLETED (D-086). A finished row frees
+		# itself when its collapse tween ends and stayed in `_rows`; the typed
+		# read in `_apply_mode()` then raised before its own validity check,
+		# stopping the toggle halfway. Every TAB above ran before anything had
+		# completed. The FIRST row is completed through the HUD's own handler —
+		# the objective is not what is under test — so that the dead entry is
+		# the first thing `_apply_mode()` meets; then TAB is pressed for real.
+		var hud_rows: Dictionary = mh.get("_rows")
+		if hud_rows.size() >= 2:
+			var first_id: StringName = hud_rows.keys()[0]
+			mh.call("_on_completed", first_id, 0, 0)
+			var freed_at := -1
+			for _f in 360:
+				await tree.process_frame
+				if not is_instance_valid(hud_rows.get(first_id)):
+					freed_at = _f
+					break
+			var dead_present: bool = hud_rows.has(first_id) and not is_instance_valid(hud_rows.get(first_id))
+			var start_mode: int = int(mh.get("mode"))
+			var hidden_ok := true
+			var shown_ok := true
+			for _t in 3:
+				await _press(tree, "gg_objectives")
+				var live_now: Array = []
+				for v in hud_rows.values():
+					if is_instance_valid(v):
+						live_now.append(v)
+				var m2: int = int(mh.get("mode"))
+				for lr in live_now:
+					if m2 == 1 and bool((lr as Control).visible):
+						hidden_ok = false
+					if m2 == 0 and not bool((lr as Control).visible):
+						shown_ok = false
+			print("[input] sweep: a completed row freed after %d frames (dead entry present at TAB: %s); TAB x3 from mode %d -> compact hid every live row %s, full showed every live row %s"
+				% [freed_at, dead_present, start_mode, hidden_ok, shown_ok])
+			_ok(freed_at >= 0 and hidden_ok and shown_ok,
+				("TAB after an objective completed left the panel wrong (compact hid all %s, full showed all %s). "
+				+ "A finished row frees itself; mission_hud.gd has to read `_rows` through `_live_rows()`.")
+					% [hidden_ok, shown_ok])
+		else:
+			print("[input] sweep: fewer than two objective rows, so TAB after a completion was not tested")
 		_ok(int(seen_pad[0]) != int(seen_pad[1]) and int(seen_pad[0]) == int(seen_pad[3]),
 			("pad Back three times took mission_hud through %s. It should cycle the objectives "
 			+ "like TAB — one lap, every press moving. mission_hud.gd::_ensure_action() binds it.")
@@ -669,6 +711,69 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 	for pr3 in probes:
 		if is_instance_valid(pr3):
 			pr3.queue_free()
+
+	# "THE COUNTER TO THE DOG IS THE ONE THING NEITHER OF THEM HAS: A Y AXIS"
+	# (D-086). Piper's `_reachable()` is false while the goose is airborne or
+	# stands 1.55 m above her, and after 1.3 s of that she gives up and barks at
+	# the bottom of a wall. The encounter's central counter, and nothing had
+	# tested it. Chased on the ground, then up on the Ranger's truck roof: she
+	# must give up and never take the bird. Then back down beside her: she must.
+	# Piper.Mode: HEEL 0, PURSUE 1, GIVEUP 2, CARRY 3, RETURN 4, OFF 5.
+	if not is_instance_valid(dog) or not is_instance_valid(boss):
+		print("[input] ranger: (Y axis not tested — the encounter ended first)")
+		return
+	var truck_cs: CollisionShape3D = boss.get("_truck_shape")
+	goose.global_position = Vector3(dog.global_position.x + 6.0, goose.global_position.y, dog.global_position.z)
+	goose.velocity = Vector3.ZERO
+	var chased := false
+	for _y1 in 240:
+		await tree.physics_frame
+		if int(dog.get("_mode")) == 1:
+			chased = true
+			break
+	# Where the chase began, on open ground. The control goes back HERE and not
+	# "beside her": the first version put the goose 1.5 m from a dog that was
+	# barking under the truck, which is inside the truck, and the collider put it
+	# straight back on the roof — she was still giving up 8 s later.
+	var ground_spot: Vector3 = goose.global_position
+	var roof_y := 0.0
+	var gave_up := false
+	var taken_high := false
+	if chased and truck_cs != null and is_instance_valid(truck_cs):
+		var tsz: Vector3 = (truck_cs.shape as BoxShape3D).size
+		roof_y = truck_cs.global_position.y + tsz.y * 0.5
+		goose.global_position = Vector3(truck_cs.global_position.x, roof_y + 0.4, truck_cs.global_position.z)
+		goose.velocity = Vector3.ZERO
+		for _y2 in 240:
+			await tree.physics_frame
+			if not is_instance_valid(dog):
+				break
+			var m1 := int(dog.get("_mode"))
+			if m1 == 2:
+				gave_up = true
+			if m1 == 3:
+				taken_high = true
+	var taken_low := false
+	if is_instance_valid(dog):
+		goose.global_position = ground_spot
+		goose.velocity = Vector3.ZERO
+		for _y3 in 480:
+			await tree.physics_frame
+			if not is_instance_valid(dog):
+				break
+			if int(dog.get("_mode")) == 3:
+				taken_low = true
+				break
+	print("[input] ranger: Y axis — chased on the ground %s; on the truck roof (%.2f m up): gave up %s, took the goose %s; back where the chase began: took the goose %s (her mode %d, encounter phase %d, grab cooldown %.1f s)"
+		% [chased, roof_y, gave_up, taken_high, taken_low,
+			int(dog.get("_mode")) if is_instance_valid(dog) else -1,
+			int(boss.get("phase")) if is_instance_valid(boss) else -1,
+			float(dog.get("_grab_cd")) if is_instance_valid(dog) else -1.0])
+	_ok(chased and gave_up and not taken_high and taken_low,
+		("the Ranger's dog broke the encounter's one counter: chased %s, gave up on the roof %s, took the goose "
+		+ "from the roof %s, took it back on the ground %s. Piper::_reachable() is false while the goose is "
+		+ "airborne or 1.55 m above her — the Y axis neither of them has.")
+			% [chased, gave_up, taken_high, taken_low])
 
 
 

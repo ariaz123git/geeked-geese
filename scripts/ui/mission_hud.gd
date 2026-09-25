@@ -194,10 +194,8 @@ func _build() -> void:
 
 ## list: Array of row Dictionaries from Mission.visible_objectives().
 func setup(list: Array) -> void:
-	for id in _rows.keys():
-		var r: Control = _rows[id]
-		if is_instance_valid(r):
-			r.queue_free()
+	for r in _live_rows():
+		r.queue_free()
 	_rows.clear()
 	_hidden_seen = 0
 	_idle = 0.0
@@ -233,9 +231,31 @@ func _sort_rows(a, b) -> bool:
 	return int(da.get("order", 0)) < int(db.get("order", 0))
 
 
+## THE ROWS THAT ARE STILL THERE, and the dead ones dropped from `_rows`.
+##
+## A finished row frees ITSELF when its collapse tween ends (the three
+## `tween_callback(queue_free)` further down), and nothing told `_rows`. Reading
+## a freed row into a typed variable — `var r: Control = _rows[id]` — raises
+## "Trying to assign invalid previously freed instance" BEFORE the
+## `is_instance_valid(r)` on the next line can look at it, so that guard never
+## guarded anything. After the first objective of a leg completed, TAB raised a
+## SCRIPT ERROR and `_apply_mode()` stopped halfway — rows left in the wrong
+## state, the header never synced — and every leg change raised another from
+## the outgoing HUD's `setup()`. D-086.
+func _live_rows() -> Array[Control]:
+	var live: Array[Control] = []
+	for id in _rows.keys():
+		var v: Variant = _rows[id]
+		if is_instance_valid(v):
+			live.append(v as Control)
+		else:
+			_rows.erase(id)
+	return live
+
+
 func _add_row(d: Dictionary) -> Control:
 	var id: StringName = d.get("id", &"")
-	if _rows.has(id):
+	if _rows.has(id) and is_instance_valid(_rows[id]):
 		return _rows[id]
 	var row := ObjRow.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -367,18 +387,14 @@ func _apply_mode() -> void:
 		Mode.FULL:
 			_panel.visible = true
 			_col.visible = true
-			for id in _rows.keys():
-				var r: Control = _rows[id]
-				if is_instance_valid(r):
-					r.visible = true
+			for r in _live_rows():
+				r.visible = true
 			_wake_panel()
 		Mode.COMPACT:
 			# One line. Still tells you the only two numbers that matter.
 			_panel.visible = true
-			for id in _rows.keys():
-				var r2: Control = _rows[id]
-				if is_instance_valid(r2):
-					r2.visible = false
+			for r2 in _live_rows():
+				r2.visible = false
 			_wake_panel()
 		Mode.OFF:
 			_panel.visible = false

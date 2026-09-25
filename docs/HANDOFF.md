@@ -11,7 +11,7 @@
 > required (it overrides `BOSS_DESIGN.md` §3.5 in writing), cat petting (they
 > asked to discuss it), and the `Open (human)` decisions listed in §3.
 
-**Updated:** 2026-09-25, after one long autonomous session — D-054 to D-085 —
+**Updated:** 2026-09-25, after one long autonomous session — D-054 to D-086 —
 that kept sweeping for controls wired to nothing and found the seam was not
 exhausted. It found a pad that could play one zone and never leave it, a
 Settings panel that did not do what four of its rows said, a flight that paid
@@ -75,7 +75,7 @@ through the path a player's input takes, and assert what the far end did.
 |---|---|---|
 | `--gate` | every `.gd` compiles and every resource loads, inside the booted project | 73 scripts |
 | `--selftest` | the game agrees with itself | **968 invariants** |
-| `--probe --inputtest` | the bird obeys a key, **including the one that eats** — and so does the UI, **and a pad can get from leg 1 to leg 2**, and every Settings row reaches what it controls, and the dose hint appears on the grass, and restart resets a whole run, and the wheel and the click, and every menu button clicked for real, and G at the flock pen, **and both sticks and Back, and the Almanac walked, and BIG DOWN's echo, and the Ranger honked, and BIG DOWN's glass by honk and by body** | 162 checks |
+| `--probe --inputtest` | the bird obeys a key, **including the one that eats** — and so does the UI, **and a pad can get from leg 1 to leg 2**, and every Settings row reaches what it controls, and the dose hint appears on the grass, and restart resets a whole run, and the wheel and the click, and every menu button clicked for real, and G at the flock pen, **and both sticks and Back, and the Almanac walked, and BIG DOWN's echo, and the Ranger honked, and BIG DOWN's glass by honk and by body, and TAB after a completion, and the dog against the Y axis** | 164 checks |
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, the seven differ, **and Q hands off the lead — and flying the V is scored as holding your slot** | 22 measurements |
@@ -127,6 +127,7 @@ Driven the way a player drives them; bugs first, then what was merely covered.
 | D-075 | the flight's one card taught its one rule backwards: the draft does not burn slower, it pays |
 | D-077 | **a pad could not look around** — the right stick did nothing — and no harness had ever moved a stick |
 | D-079 | **honking a credit slab scored**, on the one screen specced to have no score |
+| D-086 | **TAB after any objective completed raised a SCRIPT ERROR** and left the panel half-toggled — a finished row frees itself and stayed in the HUD's table |
 
 And pressed for the first time, all working, recorded so nobody re-sweeps them:
 restart end to end (D-061), the mouse wheel and click (D-065), every menu button
@@ -134,7 +135,8 @@ by a real click (D-066), G at the flock pen (D-071), the flight's lead handoff
 in all four branches (D-073), the ending's honk and the credits it starts
 (D-076), the Almanac's arrows, D-pad and rows (D-078), BIG DOWN's
 warehouse echo (D-081), the Ranger's two-body rule (D-082), and BIG DOWN's glass
-breaking to a honk (D-083) and to a goose walking into it (D-085).
+breaking to a honk (D-083) and to a goose walking into it (D-085), and the
+Ranger's dog giving up on a goose she cannot reach (D-086).
 
 ### 3. The instruments
 
