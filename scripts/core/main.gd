@@ -138,6 +138,8 @@ func _ready() -> void:
 	Game.chaos_scored.connect(_on_chaos_scored)
 	Mission.leg_decided.connect(_on_leg_decided)
 	Flock.bird_lost.connect(_on_bird_lost)
+	# Not `_process`: this node pauses with the tree, and every menu pauses it.
+	get_tree().process_frame.connect(_poll_menus)
 	# Capture before the first phase loads, so the briefing card can hand the
 	# cursor back to a known state when it closes.
 	_capture_mouse(true)
@@ -647,7 +649,16 @@ func _finish_run() -> void:
 
 ## The pause menu opens itself on ui_cancel, so the director can't be told
 ## about it by a signal — poll instead. One boolean compare per frame.
-func _process(_delta: float) -> void:
+##
+## ON THE TREE'S CLOCK, NOT THIS NODE'S. This was `_process()`, and `main`
+## inherits PAUSABLE — while every menu in the game pauses the tree. So the poll
+## stopped on the very frame a menu opened and never once saw one open: the HUD
+## it exists to hide stayed drawn behind the pause menu and behind every card,
+## the first of them over a placeholder "3:00" on a 4:00 leg because the HUD's
+## own `_process` had not run yet either. D-050's pause menu in a new place — a
+## `process_mode` silently switching off the code meant to react to a pause.
+## `SceneTree.process_frame` is emitted every frame, paused or not. D-060.
+func _poll_menus() -> void:
 	var open := _menus_open()
 	if open != _hud_hidden:
 		_hud_hidden = open

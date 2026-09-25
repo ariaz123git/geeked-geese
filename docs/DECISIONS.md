@@ -69,6 +69,14 @@ IDs increment. Newest on top.
 
 ---
 
+## D-060 · 2026-09-25 · The director's menu watch could not see a menu
+Status: Decided (agent)
+Decision: `main.gd`'s per-frame `_menus_open()` poll moves from `_process()` to `_poll_menus()`, connected to `SceneTree.process_frame`. `inputtest::_pause_menu_test()` asserts the gameplay HUD and the objectives panel are hidden while the pause menu is open and the HUD is back after. 111 checks → 113.
+Why: The poll's own comment: *"The pause menu opens itself on ui_cancel, so the director can't be told about it by a signal — poll instead."* It lived in `_process()` on `main`, which inherits PAUSABLE, and **every menu and card in the game pauses the tree** — so the poll stopped on the frame a menu opened and never once saw one open. Its job, per `_set_hud_visible()`, is hiding the HUD while a menu owns the screen; only the three paths that call `_set_hud_visible(false)` by hand (Almanac, Controls, Flock) ever did. Driven with Escape before the fix: *"gameplay HUD visible behind the menu = true, objectives = true"*. Found from a render, not a gate: the first render of the dose card showed a HUD clock reading **3:00 on a 240 s leg** behind it — the label's build-time placeholder, because the card had paused the tree before the HUD's first `_process` wrote the real time. That HUD should not have been on screen at all.
+
+**Same shape as D-050**, one level up: a `process_mode` silently switching off the code whose whole purpose is to react to a pause. `SceneTree.process_frame` is emitted whether or not the tree is paused. The failing run before the fix was the canary; re-rendered after, the card sits over the dimmed zone alone.
+Refs: `scripts/core/main.gd::_poll_menus`, `::_ready`; `tools/inputtest.gd::_pause_menu_test`.
+
 ## D-059 · 2026-09-25 · The dose hint is wired, as specced — decided without playing it
 Status: Decided (agent) — **revertible in one line**: delete the `_first_dose_hint()` call in `substance_pickup.gd::_on_enter()`
 Decision: `substance_pickup.gd::_on_enter()` raises `briefing.show_once(&"dose_hint", BRIEF_DEFS.dose_hint())` the first time the bird steps onto anything edible, unless a menu or card is already up. Harness runs mark the hint seen at boot (`main.gd`), so no measurement meets it mid-run; `briefing.gd` gains a public `mark_seen()` for that. `inputtest::_eat_test()` un-sees it, walks onto leg 1's grass, asserts the card appears and pauses the tree, closes it with Enter, and asserts the bird is still standing on the grass ready to eat. `--probe --brief-dose` photographs it. 108 checks → 111.

@@ -208,6 +208,20 @@ static func _pause_menu_test(tree: SceneTree, main: Node) -> void:
 	_ok(paused,
 		"the pause menu reported open and the tree is still running. Escape did not pause the game.")
 
+	# THE HUD GOES AWAY BEHIND A MENU. `main.gd::_set_hud_visible()` says so and
+	# `main.gd` polls `_menus_open()` every frame to do it — from `_process()`,
+	# on a node that pauses with the tree, which every menu pauses. So the poll
+	# stopped the instant any menu opened and never once saw one open (D-060).
+	var hud_node: Node = main.get("hud")
+	var mh_node: Node = main.get("mission_hud")
+	var hud_up: bool = hud_node != null and bool(hud_node.get("visible"))
+	var mh_up: bool = mh_node != null and bool(mh_node.get("visible"))
+	print("[input] escape: gameplay HUD visible behind the menu = %s, objectives = %s" % [hud_up, mh_up])
+	_ok(not hud_up and not mh_up,
+		("the pause menu is open and the gameplay HUD is still drawn behind it (hud %s, objectives %s). "
+		+ "main.gd's `_menus_open()` poll is what hides it, and it has to run while the tree is paused.")
+			% [hud_up, mh_up])
+
 	await _escape(tree)
 	var still_open: bool = bool(menu.call("is_open"))
 	print("[input] escape again: open=%s paused=%s" % [still_open, tree.paused])
@@ -215,6 +229,8 @@ static func _pause_menu_test(tree: SceneTree, main: Node) -> void:
 	_ok(not tree.paused,
 		("the pause menu closed and left the tree PAUSED. Every zone, every flight and "
 		+ "every timer is stopped, and the player has no way to start them again."))
+	_ok(hud_node != null and bool(hud_node.get("visible")),
+		"the pause menu closed and the gameplay HUD did not come back.")
 
 	tree.paused = was_paused
 
