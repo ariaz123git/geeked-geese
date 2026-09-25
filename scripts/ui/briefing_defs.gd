@@ -75,7 +75,7 @@ static func flight_first_run() -> Dictionary:
 		"diagram": "v_formation",
 		"callout": {
 			"label": "LEAD ROTATION",
-			"text": "The goose at the point gets no draft and burns out twice as fast. Q hands the point to someone else — but only to a goose sober and rested enough to take it. Party too hard in the lot and nobody can relieve you.",
+			"text": "The goose at the point gets no draft and burns out, while everyone behind it gets their breath back. Q hands the point to someone else — but only to a goose sober and rested enough to take it. Party too hard in the lot and nobody can relieve you.",
 		},
 		"gamepad": "Gamepad:  left stick steer  ·  A climb  ·  RB drop  ·  Y hand off  ·  B honk",
 		"button": "GOT IT",

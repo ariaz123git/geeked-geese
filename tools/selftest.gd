@@ -68,6 +68,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	_the_shelf(main)
 	_the_layers()
 	_the_itemisation(main)
+	_the_draft()
 	_the_failsafe_is_first()
 	_the_harnesses_settle()
 	_the_hitstops()
@@ -111,6 +112,33 @@ static func _ok(cond: bool, msg: String) -> void:
 	_checks += 1
 	if not cond:
 		_fails.append(msg)
+
+
+# ─────────────────────────────────────────────────────────────── the draft
+
+## THE ONE RULE THE FLIGHT TEACHES, HELD TO THE TWO CONSTANTS IT IS ABOUT.
+##
+## The flight's first-run card and the control card both said the goose at the
+## point "burns out twice as fast" — and `DRAIN_DRAFT` has been −0.020 since the
+## baseline commit: a bird behind the point does not burn more slowly, it gets
+## stamina BACK. So the game's one card about the handoff taught a ratio against
+## a bird that was resting, which hides the reason you hand off at all. D-075.
+## The copy now says what the constants do; this holds the constants to the copy
+## and the copy to the constants.
+static func _the_draft() -> void:
+	var c: Dictionary = (load("res://scripts/migration/migration.gd") as Script).get_script_constant_map()
+	var lead: float = float(c.get("DRAIN_LEAD", 0.0))
+	var draft: float = float(c.get("DRAIN_DRAFT", 0.0))
+	_ok(lead > 0.0,
+		"migration.gd DRAIN_LEAD is %.3f, so the point no longer costs stamina — and the flight card and control card both tell the player it burns them out" % lead)
+	_ok(draft < 0.0,
+		"migration.gd DRAIN_DRAFT is %.3f, so drafting no longer gives stamina back — and the flight card and control card both tell the player it does" % draft)
+	for path in ["res://scripts/ui/briefing_defs.gd", "res://scripts/ui/control_card.gd"]:
+		var src := _read_text(path)
+		_ok(src.contains("breath back"),
+			"%s no longer tells the player the birds behind the point get their breath back — the reason the handoff exists" % path)
+		_ok(not src.contains("twice as fast"),
+			"%s says the point burns out \"twice as fast\" again. Drafting RECOVERS stamina (DRAIN_DRAFT < 0); there is nothing to be twice as fast as" % path)
 
 
 # ─────────────────────────────────────────────────────────────── the route

@@ -194,7 +194,7 @@ class RefPanel extends Control:
 
 		# The one rule that isn't a keypress.
 		y += 18.0
-		var note := "The point of the V gets no draft and burns out twice as fast. Hand it off with Q — but only a sober, rested goose can take it."
+		var note := "The point of the V gets no draft and burns out; everyone behind it gets their breath back. Hand it off with Q — but only a sober, rested goose can take it."
 		var nh: float = f.get_multiline_string_size(note, HORIZONTAL_ALIGNMENT_LEFT, inner - 26.0, 14).y
 		var box_h := nh + 22.0
 		if do_draw:

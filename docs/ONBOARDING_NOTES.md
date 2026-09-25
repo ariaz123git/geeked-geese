@@ -101,9 +101,10 @@ Two thousand kilometres. One V. Nobody up here is sober but the sky doesn't care
   H         honk a drifter back into line
 
   LEAD ROTATION
-  The goose at the point gets no draft and burns out twice as fast. Q hands the
-  point to someone else — but only to a goose sober and rested enough to take it.
-  Party too hard in the lot and nobody can relieve you.
+  The goose at the point gets no draft and burns out, while everyone behind it
+  gets their breath back. Q hands the point to someone else — but only to a goose
+  sober and rested enough to take it. Party too hard in the lot and nobody can
+  relieve you.
 ```
 The subtitle is the single most load-bearing line in the whole feature: **"different bird.
 different controls."** That's the sentence that stops a player from spending twenty seconds

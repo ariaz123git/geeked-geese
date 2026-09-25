@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-075 · 2026-09-25 · The flight's one rule was taught backwards: the draft does not burn slower, it pays
+Status: Decided (agent) — the corrected sentence is mine, in the card's own voice, and a one-line revert
+Decision: The flight's first-run callout and the control card say the point *"gets no draft and burns out"* while *"everyone behind it gets their breath back"*, instead of *"burns out twice as fast"*; `docs/ONBOARDING_NOTES.md` quotes the new line. `selftest::_the_draft()` holds `DRAIN_LEAD > 0` and `DRAIN_DRAFT < 0`, and holds both texts to saying so. 961 invariants → 967.
+Why: Found reading the control card while planning the pad work. `migration.gd` has `DRAIN_LEAD = 0.028` and `DRAIN_DRAFT = −0.020` — **negative, since the baseline commit**: a bird behind the point does not burn at half the rate, it RECOVERS, at up to 0.020 a second on a clean V. So the one card about the handoff taught a ratio against a bird that is resting, and hid the actual reason to hand off — the lead is not merely the expensive seat, it is the only seat that costs anything. The briefing's own V diagram has captioned it *"the point burns · the draft pays"* the whole time; the prose was the only thing wrong. Both cards rendered after the change: the callout wraps to three lines, the control card's note to two, nothing clipped. Canaried by putting the old sentence back into the control card: exactly its two text rows fail.
+Refs: `scripts/ui/briefing_defs.gd::flight_first_run`; `scripts/ui/control_card.gd`; `docs/ONBOARDING_NOTES.md`; `tools/selftest.gd::_the_draft`; `scripts/migration/migration.gd::DRAIN_LEAD`, `DRAIN_DRAFT`.
+
 ## D-074 · 2026-09-25 · The leak D-072 did not close: sounds playing in the world when the game quits
 Status: Decided (agent)
 Decision: `Sfx.play_at()` keeps a list of the positional players it starts (`_positional`, pruned of freed ones, cleared as each finishes), and `Sfx._exit_tree()` stops them along with the pool and the loops before its 100 ms wait. `tools/audiotest.gd::_quit_mid_sound()` leaves twelve positional sounds playing at every quit and asserts they really were playing; `verify.ps1`'s ScriptErrors is the assertion on the leak itself. 254 audio checks → 255.
