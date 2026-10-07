@@ -7,8 +7,9 @@ will be another autonomous."* That is still the instruction.
 session worked all six of its items — the controls sweep, the per-step timeout,
 `migtest`'s half crossing, F-001, the `CLAUDE.md` cut, leg 1's findability — and
 kept going (D-054 to D-088). `docs/HANDOFF.md` §3 ranks what comes next. What
-stays here is the material behind the decisions only the human can make, and the
-pattern that keeps producing bugs.
+stays here is the material behind the design decisions — the human handed every
+one of them over on 2026-10-07 and D-091 made them — and the pattern that keeps
+producing bugs.
 
 > **This file has said three different things in three weeks** — a planning
 > session, then "keep building", then autonomous with a queue — and each time a
@@ -22,20 +23,26 @@ the command will not.
 
 ---
 
-## STILL THE HUMAN'S — do not decide these alone
+## NOTHING IS WAITING ON THE HUMAN — they delegated it, 2026-10-07
 
-- **Substances as keys (§1).** It overrides a written design principle
-  (`BOSS_DESIGN.md` §3.5, *"chemistry is a lever, never a key"*). If you want to
-  move it without them, the ONLY direction that does not override the rule is
-  making the lever steeper — and that is still taste.
-- **Cat petting (§4).** The human said explicitly: *"needs to be discussed in
-  detail in the next session."* Designed, deliberately unbuilt.
-- **Where leg 1's pickups go (§2, D-068).** Now measured; still level design.
-- **Whether two quick honks may rout the Ranger (D-084).** Measured; it is
-  difficulty, and the fix would change how hard the honk hits everything.
-- The `Open (human)` entries in `docs/DECISIONS.md`, listed in HANDOFF §3.
-  **D-019 is worth raising first** — tolerance softening penalties is arguably
-  part of why chemistry feels inconsequential.
+*"u can make all the decisions as u deem fit."* Every `Open (human)` entry and
+both design questions below were decided under those words in **D-091**, one
+table, each one revert away. **Build them; do not re-decide them.** The four
+that need building are HANDOFF §3's items 1 to 4, in this order:
+
+- **Substances as keys (§1)** — yes, as *several keys per lock*: one primary
+  per zone from leg 2 that needs an EFFECT two or more of that leg's
+  substances provide. `BOSS_DESIGN.md` §3.5 still binds the bosses.
+- **Leg 1's double-double (§2, D-068)** — moves into the opening shot, on foot.
+- **Tolerance (D-019)** — scales benefits down and leaves penalties whole.
+- **Cat petting (§4)** — the pitch below, as drafted.
+
+D-084 is built (D-092): a honk knocks the Ranger's clipboard loose and can no
+longer finish him. D-005, D-006, D-007 and D-036 stay as they are.
+
+**Taste is still the human's** (`CLAUDE.md`): whether any of this is *fun* is
+theirs to say when they play it, and every one of these is revertible for
+exactly that reason.
 
 ---
 
@@ -168,8 +175,10 @@ Directions worth arguing, none of them chosen:
   been over-read for the whole project.** Check this first; it may unblock most
   of the above for free.
 
-**An agent must not decide this alone** — it overrides a written design
-principle, which makes it the human's call under CLAUDE.md.
+~~**An agent must not decide this alone**~~ — **decided 2026-10-07 under the
+human's delegation (D-091): several keys per lock.** The effect groups, which
+leg shelves hold two keys to which lock, and the `when.mod` clause the objective
+grammar needs are all in D-091.
 
 ---
 
@@ -212,9 +221,10 @@ spawn, the only one on a prop (it needs a flap onto the dumpster), and out of
 frame. Bread is findable, which is the point of bread, and since D-069 it looks
 like bread rather than a grey sphere. Widening the shelf would not fix this.
 
-Decide: revert the shelf, keep it, or keep it and move the pickups.
-**Recommended, not taken:** keep, and move the double-double off the dumpster to
-the lot's near side, because the combo it completes is what leg 1 is for.
+**Decided 2026-10-07 (D-091):** keep the shelf, and move the double-double off
+the dumpster to open ground in the opening shot, reachable on foot, because the
+combo it completes is what leg 1 is for. Queued, HANDOFF §3; `--findtest` is the
+before and after.
 
 ---
 
@@ -271,7 +281,8 @@ it, watch who frenzies, and whoever ignored it is your friend. Two systems that
 already exist, made to talk to each other.
 
 Three alternatives were also drafted (running-gag escalation; the cat demands
-tribute; a five-second version with no system). All are open.
+tribute; a five-second version with no system). **Decided 2026-10-07 (D-091):
+build the pitch above.** Queued, HANDOFF §3.
 
 Other verified hooks: `_nearest_victim()` scans groups `["npc", "chaos_prop"]`
 — **the goose is not in that list**, so frenzied cats never attack the player
@@ -289,5 +300,5 @@ It is neither unused nor about nipping. Verify agent claims against the file.)*
 ## 5. The instrument work
 
 Consumed. The per-step timeout this section used to point at is D-062, and
-`docs/RECENT_FAILURES.md` is empty. `docs/HANDOFF.md` §3 is the queue now, and
-it lists the `Open (human)` decisions in one table.
+`docs/RECENT_FAILURES.md` is empty. `docs/HANDOFF.md` §3 is the queue now; the
+`Open (human)` decisions it used to list are D-091's table.

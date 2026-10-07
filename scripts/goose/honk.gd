@@ -138,7 +138,21 @@ func _shove(pitch: float) -> void:
 
 	for node in get_tree().get_nodes_in_group("chaos_prop"):
 		if node is Node3D and node.global_position.distance_to(global_position) < r:
-			var dir: Vector3 = (node.global_position - global_position).normalized() + Vector3.UP * 0.4
+			# ONE STRENGTH AT EVERY HEIGHT (D-092). The push is still away-and-up,
+			# but its LENGTH is now the level one. It used to be the raw sum
+			# n + 0.4 up, which is 1.08 long for a prop level with the goose, 1.4
+			# for one straight above and 0.6 for one below — and `ChaosProp` scores
+			# a shove at 0.7 * |impulse|, so one honk hit 4.15, 5.39 or 2.31
+			# depending only on height. Two quick honks under the Ranger shattered
+			# his clipboard in the air that way (break 5.0, D-084) and routed him.
+			# Now every honk lands at 4.15, so a prop that breaks above that (the
+			# clipboard and suburbia's gnomes, both 5.0) is knocked about by a honk
+			# but never broken by one; a cat's pounce or the goose's own body
+			# (goose_controller.gd, `hit`) still breaks them. Not flattened: a flat
+			# direction leaves a prop straight overhead only the 0.4 lift, too weak
+			# to register at all. inputtest asserts both heights, and that both felt it.
+			var dir: Vector3 = ((node.global_position - global_position).normalized()
+				+ Vector3.UP * 0.4).normalized() * Vector3(1.0, 0.4, 0.0).length()
 			if node.has_method("shove"):
 				node.shove(dir * 5.5)
 			hits += 1

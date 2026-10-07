@@ -125,6 +125,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 	await _menu_buttons_report(tree, main)
 	await _mouse_report(tree, main, goose)
 	await _settings_walk(tree, main, goose)
+	await _quick_volume_test(tree, main)
 	await _restart_test(tree, main)
 	# LAST, because it ends the leg: everything above needs the zone it leaves.
 	await _gamepad_walk(tree, main)
@@ -319,9 +320,13 @@ static func _ui_sweep_report(tree: SceneTree, main: Node, goose: CharacterBody3D
 		if hud_rows.size() >= 2:
 			var first_id: StringName = hud_rows.keys()[0]
 			mh.call("_on_completed", first_id, 0, 0)
+			# PHYSICS frames, which are 1/60 s: the row takes SETTLE_TIME (2.2 s)
+			# plus its collapse tween, and the first version counted 360 PROCESS
+			# frames — about 2.5 s at the ~145 fps a headless run renders — so
+			# it freed at frame 348 or 350 when it passed and missed when it didn't.
 			var freed_at := -1
-			for _f in 360:
-				await tree.process_frame
+			for _f in 480:
+				await tree.physics_frame
 				if not is_instance_valid(hud_rows.get(first_id)):
 					freed_at = _f
 					break
@@ -681,12 +686,16 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 		+ "the dog and only a cat distracts her — the dog is the thing the honk does not work on.")
 			% [excite, distract])
 
-	# D-084, MEASURED WITH THE REAL HONK — observed, NOT asserted, because
-	# whether a honk may finish the Ranger is the human's call. Two props built
-	# exactly like his clipboard (mass 1.6, break_force 5.0) and frozen in place:
-	# one level with the honk 2 m away, one 1.2 m straight above it. honk.gd
-	# shoves with (n + 0.4 up) * 5.5 and ChaosProp breaks at 0.7 * |impulse|, so
-	# the arithmetic says 4.15 for the first and 5.39 for the second.
+	# D-084 → D-092: A HONK KNOCKS THE CLIPBOARD LOOSE, IT DOES NOT FINISH THE
+	# RANGER. Two props built exactly like his clipboard (mass 1.6, break_force
+	# 5.0) and frozen in place: one level with the honk 2 m away, one 1.2 m
+	# straight above it. ChaosProp breaks at 0.7 * |impulse|. honk.gd used to
+	# shove along (n + 0.4 up) * 5.5 unnormalised — 4.15 level, 5.39 straight
+	# above — so the second one broke, and two honks under a flinching Ranger
+	# shattered his clipboard mid-air and routed him. Rescaled to the level
+	# length it is 4.15 at both heights, and NEITHER may break. Canaried: the old
+	# line fails this (above broke=true), and a flattened direction fails the
+	# control before it (overhead felt only the 0.4 lift, 1.54).
 	for _q in 25:
 		await tree.physics_frame
 	var cp := preload("res://scripts/world/chaos_prop.gd")
@@ -704,10 +713,21 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 		await tree.physics_frame
 	await _key(tree, KEY_H)
 	var broke: Array[bool] = []
+	var felt: Array[bool] = []
 	for pr2 in probes:
 		broke.append(not is_instance_valid(pr2) or bool(pr2.get("_broken")))
-	print("[input] ranger: D-084 measured — a honk against a clipboard-weight prop: level at 2 m broke=%s; 1.2 m straight above broke=%s"
-		% [broke[0], broke[1]])
+		# The positive control: "nothing broke" is also what a honk that never
+		# arrived looks like. A shove of 2.5 or more scores and starts the prop's
+		# 0.6 s cooldown, so a probe the honk reached is either broken or cooling.
+		felt.append(not is_instance_valid(pr2) or bool(pr2.get("_broken")) or float(pr2.get("_cooldown")) > 0.0)
+	_ok(felt[0] and felt[1],
+		"the D-092 honk probes never felt the honk (level %s, above %s) — the check below would pass vacuously"
+			% [felt[0], felt[1]])
+	_ok(not broke[0] and not broke[1],
+		("a honk broke a clipboard-weight prop (break 5.0): level at 2 m broke=%s; 1.2 m straight above "
+		+ "broke=%s. D-092: the honk knocks the Ranger's clipboard loose and never finishes him — "
+		+ "honk.gd::_shove() must give every push the LEVEL length, so its force is 4.15 at any height.")
+			% [broke[0], broke[1]])
 	for pr3 in probes:
 		if is_instance_valid(pr3):
 			pr3.queue_free()
@@ -808,6 +828,13 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 	if not is_instance_valid(boss) or not is_instance_valid(man):
 		print("[input] ranger: (the dive was not tested — the encounter ended first)")
 		return
+	# HOLD THE ACTORS NOW, the moment her carry is over — not just for the dive.
+	# A carry sets the goose's process_mode to DISABLED until it ends; Piper,
+	# still live while the man was honked, re-grabbed the goose standing 2 m
+	# from him one run in three, and freezing her mid-carry then left the goose
+	# disabled in the air above the clipboard, never falling. A held man still
+	# flinches — the honk calls him directly — and the drop is the boss's code.
+	preload("res://tools/probe_common.gd").hold_actors(tree, true)
 	var board2: Node3D = man.get("held_board")
 	if board2 != null and is_instance_valid(board2) and board2.visible:
 		goose.global_position = Vector3(man.global_position.x + 2.0, goose.global_position.y, man.global_position.z)
@@ -837,8 +864,49 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 		if label == "CLIPBOARD!!":
 			clip_breaks[0] += 1
 	Game.chaos_scored.connect(on_score)
-	preload("res://tools/probe_common.gd").hold_actors(tree, true)
+	# What the fall actually did, for the line below — this check failed one run
+	# in three with nothing to say why.
+	var dive_trace := "not dived"
 	if target_clip != null:
+		# CLEAR GROUND UNDER IT. The clipboard lands where the man dropped it,
+		# and he is held in place for this — so a goose falling on a clipboard at
+		# his feet could land on HIS head instead, and one run in two did. Where
+		# it lies is not what is under test: it goes 3 m out from him, away from
+		# the truck, frozen so it cannot slide, and a frozen prop still breaks on
+		# a hit (`ChaosProp._maybe_score`).
+		var clear := Vector3(man.global_position.x, 0.0, man.global_position.z)
+		var truck_cs2: CollisionShape3D = boss.get("_truck_shape")
+		var out := Vector3.RIGHT
+		if truck_cs2 != null and is_instance_valid(truck_cs2):
+			out = Vector3(man.global_position.x - truck_cs2.global_position.x, 0.0,
+				man.global_position.z - truck_cs2.global_position.z)
+			if out.length() < 0.1:
+				out = Vector3.RIGHT
+		# AND CLEAR SKY OVER IT. "3 m away from the truck" was not enough: the man
+		# wanders, and one run the spot was under something 3.6 m up that the goose
+		# landed on at once and never left (the dive trace: on the floor at frame
+		# 0). So walk round him in eighths, starting from away-from-the-truck, and
+		# take the first spot whose column to 4.6 m hits nothing but itself.
+		clear.y = target_clip.global_position.y
+		var space: PhysicsDirectSpaceState3D = goose.get_world_3d().direct_space_state
+		var excl: Array[RID] = [(goose as CollisionObject3D).get_rid(), target_clip.get_rid()]
+		var spot := -1
+		for k in 8:
+			var cand: Vector3 = clear + out.normalized().rotated(Vector3.UP, float(k) * TAU / 8.0) * 3.0
+			var q := PhysicsRayQueryParameters3D.create(cand + Vector3.UP * 4.6, cand + Vector3.UP * 0.15)
+			q.collide_with_areas = false
+			q.exclude = excl
+			if space.intersect_ray(q).is_empty():
+				spot = k
+				clear = cand
+				break
+		if spot < 0:
+			clear += out.normalized() * 3.0
+		dive_trace = "no clear column within 3 m of him" if spot < 0 else "column %d/8 clear" % spot
+		target_clip.freeze = true
+		target_clip.global_position = clear
+		for _d5 in 2:
+			await tree.physics_frame
 		goose.global_position = target_clip.global_position + Vector3(0.0, 4.0, 0.0)
 		goose.velocity = Vector3.ZERO
 		var dive_down := InputEventKey.new()
@@ -846,11 +914,24 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 		dive_down.physical_keycode = KEY_SHIFT
 		dive_down.pressed = true
 		Input.parse_input_event(dive_down)
+		var pm0: int = goose.process_mode
+		var clip_cd0: float = float(target_clip.get("_cooldown"))
+		var near := 99.0
+		var low := 99.0
+		var landed_at := -1
 		for _d3 in 90:
 			await tree.physics_frame
+			if is_instance_valid(target_clip):
+				near = minf(near, Vector2(goose.global_position.x - target_clip.global_position.x,
+					goose.global_position.z - target_clip.global_position.z).length())
+				low = minf(low, goose.global_position.y - target_clip.global_position.y)
+			if landed_at < 0 and goose.is_on_floor():
+				landed_at = _d3
 			if clip_breaks[0] > 0:
 				dove_broke = true
 				break
+		dive_trace += "; goose process_mode %d, clipboard cooldown %.2f s; nearest %.2f m across, %.2f m above it; floor at frame %d; goose ends %s, state %s" % [
+			pm0, clip_cd0, near, low, landed_at, str(goose.global_position.snapped(Vector3.ONE * 0.01)), str(goose.get("state"))]
 		var dive_up := InputEventKey.new()
 		dive_up.keycode = KEY_SHIFT
 		dive_up.physical_keycode = KEY_SHIFT
@@ -865,6 +946,7 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 		% [found_clip, phase_before, float(boss.get("_t")) if is_instance_valid(boss) else -1.0, dove_broke, routed2,
 			str(boss.get_meta("outcome", "?")) if is_instance_valid(boss) else "?",
 			int(boss.get("phase")) if is_instance_valid(boss) else -1])
+	print("[input] ranger: the dive — %s" % dive_trace)
 	_ok(found_clip and dove_broke and routed2,
 		("diving onto the Ranger's clipboard did not win the encounter (clipboard found %s, broke %s, routed %s). "
 		+ "It is the route `_drop_board()`'s break_force comment promises, and BOSS_DESIGN §2.1's win.")
@@ -1024,6 +1106,92 @@ static func _big_down_echo(tree: SceneTree, main: Node) -> void:
 		("a honk %.1f m from BIG DOWN's pane %d left it standing (%d -> %d broken). The honk reaches "
 		+ "glass only through boss_big_down.gd's Ear nodes in the \"npc\" group.")
 			% [goose.global_position.distance_to(pane_pos[low]), low, gone_before, gone_after])
+
+
+## THE VOLUME SLIDER ON THE FIRST PAUSE SCREEN (D-089). Clicked a quarter of
+## the way along, then nudged with the Left arrow, and read where it lands: the
+## pref, the Master bus, and the Settings panel's own Master row, which has to
+## agree with it the next time Settings is opened.
+static func _quick_volume_test(tree: SceneTree, main: Node) -> void:
+	var menu: Node = main.get("pause_menu")
+	var prefs: Node = main.get_node_or_null("/root/Prefs")
+	if menu == null or prefs == null:
+		return
+	_release_all()
+	tree.paused = false
+	for _a in 6:
+		if not bool(main.call("_menus_open")):
+			break
+		await _escape(tree)
+	await _escape(tree)
+	var qs: HSlider = menu.get("_quick_volume") as HSlider
+	if not bool(menu.call("is_open")) or qs == null:
+		_ok(false, "Escape did not open a pause menu with a volume slider on its first screen (pause_menu.gd::_volume_row).")
+		return
+	for _b in 4:
+		await tree.process_frame
+	var was: float = float(prefs.call("get_pref", &"master_volume", 1.0))
+	var bus := AudioServer.get_bus_index("Master")
+	var db0: float = AudioServer.get_bus_volume_db(bus)
+	var r := qs.get_global_rect()
+	var at := Vector2(r.position.x + r.size.x * 0.25, r.position.y + r.size.y * 0.5)
+	for pressed in [true, false]:
+		var ev := InputEventMouseButton.new()
+		ev.button_index = MOUSE_BUTTON_LEFT
+		ev.pressed = pressed
+		ev.position = at
+		ev.global_position = at
+		qs.get_viewport().push_input(ev, true)
+		await tree.process_frame
+	var v1: float = float(prefs.call("get_pref", &"master_volume", -1.0))
+	var db1: float = AudioServer.get_bus_volume_db(bus)
+	if not qs.has_focus():
+		qs.grab_focus()
+		await tree.process_frame
+	await _key(tree, KEY_LEFT)
+	var v2: float = float(prefs.call("get_pref", &"master_volume", -1.0))
+	var sbtn: Button = _find_button(menu, "SETTINGS")
+	var shown := -1.0
+	# And back the other way: Settings' Master row moved, then BACK — the first
+	# screen's slider must show what Settings set, not what it showed before.
+	# The first version of D-089 refreshed it only when the menu OPENED.
+	var v3 := -1.0
+	var back_shows := -1.0
+	if sbtn != null:
+		await _click(tree, sbtn)
+		for _c in 4:
+			await tree.process_frame
+		var refs: Dictionary = menu.get("_slider_refs")
+		var sm: HSlider = refs.get(&"master_volume") as HSlider
+		if sm != null:
+			shown = sm.value
+			sm.grab_focus()
+			await tree.process_frame
+			await _key(tree, KEY_LEFT)
+			v3 = float(prefs.call("get_pref", &"master_volume", -1.0))
+			var bbtn: Button = _find_button(menu.get("_settings_panel"), "BACK")
+			if bbtn != null:
+				await _click(tree, bbtn)
+				for _e in 4:
+					await tree.process_frame
+				back_shows = qs.value
+	print("[input] volume: Esc -> VOLUME clicked at 25%% -> pref %.2f, Master bus %.1f -> %.1f dB; Left -> pref %.2f; Settings' Master row then shows %.2f; Left there -> %.2f, and BACK shows VOLUME at %.2f"
+		% [v1, db0, db1, v2, shown, v3, back_shows])
+	_ok(absf(v1 - 0.25) < 0.06 and absf(db1 - linear_to_db(maxf(v1, 0.0001))) < 0.5,
+		("clicking the pause menu's VOLUME slider a quarter of the way along set master_volume %.2f and the "
+		+ "Master bus %.1f dB. The click must land on the slider and the pref must reach the bus.") % [v1, db1])
+	_ok(v2 < v1 - 0.03,
+		"the Left arrow on the focused VOLUME slider moved it %.2f -> %.2f; it steps a twentieth of the range." % [v1, v2])
+	_ok(absf(shown - v2) < 0.001,
+		"Settings' Master volume row showed %.2f after the pause screen's slider set %.2f — the two must be one setting." % [shown, v2])
+	_ok(v3 < v2 - 0.03 and absf(back_shows - v3) < 0.001,
+		("Settings' Master row moved the volume %.2f -> %.2f, and BACK then showed the first screen's VOLUME at %.2f. "
+		+ "pause_menu.gd::_show_main() must refresh it, or it shows a stale value until the menu reopens.") % [v2, v3, back_shows])
+	prefs.call("set_pref", &"master_volume", was)
+	for _d in 4:
+		if not bool(main.call("_menus_open")):
+			break
+		await _escape(tree)
 
 
 ## THE ALMANAC'S OWN CONTROLS (D-078). The row that calls this proves the

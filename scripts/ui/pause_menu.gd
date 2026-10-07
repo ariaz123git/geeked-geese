@@ -60,6 +60,7 @@ var _main_scroll: ScrollContainer
 var _main_vb: VBoxContainer
 
 var _slider_refs: Dictionary = {}    # StringName -> HSlider
+var _quick_volume: HSlider = null    ## the main screen's master volume, D-089
 var _checkbox_refs: Dictionary = {}  # StringName -> CheckBox
 ## Every focusable row of the settings panel, top to bottom. See `_chain_focus`.
 var _settings_order: Array[Control] = []
@@ -95,7 +96,9 @@ func _input(event: InputEvent) -> void:
 			_open_menu()
 		get_viewport().set_input_as_handled()
 		return
-	if _open and _showing_settings:
+	# On either panel: the main screen has a volume slider too (D-089), and this
+	# only ever moves a focused slider inside this menu.
+	if _open:
 		_step_focused_slider(event)
 
 
@@ -215,6 +218,9 @@ func _show_main() -> void:
 	_showing_settings = false
 	_main_panel.visible = true
 	_settings_panel.visible = false
+	# The first screen has a VOLUME slider of its own (D-089); without this it
+	# showed what Settings' Master row had just replaced, until the menu reopened.
+	_refresh_settings_display()
 	_fit_main_panel()
 
 
@@ -429,6 +435,7 @@ func _build_main_panel() -> PanelContainer:
 	_restart_btn = _menu_button("RESTART RUN", _on_restart_pressed, Color(0.95, 0.55, 0.3))
 	vb.add_child(_restart_btn)
 	vb.add_child(_menu_button("QUIT", func(): get_tree().quit(), Color(0.9, 0.35, 0.35)))
+	vb.add_child(_volume_row())
 
 	vb.add_child(_rule())
 
@@ -468,6 +475,53 @@ func _build_main_panel() -> PanelContainer:
 	vb.add_child(_best_lbl)
 
 	return panel
+
+
+## VOLUME, ON THE FIRST SCREEN ESC OPENS (D-089).
+##
+## Settings has had Master, SFX and Music sliders for weeks, and the human still
+## asked for "a volume slider in settings" — they are one press deeper than a
+## player looks. So the master volume sits here too, under the buttons, where it
+## is on screen at 720p before the menu scrolls. It is the same `master_volume`
+## pref the Settings row writes, and `_refresh_settings_display()` keeps the two
+## in step whenever either panel is shown (`_show_main`, `_show_settings`,
+## `_open_menu`; inputtest drives both directions). Arrow keys and the D-pad move it a
+## twentieth at a time, through `_step_focused_slider()`.
+func _volume_row() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+
+	var lbl := Label.new()
+	lbl.text = "VOLUME"
+	lbl.custom_minimum_size = Vector2(96, 0)
+	lbl.add_theme_font_size_override("font_size", 15)
+	lbl.add_theme_color_override("font_color", Color(0.85, 0.87, 0.92))
+	row.add_child(lbl)
+
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.01
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size = Vector2(180, 24)
+	if _prefs != null:
+		slider.value = float(_prefs.get_pref(&"master_volume", 1.0))
+	row.add_child(slider)
+
+	var val := Label.new()
+	val.custom_minimum_size = Vector2(48, 0)
+	val.add_theme_font_size_override("font_size", 14)
+	val.add_theme_color_override("font_color", Color(0.6, 0.9, 0.7))
+	val.text = "%d%%" % roundi(slider.value * 100.0)
+	row.add_child(val)
+
+	slider.value_changed.connect(func(v: float):
+		val.text = "%d%%" % roundi(v * 100.0)
+		if _prefs != null:
+			_prefs.set_pref(&"master_volume", v)
+	)
+	_quick_volume = slider
+	return row
 
 
 func _rule() -> ColorRect:
@@ -648,3 +702,5 @@ func _refresh_settings_display() -> void:
 	for key in _checkbox_refs.keys():
 		var cb: CheckBox = _checkbox_refs[key]
 		cb.button_pressed = bool(_prefs.get_pref(key, cb.button_pressed))
+	if _quick_volume != null and is_instance_valid(_quick_volume):
+		_quick_volume.value = float(_prefs.get_pref(&"master_volume", _quick_volume.value))

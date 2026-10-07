@@ -2,23 +2,25 @@
 
 > # ▶ THE QUEUE IS §3 BELOW.
 >
-> **The human set the format on 2026-09-20: autonomous sessions.** The
-> 2026-09-25 session worked the whole of the queue `docs/NEXT_SESSION.md`
-> carried and kept going; §3 is the new queue, ranked. `NEXT_SESSION.md` now
-> holds what is the human's, with the reasoning behind each.
+> **The human set the format on 2026-09-20: autonomous sessions.** §3 is the
+> queue, ranked. `NEXT_SESSION.md` holds the design material behind it.
 >
-> **Still the human's, and an agent must not decide them:** making substances
-> required (it overrides `BOSS_DESIGN.md` §3.5 in writing), cat petting (they
-> asked to discuss it), and the `Open (human)` decisions listed in §3.
+> **On 2026-10-07 the human handed every open decision over** — *"u can make
+> all the decisions as u deem fit"* — **and D-091 made them all.** Nothing is
+> `Open (human)` any more. Making substances keys, moving leg 1's double-double,
+> the tolerance economy and cat petting are decided and queued as §3's items
+> 1 to 4: **build them, do not re-decide them.** Taste — whether it is fun —
+> stays the human's, which is why each is one revert away.
 
-**Updated:** 2026-09-25, after one long autonomous session — D-054 to D-088 —
-that kept sweeping for controls wired to nothing and found the seam was not
-exhausted. It found a pad that could play one zone and never leave it, a
-Settings panel that did not do what four of its rows said, a flight that paid
-the player NOT to fly in formation, a tutorial card that taught the flight's one
-rule backwards, and an ending that floated a score over the goose on the one
-screen specced to have none. Every gate now shares nothing with the player's
-save, and `docs/RECENT_FAILURES.md` is empty.
+**Updated:** 2026-10-07, after a short session (D-089 to D-092): a VOLUME slider
+on the first screen Esc opens, the player's save reset, every open decision
+made under the human's delegation, and the honk made to hit equally hard at
+every height so it can knock the Ranger's clipboard loose but never finish him.
+Before it, 2026-09-25 — D-054 to D-088 — kept sweeping for controls wired to
+nothing: a pad that could play one zone and never leave it, a Settings panel
+that did not do what four of its rows said, a flight that paid the player NOT
+to fly in formation. Every gate shares nothing with the player's save, and
+`docs/RECENT_FAILURES.md` is empty.
 
 > **How this file works.** `CLAUDE.md` holds the *rules* — they rarely change.
 > This file holds the *state* — it changes every session. Read this first, then
@@ -66,7 +68,7 @@ through the path a player's input takes, and assert what the far end did.
 | Assets | 40 textures (23 + 17 substance icons), 46 sounds (39 SFX + 7 zone ambience beds), 22 music stems — all procedurally generated |
 | Autoloads | 10 (see `docs/ARCHITECTURE.md` §2 for the order and why it matters) |
 | Gates | **11.** `.\verify.ps1`, about six minutes |
-| Decisions | `docs/DECISIONS.md`, newest on top. Seven are `Open (human)` and must not be closed by an agent: D-005, D-006, D-007, D-019, D-036, **D-068**, **D-084** |
+| Decisions | `docs/DECISIONS.md`, newest on top. **None is `Open (human)`**: the human delegated all seven on 2026-10-07, and D-091 decided them in one table |
 | Failure log | `docs/RECENT_FAILURES.md` — **empty**, of a hard cap of 5 (F-005, F-003 and F-001 all retired 2026-09-25: by `verify.ps1`'s timeout, by `probe_common.settled()`, and by the audio exit wait plus `ScriptErrors` catching leaks — D-072). An entry leaves only by becoming a check |
 
 ### The twelve gates, and what each one is the only thing that can see
@@ -75,7 +77,7 @@ through the path a player's input takes, and assert what the far end did.
 |---|---|---|
 | `--gate` | every `.gd` compiles and every resource loads, inside the booted project | 73 scripts |
 | `--selftest` | the game agrees with itself | **968 invariants** |
-| `--probe --inputtest` | the bird obeys a key, **including the one that eats** — and so does the UI, **and a pad can get from leg 1 to leg 2**, and every Settings row reaches what it controls, and the dose hint appears on the grass, and restart resets a whole run, and the wheel and the click, and every menu button clicked for real, and G at the flock pen, **and both sticks and Back, and the Almanac walked, and BIG DOWN's echo, and the Ranger honked, and BIG DOWN's glass by honk and by body, and TAB after a completion, and the dog against the Y axis, and the Ranger beaten by a dive, and Show hints off** | 166 checks |
+| `--probe --inputtest` | the bird obeys a key, **including the one that eats** — and so does the UI, **and a pad can get from leg 1 to leg 2**, and every Settings row reaches what it controls, and the dose hint appears on the grass, and restart resets a whole run, and the wheel and the click, and every menu button clicked for real, and G at the flock pen, **and both sticks and Back, and the Almanac walked, and BIG DOWN's echo, and the Ranger honked, and BIG DOWN's glass by honk and by body, and TAB after a completion, and the dog against the Y axis, and the Ranger beaten by a dive, and Show hints off, and VOLUME on the first Esc screen, and a honk that cannot break the clipboard at any height** | 172 checks |
 | `--probe --feeltest` | it obeys WELL | 22 metrics, 13 asserted |
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, the seven differ, **and Q hands off the lead — and flying the V is scored as holding your slot** | 22 measurements |
@@ -96,8 +98,25 @@ through the path a player's input takes, and assert what the far end did.
 
 ## ⟳ 2. What changed last session
 
-The 2026-09-25 session. Every item has a DECISIONS entry with the measurement,
-the canary that proved its check can fail, and the files; this is the map.
+### 2026-10-07 — short, on the human's word: "finish what u alr started, then wrap"
+
+| | |
+|---|---|
+| D-089 | **VOLUME on the first screen Esc opens.** The human asked for a volume slider in settings; Settings had had Master, SFX and Music for weeks, so this was discoverability. Same `master_volume` pref, kept in step with Settings' row; clicked, arrowed and read back by `inputtest` |
+| D-090 | **The player's save reset** — the three keys gates wrote before D-054 (`seen_briefings`, `best_chaos`, `unlocked`); the original is kept beside it as `geeked_geese.cfg.before-reset-2026-10-07` |
+| D-091 | **Every open decision made**, under the human's delegation — one table, each revertible |
+| D-092 | **The honk hits 4.15 at every height** (it was 2.31 below the goose to 5.39 above), so it knocks the Ranger's clipboard loose and can no longer finish him; asserted with a control, canaried with the old line |
+
+Two `inputtest` checks that flaked one run in three were the harness, both
+found by making the check say what it saw: the TAB-after-completion wait
+counted process frames (now physics frames), and the dive's clipboard could sit
+at the frozen man's feet, under a re-grabbing dog, or under something 3.6 m up
+that the goose landed on and never left (D-092 has all three).
+
+### 2026-09-25
+
+Every item has a DECISIONS entry with the measurement, the canary that proved
+its check can fail, and the files; this is the map.
 
 ### 1. The gates stopped sharing a save file with the player (D-054)
 
@@ -107,9 +126,8 @@ tree in the middle of their measurements. Runs with arguments after `--`
 are now hermetic (`prefs.gd::hermetic`), `verify.ps1` hashes the player's save
 before and after and fails if it moved, and the first hermetic run found three
 gates that needed fixing to pass honestly. **The player's save on this machine
-was written by gates before this fix** (all seventeen substances unlocked, a
-nine-digit best chaos, both first-run briefings marked seen); it was left
-exactly as found, and resetting it is the human's call — §3 has the one line.
+had been written by gates before this fix**; it was left as found, then reset
+under the human's delegation on 2026-10-07 (D-090).
 
 ### 2. Controls wired to nothing — the sweep, continued
 
@@ -169,27 +187,36 @@ lesson is *recognise it before you eat it*.
 **Nothing here is waiting on you.** See `CLAUDE.md`, *"Taste is the human's.
 Everything measurable is yours."*
 
-### Yours — an agent must not decide these
+### Decided, not yet built — the human delegated these on 2026-10-07
 
-`Open (human)` in `docs/DECISIONS.md`, plus the two design questions in
-`docs/NEXT_SESSION.md`:
-
-| | |
-|---|---|
-| **D-068** | leg 1's double-double — half of THE WOBBLER, the leg's one named combo — is its least findable pickup: farthest from the spawn, the only one on a prop, out of the opening shot. **Recommended, not taken:** move it to the lot's near side. Where things go is level design |
-| **D-084** | two quick honks from right under the Ranger can shatter his clipboard while it is still in the air and rout him: a honk hits a prop straight above it at 5.39 against the clipboard's 5.0, and one level with it at 4.15 — arithmetic, confirmed with the real honk: a clipboard-weight prop level at 2 m holds, one straight above breaks. `BOSS_DESIGN.md` allows any break to win; the code's comment says breaking it should take a run-up, a dive, a cat or a substance. **Recommended, not taken:** the comment's reading — but the clean fix changes how hard the honk hits every elevated prop |
-| **D-019** | tolerance softens penalties, against the documented economy — arguably part of why *"substances don't matter"* |
-| **D-036** | eleven of fifteen props are declared the wrong size; correcting one rescales its model non-uniformly, which is a look |
-| **D-006** | the glide ratio. 3:1 opens ten surfaces across seven zones |
-| **D-005** | the hard-landing threshold. One surface in the game has no soft way down |
-| **D-007** | the truck stop's closing beat is proportional, not absolute |
-| Substances as keys | `NEXT_SESSION.md` §1 — it overrides `BOSS_DESIGN.md` §3.5 in writing |
-| Cat petting | `NEXT_SESSION.md` §4 — you asked to discuss it |
-| **Your save file** | gates wrote it before D-054 made them hermetic: all 17 substances unlocked, `best_chaos` 131201955, both first-run cards marked seen. Which of that you earned cannot be told apart, so it was left exactly as found. To start clean (your volume and settings go with it): `Rename-Item "$env:APPDATA\Godot\app_userdata\Geeked Geese\geeked_geese.cfg" geeked_geese.cfg.polluted` |
+There is no "yours" table any more: every `Open (human)` entry and both design
+questions were decided in **D-091**, which has the reasoning and the details.
+D-084 is built (D-092). D-036, D-006, D-005 and D-007 stay as they are. Items 1
+to 4 below are the rest, **to be built, not re-argued**; if the human disagrees
+with one after playing it, it is one revert.
 
 ### Ranked, for an agent
 
-1. **Keep sweeping, and read §2's table for the shape.** Every `_input` in
+1. **Substances as keys — several keys per lock (D-091).** From leg 2, one
+   primary objective per zone that can only be done under an EFFECT —
+   through things, big flap, light, slow time, no fall damage — never a named
+   substance. Grow the objective grammar's `when` a `mod` clause read off
+   `Subs.mods` (`mission.gd::_predicate_ok`), assert in `selftest` that at least
+   two substances on that leg's shelf provide each such lock, and name the
+   effect, not the substance, in visible text. `BOSS_DESIGN.md` §3.5 still binds
+   the bosses. The human's central critique (`NEXT_SESSION.md` §1) is what
+   this answers.
+2. **Move leg 1's double-double (D-068 → D-091)** off the dumpster to open
+   ground in the opening shot, reachable on foot. `--findtest` is the before
+   and the after.
+3. **Tolerance stops softening penalties (D-019 → D-091):** it scales a
+   substance's benefits down and leaves its penalties whole, as
+   `ARCHITECTURE.md` §3 and `substance.gd` already say; `gravity_mult` below 1
+   counts as a benefit. `--substancetest` will need its tolerance rows re-read.
+4. **Cat petting (D-091)** — the pitch in `NEXT_SESSION.md` §4: hold E at a
+   cat; the catnip two-thirds swat you, the indifferent third follows you and
+   pounces for you. Zero new controls.
+5. **Keep sweeping, and read §2's table for the shape.** Every `_input` in
    the game has now been pressed by a harness; both bosses answer the honk
    (D-081, D-082), BIG DOWN's glass breaks to a body at speed (D-085), and the
    Ranger is beaten by a dive (D-087). Not yet looked at by this sweep: BIG
@@ -199,22 +226,27 @@ Everything measurable is yours."*
    as the known hole. And when something is finally driven, check what it did:
    three of this session's bugs were a control that worked, driving something
    that was wrong.
-2. **`hold_actors()` freezes the actors and not the physics** (§4). D-058
+6. **`hold_actors()` freezes the actors and not the physics** (§4). D-058
    retook the one check that failed on a parked prop; nothing stops props
    accumulating on the substance pad over a run.
-3. **The Ranger's leg 6 exam** — `BOSS_DESIGN.md` §2.1.4. D-013 records the
+7. **The Ranger's leg 6 exam** — `BOSS_DESIGN.md` §2.1.4. D-013 records the
    real blocker as the propane cannon's bang, which is a human one.
-4. **Cut `CLAUDE.md` toward 200.** It is at 264 against a ratchet that only goes
+8. **Cut `CLAUDE.md` toward 200.** It is at 264 against a ratchet that only goes
    down; what remains is mostly real rules.
-5. **The remaining per-flight fields** (`ROUTE_DATA.md` §1.3's `sky`,
+9. **The remaining per-flight fields** (`ROUTE_DATA.md` §1.3's `sky`,
    `ground`, `put_down`). Per D-017, none until the code that reads it exists.
-6. **Convert a zone to a real `.tscn`.** Accepted debt, and a candidate for
+10. **Convert a zone to a real `.tscn`.** Accepted debt, and a candidate for
    being retired as a decision, since everything it buys needs a human in the
    editor.
 
 ### Recorded, decided without measuring, and revertible
 
-**This session's, each a small revert:** the dose hint appears the first time
+**2026-10-07's, each a small revert:** every entry in D-091's table — the human
+delegated them, and none of them was measured into being; the VOLUME row's
+place under QUIT (D-089); and that a honk should never finish the Ranger
+(D-092) — the 4.15 is arithmetic, the rule it serves is a call.
+
+**2026-09-25's, each a small revert:** the dose hint appears the first time
 the bird stands on anything edible (D-059 — delete one call); the loss roster
 ignores presses for 0.34 s, matched to the results card (D-063); bread's look
 (D-069); the flight card's corrected sentence is in my words (D-075); the right
@@ -244,7 +276,7 @@ than the bird being made shorter (D-045).
 >
 > **Still open, in rough order of cost:** `hold_actors()` freezes the actors
 > and not the physics, so props can pile up on a measuring pad (D-058 retook the
-> one check that failed on it); tolerance softens penalties (D-019, the human's);
+> one check that failed on it); tolerance softens penalties (D-019 — decided in D-091, queued §3 item 3);
 > and the three BIG DOWN items, which need a render or a judgement. **Fixed on
 > 2026-09-25:** `migtest`'s half crossing (D-067) and the missing per-step
 > timeout (D-062), struck through below. **The placement list is empty** — all

@@ -69,6 +69,44 @@ IDs increment. Newest on top.
 
 ---
 
+## D-092 · 2026-10-07 · The honk hits 4.15 at every height — it knocks the clipboard loose and cannot finish the Ranger
+Status: Decided (agent) — D-084's reading (b), taken under the human's delegation (D-091)
+Decision: `honk.gd::_shove()` keeps its away-and-up direction but rescales it to the LEVEL length: `((n + 0.4·UP).normalized()) · |(1, 0.4)|`, times 5.5 as before. `inputtest::_ranger_honk()`'s D-084 row, two frozen clipboard-weight props (mass 1.6, break 5.0) level at 2 m and 1.2 m straight above, goes from observed to asserted — **neither may break** — with a positive control in front of it: each probe must have *felt* the honk (broken, or inside the 0.6 s score cooldown a shove of 2.5+ starts). 170 checks → 172.
+Why: `ChaosProp.shove()` scores at `0.7 · |impulse|`, and the old unnormalised sum made the same honk hit **2.31** for a prop below the honk, **4.15** level and **5.39** straight above — height alone decided it. Above 5.0 was how two quick honks under the Ranger shattered his clipboard mid-air (D-084). Now every honk lands at **4.15**. Of every `break_force` in `scripts/` — 5.0 (the clipboard, suburbia's five gnomes), 5.6 (BIG DOWN's bales), 6.0, 8.0, 11, 26, 42, 999, default 9.0 — only the two at 5.0 change: a honk now knocks them about at any height and breaks neither; a cat's pounce or the goose's own body (`goose_controller.gd`'s `hit`) still does, and that is the run-up, the dive and the cat `_drop_board()`'s comment promised. Suburbia's *"Behead {n} garden gnomes"* is unaffected: it counts any `GNOME` score (`mission.gd`, prefix match), and a honk still scores one. Props *below* the goose (honked from a roof) now score where some did not; nothing in that range breaks. **The first version was wrong and its own control said so:** flattening the direction to the horizontal left a prop straight overhead only the 0.4 lift — 1.54, under the score threshold — and the control failed on it (*"level true, above false"*). **Canaried** by putting the old line back: exactly the new row fails, *"1.2 m straight above broke=true."* Run 5 times after the fix, every check passing each time (the three dive causes below included).
+**The dive check (D-087) had flaked one run in three, and it had three causes, all the harness.** It said only *"broke false"*, so it now prints what the fall did: the goose's `process_mode`, the clipboard's score cooldown, the nearest it came across and above, the frame it found a floor, where it ended. (1) The clipboard lay at the held man's feet and the goose landed on him — it is moved 3 m out (D-089). (2) Piper, still live while the man was honked, re-grabbed the goose; holding her mid-carry left the goose `DISABLED` in the air — the actors are now held the moment her first carry ends. (3) The trace's first failure: the goose was *"on the floor at frame 0, 3.64 m above it"* and never moved — the clipboard's new spot was under something 3.6 m up. It now walks round the man in eighths and takes the first spot whose column to 4.6 m a ray finds empty.
+Refs: `scripts/goose/honk.gd::_shove`; `scripts/world/chaos_prop.gd::shove`, `::_maybe_score`; `scripts/world/boss_ranger.gd::_drop_board`; `scripts/world/zone_suburbia.gd::_gnomes`; `tools/inputtest.gd::_ranger_honk`; D-084, D-087, D-089, D-091.
+
+## D-091 · 2026-10-07 · Every open decision, decided — the human delegated them
+Status: Decided (agent) — under the human's words of 2026-10-07: *"u can make all the decisions as u deem fit."* Each is one revert away.
+Decision: The `Open (human)` entries and the two design questions, closed:
+
+| | decided | built? |
+|---|---|---|
+| **D-084** | the honk knocks the clipboard loose but cannot destroy it | **built — D-092** |
+| **D-068** | move leg 1's double-double off the dumpster to open ground in the opening shot, on foot | queued: HANDOFF §3 |
+| **D-019** | tolerance stops softening penalties: it scales a substance's *benefits* down and leaves its *penalties* whole, as `ARCHITECTURE.md` §3 and `substance.gd` already say; `gravity_mult` below 1 counts as a benefit | queued: HANDOFF §3 |
+| **Substances as keys** | yes — as *several keys per lock*. From leg 2, each zone gets one primary that can only be done under an EFFECT (through-things, big flap, light, slow time, no fall damage), never a named substance; at least two substances on that leg's shelf must provide it, asserted by selftest; the objective grammar's `when` gains a `mod` clause read from `Subs.mods`. `BOSS_DESIGN.md` §3.5 still holds for the bosses — chemistry stays a lever there | queued: HANDOFF §3, item 1 |
+| **Cat petting** | build the pitch already drafted: hold E at a cat; the two-thirds that respond to catnip swat you, the indifferent third follows you and pounces for you. Zero new controls | queued: HANDOFF §3 |
+| **D-036** | the prop models stay as they look; the declared footprints are recorded baselines, not targets | no change |
+| **D-006** | the glide stays 0.85 : 1 — no play report has named it, and it moves every zone's traversal at once | no change |
+| **D-005** | the hard-landing threshold stays — one surface in the game has no soft way down | no change |
+| **D-007** | the truck stop's closing beat stays proportional | no change |
+
+Why: The human handed these over and asked for a short session, so the cheap, contained one is built (D-084, which is a boss's difficulty and was this session's own recommendation) and the rest are decided in writing with enough detail that the next session builds them without re-deciding. **Substances-as-keys is the one with the most behind it**: it is the human's central critique (*"there's no thinking involved like 'should I take this drug vs this drug'"*), it was blocked only because an agent could not override a written design rule, and the "several keys per lock" form keeps that rule's real argument — sixteen control mutations must not become sixteen items. The effect groups, from the `.tres` files: through things — berries, fly agaric, math; big flap (`flap_mult` ≥ 1.2) — double-double, math, molly; light (`gravity_mult` ≤ 0.75) — special K, toad slime; slow time (`time_scale` ≤ 0.92) — nitrous, special K, robo, toad slime, grass; no fall damage — bars, percs, special K, toad slime. Every leg from 2 to 7 has at least two keys for at least one of them; leg 1, the tutorial, keeps its existing "on two things at once" objective instead.
+Refs: D-005, D-006, D-007, D-019, D-036, D-068, D-084, D-092; `docs/NEXT_SESSION.md` §1 and §4; `docs/HANDOFF.md` §3.
+
+## D-090 · 2026-10-07 · The player's save, reset — the polluted keys only
+Status: Decided (agent) — under the human's delegation; the original is kept beside it
+Decision: `%APPDATA%\Godot\app_userdata\Geeked Geese\geeked_geese.cfg` was copied to `geeked_geese.cfg.before-reset-2026-10-07`, then `seen_briefings`, `best_chaos` and `unlocked` were cleared. Every setting in it was already at its default and is untouched.
+Why: Gates wrote those three keys before D-054 made them hermetic — all seventeen substances unlocked, a best chaos of 131,201,955, both first-run cards marked seen — and which of it the human earned cannot be told apart. Cleared, the next launch is a true first run: the briefing cards, the dose hint and an empty Almanac. `verify.ps1`'s save check is unaffected; it compares the file before and after a run.
+Refs: D-054; `scripts/core/prefs.gd`.
+
+## D-089 · 2026-10-07 · Volume on the first screen Esc opens
+Status: Decided (agent)
+Decision: The pause menu's main screen gains a VOLUME slider under QUIT, on screen at 720p without scrolling. It is the same `master_volume` pref as Settings' Master row; `_refresh_settings_display()` keeps the two in step and the arrow keys and D-pad move it a twentieth at a time. `main.gd` gains a `--settings` render probe that photographs both screens. `inputtest::_quick_volume_test()` clicks it a quarter of the way along, presses Left, and reads the pref, the Master bus and Settings' own row; then moves Settings' Master row and clicks BACK, and reads the first screen's slider. 166 checks → 170.
+Why: The human: *"need a volume slider in settings."* Settings has had Master, SFX and Music sliders for weeks — rendered for the first time this session, all three on screen — so this was a discoverability problem, not a missing control, and the answer is to put volume where a player looks first. Measured: clicked at 25 % → pref 0.23, Master bus −0.9 → −12.8 dB (`linear_to_db(0.23)`); Left → 0.18; Settings' row then shows 0.18; Left there → 0.13, and BACK shows VOLUME at 0.13. **The last row found a bug in this entry's own first version:** `_show_main()` did not refresh, so BACK showed 0.18 against a setting of 0.13 until the menu reopened — watched fail, then fixed with one call. **Two older checks flaked while this landed, both the harness:** the TAB-after-completion check counted *process* frames, about 2.5 s headless against a 2.2 s settle plus its tween — now physics frames; and the dive check's clipboard could lie at the frozen man's feet so the goose landed on him — it now goes to clear ground first. That was one of three causes; D-092 has the other two.
+Refs: `scripts/ui/pause_menu.gd::_volume_row`, `::_refresh_settings_display`, `::_show_main`, `::_input`; `scripts/core/main.gd` (`--settings`); `tools/inputtest.gd::_quick_volume_test`, `::_ui_sweep_report`, `::_ranger_honk`.
+
 ## D-088 · 2026-09-25 · Show hints off keeps the dose card away — it works
 Status: Decided (agent)
 Decision: `inputtest::_eat_test()` first turns Show hints off through the pref, stands the goose on leg 1's grass, and asserts the eat target arms, the dose card does not appear, and the card is recorded as seen; then it puts the pref back and un-sees the card for the first-time walk that follows. 165 checks → 166.
@@ -94,7 +132,7 @@ Why: The encounter's glass breaks two ways — a honk through the Ears (D-083), 
 Refs: `tools/inputtest.gd::_big_down_echo`; `scripts/world/boss_big_down.gd::_tick_panes`, `::_curtain_wall`.
 
 ## D-084 · 2026-09-25 · Two quick honks can rout the Ranger — the design allows it, the code's own comment does not
-Status: Open (human) — the arithmetic is the agent's; whether a honk may finish him is difficulty
+Status: Superseded by D-092 (2026-10-07) — decided under the human's delegation: the honk may knock the clipboard loose but not destroy it
 Decision: Nothing changed. Recorded with its arithmetic and a recommendation, because every fix changes either a boss's difficulty or how hard the game's signature verb hits.
 Why: When the Ranger flinches, `_drop_board()` launches the clipboard upward (`(at − from) · 2.2 + UP · 2.6`). `honk.gd::_shove()` pushes every chaos prop in range with `(n + 0.4 · UP) · 5.5`, and `ChaosProp.shove()` scores that at `0.7 · |impulse|`: **4.15** for a prop level with the goose, rising to **5.39** for one straight above it. The clipboard breaks at **5.0**, set beside the comment *"knocking it out of his hands is easy and DESTROYING it costs you a run-up, a dive, a cat or a substance. Two different verbs for two different outcomes."* So a second honk while the clipboard is still in the air and more than about 41° above the goose (`n.y ≥ 0.66`) shatters it — *"CLIPBOARD!!"* — and the encounter is routed. `BOSS_DESIGN.md` §2.1 says *"Honk the clipboard out of his hands, then break it — into the combine, into the silo, into the pond. Any `ChaosProp` break on it ends the encounter,"* which permits it. **How it was found:** the first version of D-082's check honked a second time 0.43 s after the first and, in 2 runs of 9, raised *"Cannot call method 'get' on a previously freed instance"* on the dog — the rout walks the man the 0.8 m to his truck door and `_finish()` frees both. `inputtest` now measures the arithmetic directly with the real honk — two frozen props built like the clipboard, observed and not asserted: **level at 2 m, not broken; 1.2 m straight above, broken**, identical over two runs. Whether this is what freed the dog in those two runs was not reproduced (0 of 8 later runs at the same timing; D-083).
 **Two readings.** (a) Allowed: the design document's "any break" wins, and two presses of H from right under him is a legitimate, cheap win. (b) Not allowed: the honk is the knock-it-out verb only, as the code's comment asks. **Recommended, not taken: (b)** — it keeps the win the design describes, a clipboard thrown into something. The smallest change is in `honk.gd`, scoring a shove from its level-equivalent direction so it is 4.15 whatever the elevation; that also changes how hard a honk hits every elevated prop in the game, which is why it is not an agent's change. The alternative, a clipboard that ignores a honk's force, is local but is the kind of special case this codebase keeps regretting.
@@ -192,7 +230,7 @@ Why: Bread was the only substance on the shelf with no pickup model — `_KNOWN_
 Refs: `scripts/world/pickup_models.gd::_build_bread`, `_KNOWN_IDS`; `scripts/world/substance_pickup.gd::ANIM_STYLES`; `tools/gen_textures.py::icon_bread`.
 
 ## D-068 · 2026-09-25 · Leg 1's findability, counted — the flagship combo's second half is the hardest thing to find
-Status: Open (human) — the numbers are the agent's; where the pickups go is level design
+Status: Superseded by D-091 (2026-10-07) — decided under the human's delegation: move it; queued
 Decision: `tools/findtest.gd` (`--probe --findtest`, a report like `--glidetest`, not a gate) builds every leg's zone and prints, per pickup: straight-line distance from the spawn; whether a goose standing on real ground beside it arms its trigger (**driven**, with the zone's own goose — not estimated); how high it sits and on what; whether the opening camera frames it; and the first drawn thing in the way. Nothing was moved.
 Why: The human, on playing leg 1: *"all I can find is grass."* NEXT_SESSION §2 separated how many substances leg 1 offers (the human's constant, D-022/D-037) from how findable they are (arithmetic nobody had done). **Leg 1, measured, two identical runs:**
 
@@ -556,7 +594,7 @@ Why: `docs/CAMPAIGN_SPEC.md` §2.1 has asked for it since the campaign was specc
 Refs: `data/substances/bread.tres`; `scripts/core/substance_manager.gd::take`; `scripts/goose/goose_controller.gd::_tick_eat`; `tools/substancetest.gd::_the_bread`; `scripts/world/zone_strip_mall.gd`; supersedes the deferral in **D-020**.
 
 ## D-036 · 2026-08-18 · Eleven of fifteen props are declared the wrong size, and that is the human’s to fix
-Status: **Open (human)**
+Status: Superseded by D-091 (2026-10-07) — decided under the human's delegation: the models stay as they look
 Decision: **Unresolved, and deliberately not decided by an agent.** `tools/geomtest.gd` measured every prop the zones build against the footprint its builder declares. **Eleven of fifteen kinds are out by more than 6% on a horizontal axis.** The gate asserts that the MESHES do not drift and REPORTS the disagreement; it does not correct it.
 Why: `prop_models*.gd::build()` sizes with `model.scale = want / footprint(kind)`, so a declaration that disagrees with the mesh makes every `size:` placement of that kind wrong by exactly that ratio, in every zone that asks for one. The measurements, with the spread across instances at **0.000 for fourteen of the fifteen kinds** — these are stable facts, not sampling noise:
 
@@ -691,7 +729,7 @@ Why: It is not just a `.tres`. It needs a generated icon (`selftest` fails a sub
 Refs: `docs/CAMPAIGN_SPEC.md` §2.1; `scripts/world/zone_strip_mall.gd` header.
 
 ## D-019 · 2026-08-18 · Tolerance softens penalties, against the documented economy — recorded, not changed
-Status: Open (human)
+Status: Superseded by D-091 (2026-10-07) — decided under the human's delegation: tolerance will stop softening penalties; queued
 Decision: **Unresolved, and deliberately not decided by an agent.** `resolve()` picks `good` or `bad` per FIELD, but each of the four multipliers is a benefit on one side of 1.0 and a penalty on the other, so each scaling is right for only half its range.
 Why: `docs/ARCHITECTURE.md` §3 and `substance.gd`'s own comment both say *"tolerance scales the good parts and never the bad ones — that asymmetry is the entire economy."* Measured at tolerance 3 (`tol = 0.488`): **eight substances have penalties softened** (percs' flap 0.80 → 0.90, speed 0.70 → 0.85; grass 0.78 → 0.89; plus bars, berries, gravy, robo, special_k, toad_slime) and **eight have benefits that never fade** (double_double's turn stays 1.50 at every tolerance, molly's 1.20, darts' 1.05; special_k's gravity stays 0.55, and four more). So the fourth percocet impairs you less than the first. The doc's own worked example — *"the fourth double-double gives you less speed and the same jitter"* — is one of the cases that is already correct.
 **Recommendation if you want one:** select the scale by the DIRECTION of the declared value rather than by the field name, for `flap_mult`, `speed_mult` and `turn_mult` only. **Left open because** it makes six substances materially more punishing at tolerance and no instrument in this project can evaluate that; and because `gravity_mult` below 1.0 is genuinely ambiguous — floatier is a traversal *benefit* and a control *impairment* at once, which is a design call rather than arithmetic.
@@ -766,20 +804,20 @@ Refs: `scripts/world/flock_pen.gd`. Evidence regenerates with
 — `shots/` is gitignored, so the command is the durable artefact, not the PNG.
 
 ## D-007 · 2026-08-18 · The truck stop's closing beat stays proportional
-Status: Open (human)
+Status: Superseded by D-091 (2026-10-07) — decided under the human's delegation: kept
 Decision: `_clock_scale()` leaves exactly **6.0% of the leg** as empty lot at every clock — 13.8 s at leg 7's 230 s, but 6.6 s at Mission's 110 s floor.
 Why: A readable moment is arguably *absolute*, not proportional — a human needs roughly ten seconds to notice an empty lot whatever the clock says. Changing it is one line in `zone_truckstop.gd::_clock_scale()`. Not changed, because nothing specifies it and it is pacing.
 Refs: `docs/HANDOFF.md` §4; `tools/selftest.gd::_the_rig_schedule()`.
 
 ## D-006 · 2026-08-18 · The glide is 0.85 : 1 and nobody has decided whether that is right
-Status: Open (human)
+Status: Superseded by D-091 (2026-10-07) — decided under the human's delegation: kept
 Decision: Unresolved. One metre forward per metre down is a controlled fall, and `GEEKED_GEESE_DESIGN.md:130` promises *"chain it into a safe glide and you're fine."*
 Why: Against changing it — the zones are 80 m across, and a 3:1 glide crosses one from a single flap stack, which trivialises the ground traversal the chaos scoring is built around, and silently invalidates "the goose cannot reach that" in eight zone builders. For changing it — flight between rooftops is the fantasy and thermals are a whole migration mechanic premised on altitude being worth something. **Taste. The human's.**
 Refs: `docs/FEEL_TARGETS.md` §5.1; guarded by **D-009**.
 **Costed 2026-08-18, not closed.** `tools/glidetest.gd` walked all seven built zones: **168 standable surfaces, 113 elevated, 42 of them (37%) glide-reachable today and 86 (76%) at 3:1.** The cost is not spread across the campaign, it is concentrated: legs 1, 2 and 6 are unchanged at every ratio tested, while **suburbia goes from 0 of its 21 elevated surfaces to 16** — the longest glide available in that zone today is 0.0 m. Suburbia is the leg that introduces height and it is built on getting between roofs costing flaps; widening the glide does not adjust that zone, it deletes its premise. Full table and the five named approximations: `docs/FEEL_TARGETS.md` §5.1.
 
 ## D-005 · 2026-08-18 · Every 20 m glide arrives at 20.9 m/s against a 13.0 hard-landing threshold
-Status: Open (human)
+Status: Superseded by D-091 (2026-10-07) — decided under the human's delegation: kept
 Decision: Unresolved. Sober this is a 15-point "ROUGH LANDING" and a small shake — a reward. On any substance with `ragdoll_landings` it is an unavoidable faceplant on every descent from height, and nothing teaches flaring on approach.
 Why: Either a good implicit lesson or an unfair one. That depends on playing it.
 Refs: `docs/FEEL_TARGETS.md` §5.2.

@@ -1773,6 +1773,24 @@ func _probe_if_headless() -> void:
 		_probe_quit()
 		return
 
+	# --settings: the pause menu's Settings panel, opened the way a player opens
+	# it. Every Settings row is DRIVEN by `inputtest::_settings_walk()`, but none
+	# had ever been photographed — and "need a volume slider in settings" came from
+	# a human looking at a panel whose three volume sliders were already built.
+	if args.has("--settings"):
+		pause_menu.open()
+		for i in 14:
+			await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		_save_shot(get_viewport().get_texture().get_image(), "gg_ui_pause.png")
+		pause_menu.call("_show_settings")
+		for i in 14:
+			await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		_save_shot(get_viewport().get_texture().get_image(), "gg_ui_settings.png")
+		_probe_quit()
+		return
+
 	if args.has("--ui"):
 		for id in [&"berries", &"double_double", &"fly_agaric", &"math", &"darts"]:
 			var u := get_node_or_null("/root/Unlocks")
