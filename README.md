@@ -6,8 +6,9 @@ parody "substances" that each change how the controls work: input lag, a camera
 that wanders off without you, movement that only goes in right angles. Geese
 lost on the flights stay lost, so the flock you land with is your score.
 
+<!-- GIF pending (Ariaz records a clip): uncomment when docs/media/gameplay.gif exists.
 ![Gameplay](docs/media/gameplay.gif)
-<!-- GIF pending: docs/media/gameplay.gif has not been recorded yet. -->
+-->
 
 **Early and unpolished.** The whole campaign runs from start to finish — seven
 legs, seven flights, two bosses and an ending — but balance and feel are still
@@ -55,10 +56,8 @@ grabs it back.
 
 ## How it's built and verified
 
-Built with [Claude Code](https://claude.com/claude-code) as the coding agent
-(some sessions ran in Cowork), with Ariaz Askarkani directing, reviewing and
-playtesting. An agent cannot play the game, so nothing counts as working until a
-check it can run headless says so. `.\verify.ps1` runs 13 gates, about seven minutes in all:
+Built with [Claude Code](https://claude.com/claude-code). An agent cannot play
+the game, so nothing counts as working until a check it can run headless says so. `.\verify.ps1` runs 13 gates, about seven minutes in all:
 
 | gate | what it checks |
 |---|---|
