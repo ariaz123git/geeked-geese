@@ -3,7 +3,7 @@
 > # ▶ THE QUEUE IS §3 BELOW.
 >
 > **The human set the format on 2026-09-20: autonomous sessions.** §3 is the
-> queue, ranked. `NEXT_SESSION.md` holds the design material behind it.
+> queue, ranked. `docs/DECISIONS.md` D-091 holds the design material behind it.
 >
 > **On 2026-10-07 the human handed every open decision over** — *"u can make
 > all the decisions as u deem fit"* — **and D-091 made them all.** Nothing is
@@ -12,7 +12,11 @@
 > 1 to 4: **build them, do not re-decide them.** Taste — whether it is fun —
 > stays the human's, which is why each is one revert away.
 
-**Updated:** 2026-10-07, after a short session (D-089 to D-092): a VOLUME slider
+**Updated:** 2026-10-11, a publishing-prep session with no game change (D-093):
+the setup kit and two spent docs removed, the README rewritten for a public
+reader, an MIT license, and every commit's author set to a GitHub noreply
+address. Nothing is pushed; that waits on the human's go. Before it,
+2026-10-07, a short session (D-089 to D-092): a VOLUME slider
 on the first screen Esc opens, the player's save reset, every open decision
 made under the human's delegation, and the honk made to hit equally hard at
 every height so it can knock the Ranger's clipboard loose but never finish him.
@@ -62,16 +66,16 @@ through the path a player's input takes, and assert what the far end did.
 | Code | 73 GDScript files (read the live count off `[gate] PASS — N scripts`) |
 | Zones built | 8 — retention pond / strip mall lot (one zone, two legs, **two shelves**), suburbia, cottage country, the stopover, cut corn, truck stop, the 18th green |
 | Route legs | 7 flown + the arrival |
-| Substances | **17.** Leg 1 offers 4 (berries, double-double, grass, **bread**); every other leg offers its zone's full set |
+| Substances | **17 on the shelf.** Leg 1 offers 4 (berries, double-double, grass, **bread**); every other leg offers its zone's full set |
 | Flights | **7, and no two alike.** Hazards per crossing: 3.9 · 12.7 · 21.3 · 44.1 · 9.3 · 39.1 · 70.4. Flight 1 is `lethal: false` |
 | Bosses | 2 — the Ranger (leg 3) and BIG DOWN (the back half of leg 7) |
 | Assets | 40 textures (23 + 17 substance icons), 46 sounds (39 SFX + 7 zone ambience beds), 22 music stems — all procedurally generated |
 | Autoloads | 10 (see `docs/ARCHITECTURE.md` §2 for the order and why it matters) |
-| Gates | **11.** `.\verify.ps1`, about six minutes |
+| Gates | **13.** `.\verify.ps1`, about seven minutes: the headless Godot runs, then two checks the script makes itself — the gate table below and the player's save |
 | Decisions | `docs/DECISIONS.md`, newest on top. **None is `Open (human)`**: the human delegated all seven on 2026-10-07, and D-091 decided them in one table |
 | Failure log | `docs/RECENT_FAILURES.md` — **empty**, of a hard cap of 5 (F-005, F-003 and F-001 all retired 2026-09-25: by `verify.ps1`'s timeout, by `probe_common.settled()`, and by the audio exit wait plus `ScriptErrors` catching leaks — D-072). An entry leaves only by becoming a check |
 
-### The twelve gates, and what each one is the only thing that can see
+### The gates, and what each one is the only thing that can see
 
 | gate | proves | count |
 |---|---|---|
@@ -82,11 +86,15 @@ through the path a player's input takes, and assert what the far end did.
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, the seven differ, **and Q hands off the lead — and flying the V is scored as holding your slot** | 22 measurements |
 | `--probe --rolltest` | the credit roll travels, **and H on the 18th green honks the goose, answers with the whole course, and starts the credits — and a honked slab falls over and scores nothing** |  |
-| `--doctest` | **the documents still tell the truth** | 193 claims |
+| `--doctest` | **the documents still tell the truth** | 217 claims |
 | `--audiotest` | **the WAVs are what their names claim, the volume sliders reach a bus, and quitting mid-sound leaks nothing** | 255 over 68 files |
 | `--probe --geomtest` | **a model is the size its table says, nothing edible is buried in a solid, and the bird stands ON the ground** | 56 over 15 kinds, 74 pickups |
 | `--probe --loop-test` | seven legs, seven flights and the ending | + the shelf census |
 | `verify.ps1` | **every count in this table matches the gate that printed it** | |
+
+The last gate has no row because it states no count: **the player's save.**
+`verify.ps1` hashes it before the first gate and after the last, and fails if
+anything wrote it.
 
 ### What is specced but not built
 - **The Ranger's leg 6 exam** (`BOSS_DESIGN.md` §2.1.4). D-013 records the real
@@ -97,6 +105,12 @@ through the path a player's input takes, and assert what the far end did.
 ---
 
 ## ⟳ 2. What changed last session
+
+### 2026-10-11 — prepared for publishing on GitHub, on the human's instructions
+
+| | |
+|---|---|
+| D-093 | **Removed** `KICKOFF_PROMPT.md`, `VIBECODING_BRIEFING.md` and `README_KIT.md` (the kit the project was started from), `docs/GIT_SETUP_PROMPT.md` (done) and `docs/NEXT_SESSION.md` (its decisions are D-091; the cat-petting hooks it carried are now in §3 item 4). **Untracked** `tools/__pycache__/` and `.claude/`, both now ignored. **README** rewritten from the top for a public reader; **MIT `LICENSE`**. The gate and substance counts in README and §1 are now claims (C-022 to C-025). `main` carries the full history; `session2-feel` is kept as a branch name. **Every commit's author and committer** are `Ariaz Askarkani <254025768+ariaz123git@users.noreply.github.com>`, so every hash changed; messages and trees did not. No remote, nothing pushed — the human playtests and gives the go |
 
 ### 2026-10-07 — short, on the human's word: "finish what u alr started, then wrap"
 
@@ -204,8 +218,8 @@ with one after playing it, it is one revert.
    `Subs.mods` (`mission.gd::_predicate_ok`), assert in `selftest` that at least
    two substances on that leg's shelf provide each such lock, and name the
    effect, not the substance, in visible text. `BOSS_DESIGN.md` §3.5 still binds
-   the bosses. The human's central critique (`NEXT_SESSION.md` §1) is what
-   this answers.
+   the bosses. The human's central critique, quoted in D-091, is what this
+   answers.
 2. **Move leg 1's double-double (D-068 → D-091)** off the dumpster to open
    ground in the opening shot, reachable on foot. `--findtest` is the before
    and the after.
@@ -213,9 +227,14 @@ with one after playing it, it is one revert.
    substance's benefits down and leaves its penalties whole, as
    `ARCHITECTURE.md` §3 and `substance.gd` already say; `gravity_mult` below 1
    counts as a benefit. `--substancetest` will need its tolerance rows re-read.
-4. **Cat petting (D-091)** — the pitch in `NEXT_SESSION.md` §4: hold E at a
-   cat; the catnip two-thirds swat you, the indifferent third follows you and
-   pounces for you. Zero new controls.
+4. **Cat petting (D-091)** — hold E at a cat; the catnip two-thirds swat you,
+   the indifferent third follows you and pounces for you. Zero new controls:
+   every input action is taken, so it reuses `gg_eat` and its charge arc (a
+   goose holding E at a cat is trying to eat it, which is the joke). The split
+   already exists as `cat.gd`'s `responds_to_nip`, which gates the frenzy.
+   `_nearest_victim()` scans the `npc` and `chaos_prop` groups and not the
+   goose, so no cat can attack the player today; `_pounce()` is duck-typed on
+   `startle()` / `shove()`.
 5. **Keep sweeping, and read §2's table for the shape.** Every `_input` in
    the game has now been pressed by a harness; both bosses answer the honk
    (D-081, D-082), BIG DOWN's glass breaks to a body at speed (D-085), and the
@@ -772,8 +791,8 @@ never.
   is why the documented gate command filters to `^\[gate\]`.
 - Render probes print an ALSA error in containers with no sound card.
 
-**Untested by anyone who can actually play**
-Still everything. See §3.
+**Feel and fun are the human's to judge, by playing it.** The agents measure
+response and cannot play. See §3 and `CLAUDE.md`, *"Taste is the human's"*.
 
 ---
 
@@ -798,7 +817,6 @@ Still everything. See §3.
 | `docs/MUSIC_NOTES.md` | The score: stems, adaptive rules, what substances do to the mix. |
 | `docs/prop_models_notes.md` | The prop library. |
 | `docs/GODOT_4.7_RULES.md` | Engine API notes for a version newer than any model's training data. |
-| `docs/GIT_SETUP_PROMPT.md` | Paste-ready prompt for setting up git + GitHub. |
 
 **And three that are not read so much as RUN.** Each is checked by a gate, so
 it cannot quietly stop being true:
@@ -813,11 +831,11 @@ it cannot quietly stop being true:
 
 ## 6. Verifying
 
-**On Windows, all eleven gates in one command:**
+**On Windows, every gate in one command:**
 ```
 .\verify.ps1            # compile, invariants, controller, feel, substances,
                         #   flight, credit roll, claims, audio, footprints,
-                        #   campaign
+                        #   campaign; then the gate table and the player's save
 .\verify.ps1 -Quick     # skips the slow ones
 .\verify.ps1 -Shots     # also renders every zone into .\shots\
 ```

@@ -11,6 +11,14 @@
 # This project
 shots/
 
+# Python bytecode from running tools/gen_*.py
+__pycache__/
+*.pyc
+
+# Claude Code's local session state (lock files, settings); nothing in it is
+# part of the project
+.claude/
+
 # DO NOT ADD *.uid HERE.
 # .uid files are how Godot tracks resource identity across renames. If they are not
 # committed, every clone regenerates fresh UIDs and every scene that references a

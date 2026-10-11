@@ -26,7 +26,7 @@ found **seven** live instances:
 | `README.md` | leg 5 is "the last placeholder in the route" | built, the stopover |
 | `README.md` | "every zone still borrows the parking-lot loop" | seven beds |
 | `GEEKED_GEESE_DESIGN.md` | "playable, 16 substances, **2 zones**" | eight zones |
-| `README_KIT.md` | `CLAUDE.md` is "under 200 lines on purpose" | 379 |
+| `README_KIT.md` (removed 2026-10-11) | `CLAUDE.md` is "under 200 lines on purpose" | 379 |
 
 Not one of those is a typo. Each is a sentence that was *true when written*, in
 a well-written document, sitting next to sentences that are still true — which
@@ -109,6 +109,10 @@ C-018  | 2026-08-18 | surface_textures | " textures and "      | CLAUDE.md
 C-019  | 2026-08-18 | music_stems      | " music stems from"   | README.md
 C-020  | 2026-08-18 | verify_steps     | " gates. One script"  | CLAUDE.md
 C-021  | 2026-08-19 | substances       | " substances bite"    | CLAUDE.md
+C-022  | 2026-10-11 | substances       | " substances**, all data-driven" | README.md
+C-023  | 2026-10-11 | verify_steps     | " gates, about seven" | README.md
+C-024  | 2026-10-11 | substances       | " on the shelf.**"    | docs/HANDOFF.md
+C-025  | 2026-10-11 | verify_steps     | ".** `.\verify.ps1`"  | docs/HANDOFF.md
 ```
 
 ---

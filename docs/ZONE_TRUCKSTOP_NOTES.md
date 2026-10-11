@@ -4,11 +4,12 @@
 reflecting orange. Six rigs with their engines running, and one at a time they
 leave.*
 
-> **Nobody has played this.** Every judgement below about *feel* — whether the
-> departure schedule is tense or annoying, whether five of six primaries is fair,
-> whether riding a truck is funny the second time — is inference. The mechanics
-> were verified by headless harness and by reading rendered PNGs; the fun was
-> not verified by anything.
+> **These notes were not written from play.** Every judgement below about
+> *feel* — whether the departure schedule is tense or annoying, whether five of
+> six primaries is fair, whether riding a truck is funny the second time — is
+> the building agent's inference. The mechanics were verified by headless
+> harness and by reading rendered PNGs; the fun is the human's to judge by
+> playing it.
 
 ---
 

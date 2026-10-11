@@ -217,6 +217,8 @@ unlocks and topples on `shove()`, breaks on a force-30 hit, and moves
 - Zone-specific SFX. The sprinklers are silent; the ending's ambience is
   currently the honks and nothing else. A looping water bed would do more for
   this zone than any geometry left in it.
-- Nobody has played it. Every judgement in here about how it *feels* — the 7 s
+- These notes were not written from play: the agent that built the ending
+  cannot play it. Every judgement in here about how it *feels* — the 7 s
   settling cadence, the 2.55 s credit spacing, the 2.15 m/s walk speed of a
-  slab, whether the honk wave lands — is inference from a still image.
+  slab, whether the honk wave lands — is inference from a still image, and the
+  human's play is what settles it.

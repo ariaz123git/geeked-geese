@@ -69,6 +69,12 @@ IDs increment. Newest on top.
 
 ---
 
+## D-093 · 2026-10-11 · The repo prepared for publishing on GitHub
+Status: Decided (human) — his instructions, carried out by an agent; not pushed, pending his playtest and go
+Decision: Removed `KICKOFF_PROMPT.md`, `VIBECODING_BRIEFING.md` and `README_KIT.md` (the kit the project was started from), `docs/GIT_SETUP_PROMPT.md` and `docs/NEXT_SESSION.md` (its decisions are D-091; the cat-petting hooks it carried moved to HANDOFF §3 item 4). `tools/__pycache__/` and `.claude/` untracked and ignored. README rewritten from the top for a public reader; MIT `LICENSE`, copyright Ariaz Askarkani. The gate and substance counts in README and HANDOFF §1 became claims C-022 to C-025 — README said 16 substances and nine gates, HANDOFF 11 gates; the project has 17 and 13. `main` fast-forwarded to `session2-feel`, which stays as a branch name. Every commit's author and committer rewritten to `Ariaz Askarkani <254025768+ariaz123git@users.noreply.github.com>` by `git filter-branch --env-filter`; messages and trees unchanged, every hash new.
+Why: The kit files were instructions for starting the project, not part of it, and the noreply address keeps a personal email out of public history. **Entries below that name the removed files are history and are left as written**, per this file's supersede-don't-edit rule; each file is still in git history (`git log --all -- <path>`).
+Refs: `README.md`, `LICENSE`, `.gitignore`, `docs/HANDOFF.md` §1–§3, `docs/CLAIMS.md` C-022 to C-025; the pre-rewrite history is in a bundle outside the repo, `C:\Projects\Geeked_Geese_backup_2026-10-11.bundle`.
+
 ## D-092 · 2026-10-07 · The honk hits 4.15 at every height — it knocks the clipboard loose and cannot finish the Ranger
 Status: Decided (agent) — D-084's reading (b), taken under the human's delegation (D-091)
 Decision: `honk.gd::_shove()` keeps its away-and-up direction but rescales it to the LEVEL length: `((n + 0.4·UP).normalized()) · |(1, 0.4)|`, times 5.5 as before. `inputtest::_ranger_honk()`'s D-084 row, two frozen clipboard-weight props (mass 1.6, break 5.0) level at 2 m and 1.2 m straight above, goes from observed to asserted — **neither may break** — with a positive control in front of it: each probe must have *felt* the honk (broken, or inside the 0.6 s score cooldown a shove of 2.5+ starts). 170 checks → 172.

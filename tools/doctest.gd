@@ -25,7 +25,7 @@ extends RefCounted
 ##   | `README.md` | leg 5 "the last placeholder in the route" | built |
 ##   | `README.md` | "every zone still borrows the parking-lot loop" | seven beds |
 ##   | `GEEKED_GEESE_DESIGN.md` | "playable, 16 substances, 2 zones" | 8 zones |
-##   | `README_KIT.md` | CLAUDE.md is "under 200 lines on purpose" | 379 |
+##   | `README_KIT.md` (removed 2026-10-11) | CLAUDE.md is "under 200 lines on purpose" | 379 |
 ##
 ## Every one of those is coherent, adjacent to the truth, and therefore worse
 ## than an obvious error: work on retrieval-augmented models (Xie et al., ICLR
@@ -92,7 +92,7 @@ const SRC_FEELTEST := "res://tools/feeltest.gd"
 const SRC_MAIN := "res://scripts/core/main.gd"
 const VERIFY := "res://verify.ps1"
 
-## THE RATCHET. `README_KIT.md` said CLAUDE.md was "under 200 lines on purpose";
+## THE RATCHET. `README_KIT.md` (since removed) said CLAUDE.md was "under 200 lines on purpose";
 ## it was 379, and nothing noticed because a line budget written in prose cannot
 ## count. 200 is the target Anthropic's own guidance gives and it is where this
 ## should end up; the ceiling below is TODAY'S SIZE, so the file can shrink

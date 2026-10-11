@@ -1,9 +1,8 @@
 # LEG 6 — THE CUT CORN · build notes
 
-**Status:** built, compiles, renders, **never played by a human.** Every
-judgement below about difficulty, pacing and feel is inference from geometry and
-from six rendered frames. Nothing in here has been tested by anyone who can hold
-a controller.
+**Status:** built, compiles, renders. **These notes were not written from
+play:** every judgement below about difficulty, pacing and feel is the building
+agent's inference from geometry and from six rendered frames.
 
 Spec: `CAMPAIGN_SPEC.md` §2.6 (the leg), §1.3 (what it contributes to the
 teaching order: **cover and open ground**), §2.11 and Part 3 (intensity **7**,
@@ -341,7 +340,7 @@ not a bug and it is not new.
 
 The zone compiles cleanly through the real gate, it renders, and the six
 mechanics that carry it were each watched firing in a screenshot or verified
-numerically. **Nobody has played it.** Whether a combine at 5.4 m/s is
+numerically. **None of that is play.** Whether a combine at 5.4 m/s is
 frightening or merely annoying, whether hiding in the corn is tense or
 claustrophobic, and whether the walk across the open ground is a decision or a
 chore are all things only a person with a keyboard can answer, and all three are
