@@ -175,28 +175,27 @@ Full route, intensity curve, flock balance and the ending are specced in
 ## What's in it
 
 **17 substances**, all data-driven, each with its own control mutation, screen
-treatment and honk pitch. Every one but bread names the real drug it's a joke
-about, and every one carries a true, sourced fact.
+treatment and honk pitch. Each one's almanac entry carries a true, sourced fact.
 
-| In-game | Mimics | What it does to your hands |
-|---|---|---|
-| Fermented Berries | Ethanol | Input lag, drift, ragdoll landings, smashes through props |
-| Double-Double | Caffeine | 2× flap rate and **you cannot stand still** |
-| Whippet | Nitrous oxide | 7 seconds of slow-motion, then you fall out of the sky |
-| Math | Methamphetamine | Fastest thing in the game and **you cannot turn** |
-| Grass | Cannabis | Slow, heavy, longest duration, **lowest** chaos multiplier |
-| Special K | Ketamine | **The camera detaches from your bird** and drifts |
-| Robo-Trippin' | DXM | Movement **snaps to 90°** |
-| Molly | MDMA | Everything is wonderful; 13-second serotonin crash |
-| Darts | Nicotine | Barely anything — and **3× tolerance per dose** |
-| Catnip | Nepetalactone | Nothing to you. Turns every cat into your artillery. |
-| Toad Slime | Bufotoxin / 5-MeO-DMT | Kaleidoscope trip you **cannot end early** |
-| Fly Agaric | Muscimol | **Macropsia** — your body pulses between 0.35× and 2.8× |
-| Gravy | Dimenhydrinate | **Deliriant** — spawns fake props and people |
-| Bars | Alprazolam | Perfect steadiness, and **the HUD forgets to exist** |
-| Percs | Oxycodone | No fall damage, nothing hurts, everything is slow |
-| Acid | LSD | 34 seconds of flowing hue rotation; can't end it early |
-| Bread | Nothing at all | You're **full**: nothing else goes down until it wears off |
+| In-game | What it does to your hands |
+|---|---|
+| Fermented Berries | Input lag, drift, ragdoll landings, smashes through props |
+| Double-Double | 2× flap rate and **you cannot stand still** |
+| Whippet | 7 seconds of slow-motion, then you fall out of the sky |
+| Math | Fastest thing in the game and **you cannot turn** |
+| Grass | Slow, heavy, longest duration, **lowest** chaos multiplier |
+| Special K | **The camera detaches from your bird** and drifts |
+| Robo-Trippin' | Movement **snaps to 90°** |
+| Molly | Everything is wonderful; 13-second serotonin crash |
+| Darts | Barely anything — and **3× tolerance per dose** |
+| Catnip | Nothing to you. Turns every cat into your artillery. |
+| Toad Slime | Kaleidoscope trip you **cannot end early** |
+| Fly Agaric | **Macropsia** — your body pulses between 0.35× and 2.8× |
+| Gravy | **Deliriant** — spawns fake props and people |
+| Bars | Perfect steadiness, and **the HUD forgets to exist** |
+| Percs | No fall damage, nothing hurts, everything is slow |
+| Acid | 34 seconds of flowing hue rotation; can't end it early |
+| Bread | You're **full**: nothing else goes down until it wears off |
 
 **Systems:** tolerance (persists forever), comedowns, 5 named 2-way combos,
 3-at-once blackout, dose sweet-spot arc, hallucinations, macropsia body scaling,
