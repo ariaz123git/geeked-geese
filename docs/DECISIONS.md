@@ -71,7 +71,7 @@ IDs increment. Newest on top.
 
 ## D-093 · 2026-10-11 · The repo prepared for publishing on GitHub
 Status: Decided (human) — his instructions, carried out by an agent; published, public on GitHub since 2026-10-11
-Decision: Removed `KICKOFF_PROMPT.md`, `VIBECODING_BRIEFING.md` and `README_KIT.md` (the kit the project was started from), `docs/GIT_SETUP_PROMPT.md` and `docs/NEXT_SESSION.md` (its decisions are D-091; the cat-petting hooks it carried moved to HANDOFF §3 item 4). `tools/__pycache__/` and `.claude/` untracked and ignored. README rewritten from the top for a public reader; MIT `LICENSE`, copyright Ariaz Askarkani. The gate and substance counts in README and HANDOFF §1 became claims C-022 to C-025 — README said 16 substances and nine gates, HANDOFF 11 gates; the project has 17 and 13. `main` fast-forwarded to `session2-feel`, which stays as a branch name.
+Decision: Removed `README_KIT.md` and the other starter-kit files the project was begun from, `docs/GIT_SETUP_PROMPT.md` and `docs/NEXT_SESSION.md` (its decisions are D-091; the cat-petting hooks it carried moved to HANDOFF §3 item 4). `tools/__pycache__/` and `.claude/` untracked and ignored. README rewritten from the top for a public reader; MIT `LICENSE`, copyright Ariaz Askarkani. The gate and substance counts in README and HANDOFF §1 became claims C-022 to C-025 — README said 16 substances and nine gates, HANDOFF 11 gates; the project has 17 and 13. `main` fast-forwarded to `session2-feel`, which stays as a branch name.
 Why: The kit files were instructions for starting the project, not part of it. **Entries below that name the removed files are history and are left as written**, per this file's supersede-don't-edit rule; each file is still in git history (`git log --all -- <path>`).
 Refs: `README.md`, `LICENSE`, `.gitignore`, `docs/HANDOFF.md` §1–§3, `docs/CLAIMS.md` C-022 to C-025.
 
@@ -99,7 +99,7 @@ Decision: The `Open (human)` entries and the two design questions, closed:
 | **D-007** | the truck stop's closing beat stays proportional | no change |
 
 Why: The human handed these over and asked for a short session, so the cheap, contained one is built (D-084, which is a boss's difficulty and was this session's own recommendation) and the rest are decided in writing with enough detail that the next session builds them without re-deciding. **Substances-as-keys is the one with the most behind it**: it is the human's central critique (*"there's no thinking involved like 'should I take this drug vs this drug'"*), it was blocked only because an agent could not override a written design rule, and the "several keys per lock" form keeps that rule's real argument — sixteen control mutations must not become sixteen items. The effect groups, from the `.tres` files: through things — berries, fly agaric, math; big flap (`flap_mult` ≥ 1.2) — double-double, math, molly; light (`gravity_mult` ≤ 0.75) — special K, toad slime; slow time (`time_scale` ≤ 0.92) — nitrous, special K, robo, toad slime, grass; no fall damage — bars, percs, special K, toad slime. Every leg from 2 to 7 has at least two keys for at least one of them; leg 1, the tutorial, keeps its existing "on two things at once" objective instead.
-Refs: D-005, D-006, D-007, D-019, D-036, D-068, D-084, D-092; `docs/NEXT_SESSION.md` §1 and §4; `docs/HANDOFF.md` §3.
+Refs: D-005, D-006, D-007, D-019, D-036, D-068, D-084, D-092; `docs/NEXT_SESSION.md` §1 and §4 (removed 2026-10-11, D-093); `docs/HANDOFF.md` §3.
 
 ## D-090 · 2026-10-07 · The player's save, reset — the polluted keys only
 Status: Decided (agent) — under the human's delegation; the original is kept beside it
@@ -256,7 +256,7 @@ So the three grass patches are the nearest thing, all in the opening shot, and t
 **The instrument's first four runs were wrong in four ways**, each fixed where it happened and written into the tool's header: a ray from an underground origin found no ground; a ray stopping at a dumpster lid called the pickup on it "on foot"; views were measured after walking had moved the camera; and **the booted leg-1 zone, which never leaves the tree (probe_common lesson 7), answered for the zone under test** — the same grass read "on foot" in leg 2 and not in leg 1 until each trigger was asked directly.
 
 **Left for the human:** whether to move the double-double somewhere near and visible, keep it as the reward for exploring, or widen the shelf. Recommendation, not taken: move it off the dumpster to the lot's near side, because the combo it completes is what leg 1 is for.
-Refs: `tools/findtest.gd`; `scripts/core/main.gd::_probe_if_headless` (`--findtest`); `scripts/world/zone_strip_mall.gd::_sources`; `docs/NEXT_SESSION.md` §2.
+Refs: `tools/findtest.gd`; `scripts/core/main.gd::_probe_if_headless` (`--findtest`); `scripts/world/zone_strip_mall.gd::_sources`; `docs/NEXT_SESSION.md` §2 (removed 2026-10-11, D-093).
 
 ## D-067 · 2026-09-25 · `migtest`'s half crossing is measured, not divided
 Status: Decided (agent)

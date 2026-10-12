@@ -94,7 +94,7 @@ const VERIFY := "res://verify.ps1"
 
 ## THE RATCHET. `README_KIT.md` (since removed) said CLAUDE.md was "under 200 lines on purpose";
 ## it was 379, and nothing noticed because a line budget written in prose cannot
-## count. 200 is the target Anthropic's own guidance gives and it is where this
+## count. 200 is the widely recommended target and it is where this
 ## should end up; the ceiling below is TODAY'S SIZE, so the file can shrink
 ## toward 200 and can never grow again.
 ##

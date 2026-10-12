@@ -112,7 +112,7 @@ anything wrote it.
 
 | | |
 |---|---|
-| D-093 | **Removed** `KICKOFF_PROMPT.md`, `VIBECODING_BRIEFING.md` and `README_KIT.md` (the kit the project was started from), `docs/GIT_SETUP_PROMPT.md` (done) and `docs/NEXT_SESSION.md` (its decisions are D-091; the cat-petting hooks it carried are now in §3 item 4). **Untracked** `tools/__pycache__/` and `.claude/`, both now ignored. **README** rewritten from the top for a public reader; **MIT `LICENSE`**. The gate and substance counts in README and §1 are now claims (C-022 to C-025). `main` carries the full history; `session2-feel` is kept as a branch name. Published on GitHub on 2026-10-11 |
+| D-093 | **Removed** `README_KIT.md` and the other starter-kit files the project was begun from, `docs/GIT_SETUP_PROMPT.md` (done) and `docs/NEXT_SESSION.md` (its decisions are D-091; the cat-petting hooks it carried are now in §3 item 4). **Untracked** `tools/__pycache__/` and `.claude/`, both now ignored. **README** rewritten from the top for a public reader; **MIT `LICENSE`**. The gate and substance counts in README and §1 are now claims (C-022 to C-025). `main` carries the full history; `session2-feel` is kept as a branch name. Published on GitHub on 2026-10-11 |
 
 ### 2026-10-07 — short, on the human's word: "finish what u alr started, then wrap"
 
@@ -1010,7 +1010,7 @@ a look, which is D-036 and the human's.
 
 ## 7. How this session worked, for whoever picks it up
 
-Built in Cowork with heavy use of parallel subagents — one per independent
+Built with heavy use of parallel agents — one per independent
 workstream (a zone, a boss, the ending, the roster, a bug list). That works well,
 with three caveats earned the hard way:
 

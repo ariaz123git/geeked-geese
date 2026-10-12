@@ -6,7 +6,7 @@ parody "substances" that each change how the controls work: input lag, a camera
 that wanders off without you, movement that only goes in right angles. Geese
 lost on the flights stay lost, so the flock you land with is your score.
 
-<!-- GIF pending (Ariaz records a clip): uncomment when docs/media/gameplay.gif exists.
+<!-- GIF pending: uncomment when docs/media/gameplay.gif exists.
 ![Gameplay](docs/media/gameplay.gif)
 -->
 
