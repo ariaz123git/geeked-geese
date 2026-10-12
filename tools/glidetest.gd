@@ -7,7 +7,7 @@ extends RefCounted
 ## THIS IS A REPORT, NOT A GATE. IT ASSERTS NOTHING AND FAILS NOTHING.
 ## ═══════════════════════════════════════════════════════════════════════════
 ##
-## `docs/DECISIONS.md` **D-006** is `Open (human)` and must stay open: whether
+## `docs/DECISIONS.md` **D-006** is a design call that no report may close: whether
 ## one metre forward per metre down is the right glide is taste, and no file in
 ## this repo will ever have an opinion about it. But the argument AGAINST
 ## widening it is not taste — it is a claim about cost:
@@ -16,9 +16,8 @@ extends RefCounted
 ##   > the ground traversal the chaos scoring is built around, and silently
 ##   > invalidates *the goose cannot reach that* in eight zone builders."
 ##
-## **Nobody had counted it.** That is the highest form of help available here
-## per `CLAUDE.md`'s *"Taste is the human's"*: give an open decision its number
-## without closing it. So this walks every zone the director builds, finds every
+## **Nobody had counted it.** That is the most a measurement can do for a taste
+## decision: give it its number without closing it. So this walks every zone the director builds, finds every
 ## surface a goose could stand on, and reports how many of them can be reached
 ## from another surface **by gliding alone** at today's ratio and at three
 ## candidates. The deliverable is the DIFF of those sets.
@@ -97,7 +96,7 @@ const ELEVATED_Y := 1.5
 ## AND THE SAME WALK ANSWERS D-005, WHICH IS WHY IT IS IN THIS FILE
 ## ═══════════════════════════════════════════════════════════════════════════
 ##
-## `docs/DECISIONS.md` **D-005** is the other `Open (human)` traversal decision:
+## `docs/DECISIONS.md` **D-005** is the other traversal decision left to design:
 ## a plain descent arrives above `hard_landing_speed`, and on the seven
 ## substances that set `ragdoll_landings` that is an unavoidable faceplant.
 ## `docs/FEEL_TARGETS.md` §5.2 now carries the closed form —

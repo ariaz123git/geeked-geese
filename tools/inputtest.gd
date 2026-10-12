@@ -24,8 +24,8 @@ extends RefCounted
 ##
 ## Exit 0 = the bird obeys. Exit 1 = it does not, and the failing line says how.
 ##
-## WHAT THIS CANNOT DO: judge whether any of it FEELS good. That is the human's
-## job and this file does not have an opinion about it. Every threshold below is
+## WHAT THIS CANNOT DO: judge whether any of it FEELS good. That is a
+## playtester's job and this file does not have an opinion about it. Every threshold below is
 ## deliberately loose — they are there to catch "broken", never "not tuned".
 
 const TICK := 1.0 / 60.0
@@ -149,7 +149,7 @@ static func run(tree: SceneTree, main: Node) -> void:
 ## ESC, THROUGH THE VIEWPORT, LIKE A PLAYER
 ## ═══════════════════════════════════════════════════════════════════════════
 ##
-## **The human pressed Escape and reported "there is still no pause menu."**
+## **A playtester pressed Escape and reported "there is still no pause menu."**
 ## Twelve gates were green at the time. NOTHING IN THIS PROJECT HAS EVER SENT
 ## AN INPUT EVENT THROUGH THE VIEWPORT — every harness either calls
 ## `Input.action_press()`, which sets action STATE and never produces an
@@ -662,7 +662,7 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 	# 0.43 s after the first shattered the clipboard while it was still in the
 	# air above the goose, which routs the encounter, walks the man the 0.8 m to
 	# his door and frees the dog — the "previously freed instance" this raised.
-	# That is the game, not the harness: D-084, and it is the human's call. This
+	# That is the game, not the harness: D-084, a design call. This
 	# check is about Piper, so it waits the clipboard out.
 	for _w in 90:
 		await tree.physics_frame
@@ -816,7 +816,7 @@ static func _ranger_honk(tree: SceneTree, main: Node) -> void:
 
 	# THE WIN BY A DIVE (D-087). `_drop_board()` sets the clipboard's break_force
 	# beside "DESTROYING it costs you a run-up, a dive, a cat or a substance", and
-	# BOSS_DESIGN §2.1's win is breaking it. Whatever the human decides for
+	# BOSS_DESIGN §2.1's win is breaking it. Whatever is decided for
 	# D-084, this is the route that must keep working: a goose diving onto the
 	# clipboard breaks it and the Ranger leaves. Last, because it ends the
 	# encounter. Wait out Piper's carry, get a clipboard onto the ground, then

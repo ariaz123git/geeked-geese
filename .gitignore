@@ -28,5 +28,5 @@ __pycache__/
 # (since Godot 4.1, credentials live in .godot/export_credentials.cfg, not here).
 
 # 90 MB of superseded snapshot zips and three stale .godot caches.
-# Not deleted (that is the human's call) but never committed.
+# Kept locally on purpose, but never committed.
 _to_delete/

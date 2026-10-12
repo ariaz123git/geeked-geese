@@ -196,7 +196,7 @@ normal probe cannot reach, plus the standard probe at `--leg:8`. Twelve shots:
 arrival, fairway, green, pond, bunker, sprinkler, cooler, cart, clubhouse,
 settled, credits, slab, and one of the real `install()` path.
 
-Runtime checks on that path, with pasted output in the agent report: no script
+Runtime checks on that path, with pasted output in the build report: no script
 errors over 100 simulated seconds; 36 geese; 6/6 survivors settled; roll
 started; **0 visible CanvasLayers on Main**; `zone_running=false`;
 `time_scale=1.0`; mouse captured; honk wave queues 36 and drains to 0 and
@@ -210,15 +210,15 @@ unlocks and topples on `shove()`, breaks on a force-30 hit, and moves
 
 - `mus_green` stems (§3.3 above). The biggest gap.
 - The real credit names. `CREDITS` at the bottom of `zone_finale.gd` is ten
-  placeholder lines marked `TODO(human)`; everything above them in the roll is
-  generated from the run. Names of actual people are the one thing an AI should
-  not be inventing.
+  placeholder lines marked `TODO`; everything above them in the roll is
+  generated from the run. Names of actual people are the one thing that must
+  never be generated.
 - Per-goose loss data for the roster (§3.1) and the cross-run memorial (§3.2).
 - Zone-specific SFX. The sprinklers are silent; the ending's ambience is
   currently the honks and nothing else. A looping water bed would do more for
   this zone than any geometry left in it.
-- These notes were not written from play: the agent that built the ending
-  cannot play it. Every judgement in here about how it *feels* — the 7 s
+- These notes were written from measurements and renders, not from play.
+  Every judgement in here about how it *feels* — the 7 s
   settling cadence, the 2.55 s credit spacing, the 2.15 m/s walk speed of a
-  slab, whether the honk wave lands — is inference from a still image, and the
-  human's play is what settles it.
+  slab, whether the honk wave lands — is inference from a still image, and
+  playtesting is what settles it.

@@ -994,7 +994,7 @@ def gen_amb_parking_lot():
 # ---------------------------------------------------------------------------
 # The only objective evidence these beds work is the seam table this file
 # prints. Whether a bed sounds like the place it is named after is a judgement
-# no generator can make -- see CLAUDE.md, "What only the human can do".
+# no generator can make; it needs a listener.
 
 AMB_XFADE_MS = 140.0    ## crossfade at the wrap, every bed
 AMB_GUARD_S = 0.30      ## dead zone at the top of the loop for landmark events

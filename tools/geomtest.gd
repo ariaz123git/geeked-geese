@@ -74,13 +74,13 @@ const COMMON := preload("res://tools/probe_common.gd")
 ## declaration changes `model.scale` NON-UNIFORMLY: `stop_sign` would go to
 ## (1.07, 1.01, 0.57), squashing a model somebody authored to look right into
 ## the box its collider promises. Whether a prop should be squashed to fit its
-## hitbox or the hitbox resized to fit the prop is a LOOK, and looks are not an
-## agent’s — `CLAUDE.md`, "Taste is the human’s". The same reasoning D-009
+## hitbox or the hitbox resized to fit the prop is a LOOK, and looks are a
+## design call, not a gate’s (`CLAUDE.md`, on taste). The same reasoning D-009
 ## used to lock the glide ratio as a regression guard without endorsing it.
 ## The disagreement is printed in full on every run and logged as D-036.
 ##
 ## To act on it: change the FOOTPRINTS entry to the measured value, run
-## `verify.ps1 -Shots`, and look at the zone. That is a human’s afternoon, not
+## `verify.ps1 -Shots`, and look at the zone. That is a person’s afternoon, not
 ## a gate’s.
 const MESH_BASELINE := {
 	&"basketball": Vector3(0.390, 0.410, 0.400),
@@ -251,8 +251,8 @@ static func _walk_zone(tree: SceneTree, main: Node, leg: int, path: String) -> v
 ## Every pickup in this game is placed by hand-written arithmetic against a prop
 ## placed by other hand-written arithmetic, and **nothing has ever compared the
 ## two**. `zone_corn.gd::_sources()` carries a comment saying the first pass put
-## a pickup "INSIDE the collider" and had to be moved; that was found by looking,
-## once, by a human. The thermos two lines below it was still inside the grain
+## a pickup "INSIDE the collider" and had to be moved; that was found by looking
+## at a render, once. The thermos two lines below it was still inside the grain
 ## truck's cab afterwards, because the placement subtracts 1.3 m along world X
 ## and the truck is yawed 0.14 rad.
 ##

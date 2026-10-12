@@ -354,7 +354,7 @@ static func _lateral(tree: SceneTree, mig: Node, corridor: float) -> void:
 	#
 	# `_tick_player()` moves the bird at 17.0 m/s across a 26 m corridor, which
 	# is 1.53 s. THIS MEASURES 4.5 s — an effective 5.78 m/s, about a third of
-	# the stated speed — and I could not establish why:
+	# the stated speed — and the cause could not be established:
 	#
 	#   * the input is exactly (1.0000, 0.0000); raw strength 1.00, deadzone 0.20
 	#   * Engine.time_scale is 1.000 for every frame of the run
@@ -374,8 +374,8 @@ static func _lateral(tree: SceneTree, mig: Node, corridor: float) -> void:
 	# entire dodge — or this harness is wrong in a way the vertical channels
 	# happen not to expose. **Both possibilities are worth someone's time and
 	# neither is worth a build-failing window until one of them is established.**
-	# Asserting here would either wire in a red build or bless a number I do not
-	# understand. See docs/FEEL_TARGETS.md §6.
+	# Asserting here would either wire in a red build or bless a number nobody
+	# understands. See docs/FEEL_TARGETS.md §6.
 	_assert_window("lateral.full_cross", t, "s", 1.1, 2.4,
 		"edge to edge of the corridor. Under 1.1 s the whole lane is dodgeable inside one hazard gap and the corridor stops being a commitment; over 2.4 s even a half crossing misses leg 7's tightest gap")
 

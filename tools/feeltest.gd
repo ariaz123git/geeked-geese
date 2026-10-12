@@ -2,14 +2,14 @@ extends RefCounted
 ## THE FEEL HARNESS — the sixth gate, and the first one with an OPINION.
 ##
 ## THE GAP THIS EXISTS TO CLOSE. `tools/inputtest.gd` says so itself, in its own
-## header: "WHAT THIS CANNOT DO: judge whether any of it FEELS good. That is the
-## human's job and this file does not have an opinion about it. Every threshold
-## below is deliberately loose — they are there to catch 'broken', never 'not
-## tuned'."
+## header: "WHAT THIS CANNOT DO: judge whether any of it FEELS good. That is a
+## playtester's job and this file does not have an opinion about it. Every
+## threshold below is deliberately loose — they are there to catch 'broken',
+## never 'not tuned'."
 ##
-## That sentence is why every session of this project has opened by asking the
-## human to go and play it, and why `docs/HANDOFF.md` §3 has said "Play it" at
-## the top of the list twice in a row. The project could prove the bird MOVES.
+## That sentence is why the project's next step kept being a request to go and
+## play it, and why `docs/HANDOFF.md` §3 has said "Play it" at the top of the
+## list twice in a row. The project could prove the bird MOVES.
 ## It could not prove the bird moves WELL, so the only available move was to
 ## defer — and deferring is what made the loop stall.
 ##
@@ -17,7 +17,7 @@ extends RefCounted
 ##
 ##   * Things that are pure taste — is a waddling goose funny, is the honk timed
 ##     right, is the Ranger's voice good. **This file has nothing to say about
-##     those and never will.** They are the human's, permanently.
+##     those and never will.** They are left to playtesting, permanently.
 ##   * Things that are a NUMBER with a defensible window — how long the bird
 ##     takes to reach top speed, how far it slides after you let go, whether
 ##     holding the flap button converges on a climb rate or diverges into orbit.

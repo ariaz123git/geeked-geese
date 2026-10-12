@@ -5,18 +5,20 @@
 > **The human set the format on 2026-09-20: autonomous sessions.** §3 is the
 > queue, ranked. `docs/DECISIONS.md` D-091 holds the design material behind it.
 >
-> **On 2026-10-07 the human handed every open decision over** — *"u can make
-> all the decisions as u deem fit"* — **and D-091 made them all.** Nothing is
-> `Open (human)` any more. Making substances keys, moving leg 1's double-double,
-> the tolerance economy and cat petting are decided and queued as §3's items
-> 1 to 4: **build them, do not re-decide them.** Taste — whether it is fun —
-> stays the human's, which is why each is one revert away.
+> **On 2026-10-07 the human delegated every open decision, and D-091 made
+> them all.** Nothing is `Open (human)` any more. Making substances keys,
+> moving leg 1's double-double, the tolerance economy and cat petting are
+> decided and queued as §3's items 1 to 4: **build them, do not re-decide
+> them.** Taste — whether it is fun — stays the human's, which is why each is
+> one revert away.
 
-**Updated:** 2026-10-11, a publishing-prep session with no game change (D-093):
-the setup kit and two spent docs removed, the README rewritten for a public
-reader, an MIT license, and every commit's author set to a GitHub noreply
-address. Nothing is pushed; that waits on the human's go. Before it,
-2026-10-07, a short session (D-089 to D-092): a VOLUME slider
+**Updated:** 2026-10-12, docs and comments tidied for the public repo with no
+game change: local paths removed, D-093 marked published, and the gate count
+corrected in `verify.ps1`'s header and `docs/SESSION_PROTOCOL.md` (now claim
+C-026). Before it, 2026-10-11, a publishing-prep session (D-093): the setup kit
+and two spent docs removed, the README rewritten for a public reader and an MIT
+license; the repo went public on GitHub that day. Before it, 2026-10-07, a
+short session (D-089 to D-092): a VOLUME slider
 on the first screen Esc opens, the player's save reset, every open decision
 made under the human's delegation, and the honk made to hit equally hard at
 every height so it can knock the Ranger's clipboard loose but never finish him.
@@ -86,7 +88,7 @@ through the path a player's input takes, and assert what the far end did.
 | `--probe --substancetest` | all seventeen substances bite | 172 checks |
 | `--probe --migtest` | the flight answers the stick, the seven differ, **and Q hands off the lead — and flying the V is scored as holding your slot** | 22 measurements |
 | `--probe --rolltest` | the credit roll travels, **and H on the 18th green honks the goose, answers with the whole course, and starts the credits — and a honked slab falls over and scores nothing** |  |
-| `--doctest` | **the documents still tell the truth** | 217 claims |
+| `--doctest` | **the documents still tell the truth** | 223 claims |
 | `--audiotest` | **the WAVs are what their names claim, the volume sliders reach a bus, and quitting mid-sound leaks nothing** | 255 over 68 files |
 | `--probe --geomtest` | **a model is the size its table says, nothing edible is buried in a solid, and the bird stands ON the ground** | 56 over 15 kinds, 74 pickups |
 | `--probe --loop-test` | seven legs, seven flights and the ending | + the shelf census |
@@ -110,7 +112,7 @@ anything wrote it.
 
 | | |
 |---|---|
-| D-093 | **Removed** `KICKOFF_PROMPT.md`, `VIBECODING_BRIEFING.md` and `README_KIT.md` (the kit the project was started from), `docs/GIT_SETUP_PROMPT.md` (done) and `docs/NEXT_SESSION.md` (its decisions are D-091; the cat-petting hooks it carried are now in §3 item 4). **Untracked** `tools/__pycache__/` and `.claude/`, both now ignored. **README** rewritten from the top for a public reader; **MIT `LICENSE`**. The gate and substance counts in README and §1 are now claims (C-022 to C-025). `main` carries the full history; `session2-feel` is kept as a branch name. **Every commit's author and committer** are `Ariaz Askarkani <254025768+ariaz123git@users.noreply.github.com>`, so every hash changed; messages and trees did not. No remote, nothing pushed — the human playtests and gives the go |
+| D-093 | **Removed** `KICKOFF_PROMPT.md`, `VIBECODING_BRIEFING.md` and `README_KIT.md` (the kit the project was started from), `docs/GIT_SETUP_PROMPT.md` (done) and `docs/NEXT_SESSION.md` (its decisions are D-091; the cat-petting hooks it carried are now in §3 item 4). **Untracked** `tools/__pycache__/` and `.claude/`, both now ignored. **README** rewritten from the top for a public reader; **MIT `LICENSE`**. The gate and substance counts in README and §1 are now claims (C-022 to C-025). `main` carries the full history; `session2-feel` is kept as a branch name. Published on GitHub on 2026-10-11 |
 
 ### 2026-10-07 — short, on the human's word: "finish what u alr started, then wrap"
 
@@ -614,15 +616,15 @@ the empty dictionary does not supply. The idea is sound and the pattern is
 `tools/feeltest.gd`; the work is figuring out the per-kind default params first.
 Nothing was left in the tree.
 
-**Nobody has heard any of the ambience beds, including the agent that generated
-them — and that is still true.** What changed is that `--audiotest` (D-035) now
+**The ambience beds have never been auditioned by ear — and that is still
+true.** What changed is that `--audiotest` (D-035) now
 asserts what they ARE: that every bed loops, is long enough to be a bed, is not
 silent and does not clip. It still cannot tell you anything sounds good.
 Original text:
 
-**Nobody has heard any of the ambience beds, including the agent that generated
-them.** There is no audio probe and no way to listen headless. What *has* been
-measured, outside the engine: all seven loop with zero discontinuity at the wrap,
+**The ambience beds have never been auditioned by ear.** There is no audio
+probe and no way to listen headless. What *has* been measured, outside the
+engine: all seven loop with zero discontinuity at the wrap,
 have stable envelopes, and have spectral centroids that separate sensibly
 (lake-night lowest at 1521 Hz, truck stop and corn up at ~4.8 kHz). That is
 evidence, not the same thing as hearing them.

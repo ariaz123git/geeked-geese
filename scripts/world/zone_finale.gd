@@ -1647,9 +1647,9 @@ const ROUTE_KM := [
 	["THE 18TH GREEN · FLORIDA", 0],
 ]
 
-## TODO(human): these are placeholders for the real names. Everything above
-## them in the roll is generated from the run; this block is the only authored
-## text in the credits and it is the one thing an AI should not be making up.
+## TODO: these are placeholders for the real names. Everything above them in
+## the roll is generated from the run; this block is the only authored text in
+## the credits, and real names must be written by hand, never generated.
 const CREDITS := [
 	"GEEKED GEESE",
 	"BUILT IN GODOT",

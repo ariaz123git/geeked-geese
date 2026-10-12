@@ -559,7 +559,7 @@ static func _the_overdose() -> void:
 ## `goose_controller.gd` carries the precedent, in the long comment standing
 ## where `float_height` used to: *"a dial that cannot be connected to anything is
 ## worse than no dial, so it is gone rather than left as furniture."* That one
-## was found by a human reading the file. This one is found by running.
+## was found by reading the file. This one is found by running.
 ##
 ## THE RULE, AND IT NEEDS NO ALLOWLIST — which is the point, because an
 ## allowlist is where a real failure gets reclassified as an expected one. An
@@ -1032,7 +1032,7 @@ static func _the_result_clocks(main: Node) -> void:
 ## `tip_a` to `tip_b` halfway round. That ridge meets the base at TWO seams —
 ## where the switch happens and where the loop wraps — and only the wrap was
 ## closed. Every wedge in the project therefore shipped with a triangular hole:
-## both ears on the cat, both on the Ranger's retriever, and the human's nose.
+## both ears on the cat, both on the Ranger's retriever, and each person's nose.
 ##
 ## **It survived a render pass**, which is the part worth keeping. A hole in a
 ## closed model does not read as a hole; it reads as one dark facet, exactly
@@ -1818,8 +1818,8 @@ static func _mentions_in_code(src: String, name: String) -> bool:
 ## An objective file that nothing preloads is an orphan: it compiles, the gate
 ## passes, and its whole zone silently plays the `_generic()` set instead. That
 ## is not hypothetical — `mission_defs_stopover.gd` and `mission_defs_bigdown.gd`
-## both sat orphaned the moment they were written, because the agents that wrote
-## them owned their own file and not the dispatcher.
+## both sat orphaned the moment they were written, because each was written
+## alongside its own zone and nobody touched the dispatcher.
 static func _the_defs_are_wired() -> void:
 	var hub := FileAccess.open("res://scripts/core/mission_defs.gd", FileAccess.READ)
 	if hub == null:

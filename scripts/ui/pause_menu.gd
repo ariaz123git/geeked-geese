@@ -73,7 +73,7 @@ func _ready() -> void:
 	# PROCESS_MODE_WHEN_PAUSED this node is inert whenever the tree is running
 	# — and the only thing that pauses the tree is `_open_menu()`, below. So
 	# the menu could close itself and could never open itself, and Escape did
-	# nothing for the life of the project. The human found it by pressing
+	# nothing for the life of the project. A playtest found it by pressing
 	# Escape; twelve gates were green at the time, because not one of them had
 	# ever sent an input event through the viewport.
 	#
@@ -479,7 +479,7 @@ func _build_main_panel() -> PanelContainer:
 
 ## VOLUME, ON THE FIRST SCREEN ESC OPENS (D-089).
 ##
-## Settings has had Master, SFX and Music sliders for weeks, and the human still
+## Settings has had Master, SFX and Music sliders for weeks, and a playtester still
 ## asked for "a volume slider in settings" — they are one press deeper than a
 ## player looks. So the master volume sits here too, under the buttons, where it
 ## is on screen at 720p before the menu scrolls. It is the same `master_volume`

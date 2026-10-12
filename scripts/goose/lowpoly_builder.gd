@@ -236,7 +236,7 @@ func _max_radius(outline: PackedVector3Array, centre: Vector3) -> float:
 ##   nothing at all around b2                 <- the switch seam, OPEN
 ##
 ## So every wedge in the project shipped with a triangular hole in it: both
-## ears on the cat and on the Ranger's retriever, and the human's nose. On a
+## ears on the cat and on the Ranger's retriever, and each person's nose. On a
 ## closed model a hole reads as a dark facet rather than as a hole, which is
 ## why it survived a render pass — `CLAUDE.md`'s note that an inside-out mesh
 ## "shades plausibly" is the same trap.

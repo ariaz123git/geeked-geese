@@ -7,10 +7,9 @@ extends RefCounted
 ## WHAT THIS CAN AND CANNOT DO, STATED FIRST BECAUSE IT MATTERS
 ## ═══════════════════════════════════════════════════════════════════════════
 ##
-## **It cannot tell you anything sounds good.** No agent has heard a single one
-## of these files and none ever will; `docs/HANDOFF.md` §4 says so in as many
-## words — *"nobody has heard any of the ambience beds, including the agent that
-## generated them."* Every assertion below is about a property a WAV either has
+## **It cannot tell you anything sounds good.** A headless run cannot listen,
+## and `docs/HANDOFF.md` §4 records that the ambience beds have never been
+## auditioned by ear. Every assertion below is about a property a WAV either has
 ## or does not have, and none of them is an opinion.
 ##
 ## What it replaces is a much weaker check. `selftest.gd::_the_assets()` proves

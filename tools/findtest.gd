@@ -7,10 +7,9 @@ extends RefCounted
 ## THIS IS A REPORT, NOT A GATE. IT ASSERTS NOTHING AND FAILS NOTHING.
 ## ═══════════════════════════════════════════════════════════════════════════
 ##
-## The human, on playing leg 1: *"why are there no drugs on level one now? i
-## remember there used to be hella drugs but now all i can find is grass."*
+## A playtest of leg 1 reported that grass was the only substance it could find.
 ## D-068 (`docs/DECISIONS.md`) split that into two questions. How MANY substances
-## leg 1 offers is one constant and it is the human's (D-022, D-037). How
+## leg 1 offers is one constant and a design decision (D-022, D-037). How
 ## FINDABLE the ones it offers are is arithmetic, and nobody had counted it —
 ## the only record was a sentence saying the other pickups are "up a tree,
 ## elevated, or in a far corner".

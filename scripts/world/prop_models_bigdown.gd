@@ -35,7 +35,7 @@ extends RefCounted
 ## ---------------------------------------------------------------------------
 ## A model library returns meshes. A warehouse is only interesting if you can
 ## get inside it and land on top of it, which is collision, which is the zone's
-## job. The obvious failure mode is the encounter agent eyeballing wall
+## job. The obvious failure mode is the encounter code copying wall
 ## positions off this file's constants and getting one of them wrong by the
 ## wall thickness — at which point the goose walks through a wall in exactly one
 ## corner and nobody finds it for three builds.

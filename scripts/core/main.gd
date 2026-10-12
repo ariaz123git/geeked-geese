@@ -696,8 +696,8 @@ func _unhandled_input(e: InputEvent) -> void:
 
 
 ## Probe helper: how much interface is on screen. The finale's whole claim is
-## that it takes the HUD away, and "I looked at the screenshot" is a weaker
-## check than counting the layers.
+## that it takes the HUD away, and eyeballing a screenshot is a weaker check
+## than counting the layers.
 func _visible_layer_count() -> int:
 	var n := 0
 	for c in get_children():
@@ -1250,18 +1250,18 @@ func _probe_if_headless() -> void:
 		return
 
 	# A REPORT, NOT A GATE, and deliberately not in `tool_flags` or verify.ps1.
-	# It gives docs/DECISIONS.md D-006 — the glide ratio, Open (human) — the cost
+	# It gives docs/DECISIONS.md D-006 — the glide ratio, a design decision — the cost
 	# nobody had counted: how many surfaces in every built zone become reachable
 	# by glide alone if the ratio widens. It asserts nothing, because the
-	# decision is taste and an agent must not close it. See tools/glidetest.gd.
+	# decision is taste and a report must not close it. See tools/glidetest.gd.
 	if args.has("--glidetest"):
 		await preload("res://tools/glidetest.gd").run(get_tree(), self)
 		return
 
 	# A REPORT, NOT A GATE, same arrangement as --glidetest. How findable each
 	# leg's pickups are from where the goose starts: distance, height, and
-	# whether the opening camera can see them. The human's "all I can find is
-	# grass" on leg 1, given its numbers. See tools/findtest.gd.
+	# whether the opening camera can see them. A leg 1 playtest that found only
+	# grass, given its numbers. See tools/findtest.gd.
 	if args.has("--findtest"):
 		await preload("res://tools/findtest.gd").run(get_tree(), self)
 		return
@@ -1277,14 +1277,14 @@ func _probe_if_headless() -> void:
 
 	# THE SIXTH GATE, and the first one with an OPINION. inputtest proves the
 	# bird MOVES; its own header says its thresholds are there to catch "broken,
-	# never not tuned", and that judging feel "is the human's job". That sentence
+	# never not tuned", and that judging feel "is a playtester's job". That sentence
 	# is why this project's handoff has opened with "Play it" at the top of the
 	# list two sessions running.
 	#
 	# feeltest measures the half of feel that is a NUMBER — time to top speed,
 	# stop distance, whether held flap converges on a climb rate — against
 	# windows that each cite something this project already wrote down. The taste
-	# half (is a waddling goose funny) stays the human's, permanently. See
+	# half (is a waddling goose funny) stays with playtesting, permanently. See
 	# tools/feeltest.gd and docs/FEEL_TARGETS.md.
 	if args.has("--feeltest"):
 		await preload("res://tools/feeltest.gd").run(get_tree(), self)
@@ -1776,7 +1776,7 @@ func _probe_if_headless() -> void:
 	# --settings: the pause menu's Settings panel, opened the way a player opens
 	# it. Every Settings row is DRIVEN by `inputtest::_settings_walk()`, but none
 	# had ever been photographed — and "need a volume slider in settings" came from
-	# a human looking at a panel whose three volume sliders were already built.
+	# a playtester looking at a panel whose three volume sliders were already built.
 	if args.has("--settings"):
 		pause_menu.open()
 		for i in 14:

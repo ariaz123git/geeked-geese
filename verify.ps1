@@ -2,12 +2,14 @@
 <#
   Geeked Geese verification loop.
 
-    .\verify.ps1              # eleven gates: compile, invariants, controller, feel, substances,
-                              #   flight, credit roll, claims, audio, footprints, campaign
-                              # then step 12: the gate table in docs/HANDOFF.md, against
-                              #   the PASS lines those eleven just printed
+    .\verify.ps1              # 13 gates. Eleven headless runs: compile, invariants,
+                              #   controller, feel, substances, flight, credit roll,
+                              #   claims, audio, footprints, campaign; then step 12,
+                              #   the gate table in docs/HANDOFF.md against the PASS
+                              #   lines those eleven printed, and step 13, the
+                              #   player's save, which none of them may touch
     .\verify.ps1 -Shots       # also render every zone and tell you where the PNGs are
-    .\verify.ps1 -Quick       # skips the 20 s campaign run
+    .\verify.ps1 -Quick       # skips the substance, flight and campaign runs
     .\verify.ps1 -StepTimeout 60   # kill any gate still running after 60 s (the
                               #   default is per step, above its own failsafe)
 
@@ -210,7 +212,7 @@ if ($gateCode -ne 0) {
     Pass "compile gate" ($gateLines | Where-Object { $_ -match 'PASS' })
 }
 # A KILLED COMPILE GATE ENDS THE RUN. Every step after it boots the same
-# main.gd, so if this one could not finish, eleven more would each wait out
+# main.gd, so if this one could not finish, ten more would each wait out
 # their own limit and say nothing new. The lines printed above are the evidence;
 # run the gate unfiltered to see all of it (CLAUDE.md, "When `--gate` prints
 # nothing and never exits").
@@ -281,7 +283,7 @@ if ($inCode -ne 0) {
 # ---------------------------------------------------------------------------
 # 4. THE FEEL HARNESS. The controller gate above proves the bird MOVES; its own
 #    header says its thresholds catch "broken, never not tuned" and that judging
-#    feel "is the human's job". That sentence is why this project's handoff
+#    feel "is a playtester's job". That sentence is why this project's handoff
 #    opened with "Play it" at the top of the list two sessions running, and why
 #    nothing ever came off that list.
 #
@@ -320,7 +322,7 @@ if ($feelCode -ne 0) {
 #    that includes the brain chemistry, plus the clock, the body scale and
 #    whether letting go stops you. tools/substancetest.gd.
 #
-#    Skipped by -Quick: it is about 90 s, because it flies sixteen geese.
+#    Skipped by -Quick: it is about 90 s, because it flies seventeen geese.
 # ---------------------------------------------------------------------------
 if (-not $Quick) {
     Write-Host "`n=== substances ===" -ForegroundColor Cyan
@@ -347,10 +349,11 @@ if (-not $Quick) {
 #     whether the bird answers the stick while it is happening, which is the
 #     same gap that hid a four-second input lag for the life of the project.
 #
-#     Four asserted channels (climb, dive, dive-beats-climb, the honk rally) and
-#     two OBSERVED ones. The lateral rows are observed on purpose: the corridor
-#     crossing measures 5.78 m/s against a constant that says 17.0, and that is
-#     unexplained. tools/migtest.gd carries the full list of what was ruled out.
+#     Asserted: both lateral crossings, climb, dive, dive-beats-climb, idle
+#     sink, the honk rally, the lead handoff and the route's hazard curve; the
+#     rest print as OBSERVED. The lateral rows were observed-only while the
+#     crossing measured 5.78 m/s against a constant of 17.0 - the tree was
+#     pausing mid-measurement. tools/migtest.gd has the full account.
 # ---------------------------------------------------------------------------
 if (-not $Quick) {
     Write-Host "`n=== flight ===" -ForegroundColor Cyan
@@ -452,7 +455,7 @@ if ($audCode -ne 0) {
 #
 #     ASSERTS that the meshes do not drift. REPORTS that 11 of 15 declarations
 #     disagree with them - correcting one rescales the model non-uniformly,
-#     which is a look and therefore the human's call. D-036.
+#     which is a look and therefore a design call. D-036.
 # ---------------------------------------------------------------------------
 Write-Host "`n=== footprints ===" -ForegroundColor Cyan
 $r = Godot @('--headless','--no-header','--path',$root,'--','--probe','--geomtest') 360

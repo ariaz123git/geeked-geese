@@ -113,6 +113,7 @@ C-022  | 2026-10-11 | substances       | " substances**, all data-driven" | READ
 C-023  | 2026-10-11 | verify_steps     | " gates, about seven" | README.md
 C-024  | 2026-10-11 | substances       | " on the shelf.**"    | docs/HANDOFF.md
 C-025  | 2026-10-11 | verify_steps     | ".** `.\verify.ps1`"  | docs/HANDOFF.md
+C-026  | 2026-10-12 | verify_steps     | " gates, about seven" | docs/SESSION_PROTOCOL.md
 ```
 
 ---

@@ -31,7 +31,7 @@ stopped being the useful framing. **Rules age. State and decisions are dated.**
 
 ## Starting
 
-1. **Run `.\verify.ps1` before touching anything.** Eleven gates, about six
+1. **Run `.\verify.ps1` before touching anything.** 13 gates, about seven
    minutes. You need to know whether you inherited a green tree — if it is red
    when you arrive, that is the first thing to say and the first thing to fix.
 2. **Read HANDOFF §1–§4**, then skim **DECISIONS** for anything `Open (human)`.

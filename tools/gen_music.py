@@ -1074,7 +1074,7 @@ def build_migration():
 # ============================================================================
 # ------------------------------  STINGERS  ----------------------------------
 # ============================================================================
-# Rules I gave myself, from the research: a stinger is IN KEY and IN TEMPO
+# The rules, from the research: a stinger is IN KEY and IN TEMPO
 # with the bed (84 BPM, D mixolydian) so it lands like the band did it, not
 # like a notification. None of them are "funny". The score is the straight man
 # -- if it winks, the geese stop being funny, because the joke is that the

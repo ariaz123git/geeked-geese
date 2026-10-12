@@ -416,7 +416,7 @@ func _physics_process(delta: float) -> void:
 	# Deliberately NOT fixed by putting the bird into State.FLY when it leaves
 	# the ground: FLY has its own gravity, its own air control and a stamina
 	# drain, and handing all three to somebody who stepped off a kerb is a
-	# change to how the game FEELS, which is not mine to make. This fires the
+	# change to how the game FEELS, which is a design call, not a fix. This fires the
 	# consequence and nothing else.
 	#
 	# IT MUST BE A FALL, NOT A LAUNCH — and the first version of this got both

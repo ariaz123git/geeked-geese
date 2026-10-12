@@ -33,7 +33,7 @@ extends RefCounted
 ## COHERENT it is, not how correct. A confidently-wrong number in a well-written
 ## document is the most persuasive thing in the repo.
 ##
-## The other eight gates check that the GAME is right. This one checks that what
+## The other gates check that the GAME is right. This one checks that what
 ## the repo SAYS about the game is right, and it does it the only way that
 ## cannot itself rot: by recomputing every number from the booted project on
 ## every run. There is no stored expected value anywhere in this file.
